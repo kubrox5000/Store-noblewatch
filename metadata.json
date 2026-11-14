@@ -1,0 +1,8 @@
+{
+  "name": "Qevorin - متجر الساعات الفاخرة بالمغرب",
+  "description": "متجر Noblewatch الرسمي لجميع أنواع ساعات اليد الفاخرة والإكسسوارات في المغرب. تصاميم راقية، دفع عند الاستلام، وتوصيل مجاني وسريع لجميع مدن المملكة.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
