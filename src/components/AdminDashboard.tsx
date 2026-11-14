@@ -55,8 +55,18 @@ import {
   RefreshCw,
   ShieldAlert,
   Calendar,
+  Activity,
 } from 'lucide-react';
-import { SocialLinks, StorePolicies, SecurityBlockLog, OrderSecuritySettings } from '../types';
+import { SocialLinks, StorePolicies, SecurityBlockLog, OrderSecuritySettings, TrackingPixelsSettings } from '../types';
+import {
+  isValidFacebookPixelId,
+  isValidGoogleTagId,
+  getGoogleTagType,
+  initTrackingPixels,
+  runPixelVerificationTest,
+  getPixelDiagnostics,
+  type PixelsDiagnosticReport,
+} from '../utils/trackingPixels';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
 import { Product, Order, OrderItem, OrderStatus, Review, StoreSettings } from '../types';
@@ -1082,6 +1092,89 @@ export const AdminDashboard: React.FC = () => {
         [field]: value,
       },
     });
+  };
+
+  const defaultTrackingPixels: TrackingPixelsSettings = {
+    facebookEnabled: false,
+    facebookPixelId: '',
+    googleEnabled: false,
+    googleTagId: '',
+    googleAdsConversionLabel: '',
+  };
+
+  const currentTrackingPixels: TrackingPixelsSettings = {
+    ...defaultTrackingPixels,
+    ...(localSettings?.trackingPixels || settings?.trackingPixels || {}),
+  };
+
+  const updateTrackingPixelField = <K extends keyof TrackingPixelsSettings>(
+    field: K,
+    value: TrackingPixelsSettings[K]
+  ) => {
+    if (!localSettings) return;
+    setLocalSettings({
+      ...localSettings,
+      trackingPixels: {
+        ...currentTrackingPixels,
+        [field]: value,
+      },
+    });
+  };
+
+  const [pixelReport, setPixelReport] = useState<PixelsDiagnosticReport | null>(null);
+  const [isVerifyingPixels, setIsVerifyingPixels] = useState(false);
+
+  React.useEffect(() => {
+    if (activeTab === 'settings' && localSettings?.trackingPixels) {
+      initTrackingPixels(localSettings.trackingPixels);
+      setPixelReport(getPixelDiagnostics(localSettings.trackingPixels));
+    }
+  }, [activeTab]);
+
+  const handleSaveAndVerifyPixels = async () => {
+    if (!localSettings) return;
+    const cleanedPixels: TrackingPixelsSettings = {
+      facebookEnabled: Boolean(currentTrackingPixels.facebookEnabled),
+      facebookPixelId: String(currentTrackingPixels.facebookPixelId || '').trim(),
+      googleEnabled: Boolean(currentTrackingPixels.googleEnabled),
+      googleTagId: String(currentTrackingPixels.googleTagId || '').trim().toUpperCase(),
+      googleAdsConversionLabel: String(currentTrackingPixels.googleAdsConversionLabel || '').trim(),
+    };
+
+    if (cleanedPixels.facebookEnabled && !isValidFacebookPixelId(cleanedPixels.facebookPixelId)) {
+      showToast('معرف Facebook Pixel غير صالح — يجب أن يتكون من 10 إلى 20 رقماً فقط', 'error');
+      setPixelReport(getPixelDiagnostics(cleanedPixels));
+      return;
+    }
+
+    if (cleanedPixels.googleEnabled && !isValidGoogleTagId(cleanedPixels.googleTagId)) {
+      showToast('معرف Google Pixel غير صالح — يجب أن يبدأ بـ G- أو AW- أو GTM-', 'error');
+      setPixelReport(getPixelDiagnostics(cleanedPixels));
+      return;
+    }
+
+    const updatedSettings: StoreSettings = {
+      ...localSettings,
+      trackingPixels: cleanedPixels,
+    };
+    setLocalSettings(updatedSettings);
+    setIsVerifyingPixels(true);
+
+    try {
+      const savedOk = await updateSettings(updatedSettings);
+      const report = await runPixelVerificationTest(cleanedPixels);
+      setPixelReport(report);
+
+      if (savedOk) {
+        const fbOk = !cleanedPixels.facebookEnabled || (report.facebook.formatValid && report.facebook.sdkReady);
+        const gOk = !cleanedPixels.googleEnabled || (report.google.formatValid && report.google.sdkReady);
+        if (fbOk && gOk) {
+          showToast('تم حفظ إعدادات البيكسل والتحقق من اشتغالها بنجاح', 'success');
+        }
+      }
+    } finally {
+      setIsVerifyingPixels(false);
+    }
   };
 
   const handleBlockPhone = async (rawPhone: string) => {
@@ -4578,6 +4671,295 @@ export const AdminDashboard: React.FC = () => {
                         className="w-full bg-[#151822] border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-red-500 text-left font-mono"
                         dir="ltr"
                       />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2b. Facebook Pixel & Google Pixel Tracking + Live Verification */}
+                <div className="p-6 rounded-2xl bg-[#151822] border border-[#c5a869]/30 space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-500/15 flex items-center justify-center text-indigo-400">
+                        <Activity className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white">
+                          ربط بيكسل التتبع والإعلانات (Facebook Pixel & Google Pixel)
+                        </h4>
+                        <p className="text-[11px] text-gray-400">
+                          تتبع تلقائي لجميع أحداث التجارة الإلكترونية (مشاهدة المنتج، الإضافة للسلة، بدء الطلب، الشراء بعملة MAD)
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleSaveAndVerifyPixels}
+                      disabled={isVerifyingPixels}
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg disabled:opacity-50 cursor-pointer transition"
+                    >
+                      {isVerifyingPixels ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <ShieldCheck className="w-4 h-4" />
+                      )}
+                      <span>
+                        {isVerifyingPixels
+                          ? 'جاري الحفظ والفحص...'
+                          : 'حفظ وفحص اشتغال البيكسل الآن'}
+                      </span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-xs">
+                    {/* Facebook / Meta Pixel Card */}
+                    <div className="p-4 rounded-xl bg-[#1b1f2b] border border-white/10 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-blue-500/15 flex items-center justify-center text-blue-400">
+                            <Facebook className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="font-bold text-white block">Facebook / Meta Pixel</span>
+                            <span className="text-[10px] text-gray-400">Meta Ads Manager</span>
+                          </div>
+                        </div>
+
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <span className="text-[11px] text-gray-300 font-semibold">
+                            {currentTrackingPixels.facebookEnabled ? 'مفعل' : 'معطل'}
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={Boolean(currentTrackingPixels.facebookEnabled)}
+                            onChange={(e) =>
+                              updateTrackingPixelField('facebookEnabled', e.target.checked)
+                            }
+                            className="w-4 h-4 accent-[#c5a869] cursor-pointer"
+                          />
+                        </label>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-gray-300 font-semibold">
+                            معرف Facebook Pixel ID
+                          </label>
+                          {currentTrackingPixels.facebookPixelId && (
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                isValidFacebookPixelId(currentTrackingPixels.facebookPixelId)
+                                  ? 'bg-emerald-500/15 text-emerald-300'
+                                  : 'bg-rose-500/15 text-rose-300'
+                              }`}
+                            >
+                              {isValidFacebookPixelId(currentTrackingPixels.facebookPixelId)
+                                ? 'صيغة صحيحة'
+                                : 'يجب أن يكون أرقاماً فقط (10-20 رقماً)'}
+                            </span>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          value={currentTrackingPixels.facebookPixelId || ''}
+                          onChange={(e) =>
+                            updateTrackingPixelField(
+                              'facebookPixelId',
+                              e.target.value.replace(/[^\d]/g, '')
+                            )
+                          }
+                          placeholder="مثال: 123456789012345"
+                          className="w-full bg-[#151822] border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-blue-500 text-left font-mono"
+                          dir="ltr"
+                        />
+                        <p className="text-[10px] text-gray-500 mt-1">
+                          الأحداث المرسلة تلقائياً: PageView، ViewContent، AddToCart، InitiateCheckout، Purchase
+                        </p>
+                      </div>
+
+                      {/* Facebook Diagnostic Result */}
+                      {pixelReport && (
+                        <div
+                          className={`p-3 rounded-xl border text-[11px] space-y-1.5 ${
+                            !pixelReport.facebook.enabled
+                              ? 'bg-gray-900/40 border-white/10 text-gray-400'
+                              : pixelReport.facebook.scriptState === 'loaded' &&
+                                pixelReport.facebook.sdkReady
+                              ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300'
+                              : pixelReport.facebook.scriptState === 'blocked' &&
+                                pixelReport.facebook.formatValid
+                              ? 'bg-amber-950/40 border-amber-500/30 text-amber-300'
+                              : !pixelReport.facebook.formatValid
+                              ? 'bg-rose-950/40 border-rose-500/30 text-rose-300'
+                              : 'bg-blue-950/40 border-blue-500/30 text-blue-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between font-bold">
+                            <span className="flex items-center gap-1.5">
+                              {!pixelReport.facebook.enabled ? (
+                                <Clock className="w-3.5 h-3.5" />
+                              ) : pixelReport.facebook.scriptState === 'loaded' &&
+                                pixelReport.facebook.sdkReady ? (
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                              ) : pixelReport.facebook.scriptState === 'blocked' &&
+                                pixelReport.facebook.formatValid ? (
+                                <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                              ) : (
+                                <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                              )}
+                              <span>حالة Facebook Pixel:</span>
+                            </span>
+                            <span className="font-mono text-[10px]">
+                              {pixelReport.facebook.sdkReady ? 'fbq() جاهز' : 'fbq غير مهيأ'}
+                            </span>
+                          </div>
+                          <p className="leading-relaxed opacity-95">{pixelReport.facebook.note}</p>
+                          {pixelReport.facebook.testEventDispatched && (
+                            <div className="text-[10px] text-emerald-300 font-bold flex items-center gap-1">
+                              <Check className="w-3 h-3" />
+                              <span>تم إرسال حدث اختباري (NoblewatchPixelVerify) بنجاح</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Google Pixel (GA4 / Google Ads / GTM) Card */}
+                    <div className="p-4 rounded-xl bg-[#1b1f2b] border border-white/10 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-amber-500/15 flex items-center justify-center text-amber-400">
+                            <BarChart3 className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="font-bold text-white block">
+                              Google Pixel (Analytics / Ads / GTM)
+                            </span>
+                            <span className="text-[10px] text-gray-400">
+                              يدعم G-XXXXXXXX و AW-XXXXXXXX و GTM-XXXXXXX
+                            </span>
+                          </div>
+                        </div>
+
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <span className="text-[11px] text-gray-300 font-semibold">
+                            {currentTrackingPixels.googleEnabled ? 'مفعل' : 'معطل'}
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={Boolean(currentTrackingPixels.googleEnabled)}
+                            onChange={(e) =>
+                              updateTrackingPixelField('googleEnabled', e.target.checked)
+                            }
+                            className="w-4 h-4 accent-[#c5a869] cursor-pointer"
+                          />
+                        </label>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-gray-300 font-semibold">
+                              معرف Google Tag ID
+                            </label>
+                            {currentTrackingPixels.googleTagId && (
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                  isValidGoogleTagId(currentTrackingPixels.googleTagId)
+                                    ? 'bg-emerald-500/15 text-emerald-300'
+                                    : 'bg-rose-500/15 text-rose-300'
+                                }`}
+                              >
+                                {isValidGoogleTagId(currentTrackingPixels.googleTagId)
+                                  ? getGoogleTagType(currentTrackingPixels.googleTagId).toUpperCase()
+                                  : 'صيغة غير صالحة'}
+                              </span>
+                            )}
+                          </div>
+                          <input
+                            type="text"
+                            value={currentTrackingPixels.googleTagId || ''}
+                            onChange={(e) =>
+                              updateTrackingPixelField(
+                                'googleTagId',
+                                e.target.value.trim().toUpperCase()
+                              )
+                            }
+                            placeholder="G-XXXXXXXXXX أو AW-123456789"
+                            className="w-full bg-[#151822] border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-amber-500 text-left font-mono"
+                            dir="ltr"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-gray-300 font-semibold mb-1">
+                            رمز تحويل Google Ads (اختياري)
+                          </label>
+                          <input
+                            type="text"
+                            value={currentTrackingPixels.googleAdsConversionLabel || ''}
+                            onChange={(e) =>
+                              updateTrackingPixelField(
+                                'googleAdsConversionLabel',
+                                e.target.value.trim()
+                              )
+                            }
+                            placeholder="مثال: AbCdEfGhIjK12345"
+                            className="w-full bg-[#151822] border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-amber-500 text-left font-mono"
+                            dir="ltr"
+                          />
+                        </div>
+                      </div>
+
+                      <p className="text-[10px] text-gray-500">
+                        الأحداث المرسلة تلقائياً: page_view، view_item، add_to_cart، begin_checkout، purchase
+                      </p>
+
+                      {/* Google Diagnostic Result */}
+                      {pixelReport && (
+                        <div
+                          className={`p-3 rounded-xl border text-[11px] space-y-1.5 ${
+                            !pixelReport.google.enabled
+                              ? 'bg-gray-900/40 border-white/10 text-gray-400'
+                              : pixelReport.google.scriptState === 'loaded' &&
+                                pixelReport.google.sdkReady
+                              ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300'
+                              : pixelReport.google.scriptState === 'blocked' &&
+                                pixelReport.google.formatValid
+                              ? 'bg-amber-950/40 border-amber-500/30 text-amber-300'
+                              : !pixelReport.google.formatValid
+                              ? 'bg-rose-950/40 border-rose-500/30 text-rose-300'
+                              : 'bg-blue-950/40 border-blue-500/30 text-blue-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between font-bold">
+                            <span className="flex items-center gap-1.5">
+                              {!pixelReport.google.enabled ? (
+                                <Clock className="w-3.5 h-3.5" />
+                              ) : pixelReport.google.scriptState === 'loaded' &&
+                                pixelReport.google.sdkReady ? (
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                              ) : pixelReport.google.scriptState === 'blocked' &&
+                                pixelReport.google.formatValid ? (
+                                <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                              ) : (
+                                <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                              )}
+                              <span>حالة Google Pixel:</span>
+                            </span>
+                            <span className="font-mono text-[10px]">
+                              {pixelReport.google.sdkReady ? 'gtag / dataLayer جاهز' : 'غير مهيأ'}
+                            </span>
+                          </div>
+                          <p className="leading-relaxed opacity-95">{pixelReport.google.note}</p>
+                          {pixelReport.google.testEventDispatched && (
+                            <div className="text-[10px] text-emerald-300 font-bold flex items-center gap-1">
+                              <Check className="w-3 h-3" />
+                              <span>تم إرسال حدث اختباري (pixel_verification_test) بنجاح</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

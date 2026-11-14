@@ -9,6 +9,8 @@ import {
   OrderStatus,
 } from '../types';
 import { LANG_STORAGE_KEY } from './LanguageContext';
+import { getBundlePriceForQuantity } from '../utils/constants';
+import { trackPixelAddToCart, trackPixelPurchase } from '../utils/trackingPixels';
 
 const isFrenchActive = () => {
   try {
@@ -458,6 +460,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         },
       ];
     });
+    const calc = getBundlePriceForQuantity(product, quantity);
+    trackPixelAddToCart(product, quantity, calc.totalPrice / Math.max(1, quantity));
     showToast(
       isFrenchActive()
         ? `"${product.name}" ajouté au panier avec succès !`
@@ -499,6 +503,13 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       });
       const data = await res.json();
       if (data.success) {
+        if (data.order) {
+          trackPixelPurchase({
+            orderNumber: data.order.orderNumber,
+            totalAmount: Number(data.order.totalAmount) || 0,
+            items: Array.isArray(data.order.items) ? data.order.items : [],
+          });
+        }
         // Dynamically load confetti only after order success
         try {
           const { default: confetti } = await import('canvas-confetti');

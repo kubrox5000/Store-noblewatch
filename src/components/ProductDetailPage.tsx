@@ -24,6 +24,7 @@ import {
   calculateTierOffers,
   getBundlePriceForQuantity,
 } from '../utils/constants';
+import { trackPixelViewContent } from '../utils/trackingPixels';
 import { useStore } from '../context/StoreContext';
 import { useLanguage } from '../context/LanguageContext';
 import {
@@ -55,6 +56,10 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
 
   const productColors = getProductColors(product);
   const activeColor = productColors[selectedColorIndex] || productColors[0];
+
+  useEffect(() => {
+    trackPixelViewContent(product);
+  }, [product.id]);
 
   // Sync multiColors when quantity or color changes
   useEffect(() => {

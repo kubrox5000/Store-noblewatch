@@ -21,6 +21,7 @@ import type {
   Review,
   SecurityBlockLog,
   StoreSettings,
+  TrackingPixelsSettings,
 } from '../types.ts';
 
 function resolveSeedFile(): string {
@@ -57,6 +58,14 @@ export const DEFAULT_ORDER_SECURITY: OrderSecuritySettings = {
   blockedPhones: [],
 };
 
+export const DEFAULT_TRACKING_PIXELS: TrackingPixelsSettings = {
+  facebookEnabled: false,
+  facebookPixelId: '',
+  googleEnabled: false,
+  googleTagId: '',
+  googleAdsConversionLabel: '',
+};
+
 export interface StoreDatabaseSnapshot {
   settings: StoreSettings & { adminPasswordHash?: string };
   categories: Category[];
@@ -80,6 +89,10 @@ function buildSettingsObject(row: typeof storeSettingsTable.$inferSelect | undef
     ...DEFAULT_ORDER_SECURITY,
     ...((row?.orderSecurity as Partial<OrderSecuritySettings>) || {}),
   };
+  const trackingPixels: TrackingPixelsSettings = {
+    ...DEFAULT_TRACKING_PIXELS,
+    ...((row?.trackingPixels as Partial<TrackingPixelsSettings>) || {}),
+  };
   return {
     storeName: row?.storeName || 'Noblewatch',
     tagline: row?.tagline || '',
@@ -99,6 +112,7 @@ function buildSettingsObject(row: typeof storeSettingsTable.$inferSelect | undef
     adminPasswordHash: row?.adminPasswordHash || 'admin123',
     socialLinks: (row?.socialLinks as any) || {},
     orderSecurity: sec,
+    trackingPixels,
     faqs: Array.isArray(row?.faqs) ? row.faqs : [],
     policies: (row?.policies as any) || {
       privacy: '',
@@ -192,12 +206,32 @@ export async function ensureDatabaseSchema(): Promise<void> {
         to_regclass('public.store_settings') AS has_settings,
         to_regclass('public.products') AS has_products,
         to_regclass('public.media_assets') AS has_media_assets,
-        to_regclass('public.media_chunks') AS has_media_chunks
+        to_regclass('public.media_chunks') AS has_media_chunks,
+        EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'store_settings'
+            AND column_name = 'tracking_pixels'
+        ) AS has_tracking_pixels
     `);
     const row = (regCheck as any)?.rows?.[0] || {};
-    if (row.has_settings && row.has_products && row.has_media_assets && row.has_media_chunks) {
+    if (
+      row.has_settings &&
+      row.has_products &&
+      row.has_media_assets &&
+      row.has_media_chunks &&
+      row.has_tracking_pixels
+    ) {
       schemaEnsured = true;
       return;
+    }
+
+    if (row.has_settings && !row.has_tracking_pixels) {
+      await db.execute(sql`
+        ALTER TABLE store_settings
+        ADD COLUMN IF NOT EXISTS tracking_pixels jsonb NOT NULL DEFAULT '{}'::jsonb;
+      `);
     }
 
     if (!row.has_settings || !row.has_products) {
@@ -233,6 +267,7 @@ export async function ensureDatabaseSchema(): Promise<void> {
           admin_password_hash text NOT NULL DEFAULT 'admin123',
           social_links jsonb NOT NULL DEFAULT '{}'::jsonb,
           order_security jsonb NOT NULL DEFAULT '{}'::jsonb,
+          tracking_pixels jsonb NOT NULL DEFAULT '{}'::jsonb,
           faqs jsonb NOT NULL DEFAULT '[]'::jsonb,
           policies jsonb NOT NULL DEFAULT '{}'::jsonb,
           updated_at timestamp DEFAULT now()
@@ -442,6 +477,7 @@ async function seedDatabaseIfEmpty(): Promise<void> {
           adminPasswordHash: s.adminPasswordHash || 'admin123',
           socialLinks: s.socialLinks || {},
           orderSecurity: { ...DEFAULT_ORDER_SECURITY, ...(s.orderSecurity || {}) },
+          trackingPixels: { ...DEFAULT_TRACKING_PIXELS, ...(s.trackingPixels || {}) },
           faqs: Array.isArray(s.faqs) ? s.faqs : [],
           policies: s.policies || {},
         })
@@ -985,6 +1021,7 @@ export async function updateSettingsDb(merged: StoreSettings & { adminPasswordHa
         adminPasswordHash: merged.adminPasswordHash || 'admin123',
         socialLinks: merged.socialLinks || {},
         orderSecurity: merged.orderSecurity || DEFAULT_ORDER_SECURITY,
+        trackingPixels: merged.trackingPixels || DEFAULT_TRACKING_PIXELS,
         faqs: merged.faqs || [],
         policies: merged.policies || {
           privacy: '',
@@ -1016,6 +1053,7 @@ export async function updateSettingsDb(merged: StoreSettings & { adminPasswordHa
           adminPasswordHash: merged.adminPasswordHash || 'admin123',
           socialLinks: merged.socialLinks || {},
           orderSecurity: merged.orderSecurity || DEFAULT_ORDER_SECURITY,
+          trackingPixels: merged.trackingPixels || DEFAULT_TRACKING_PIXELS,
           faqs: merged.faqs || [],
           policies: merged.policies || {
             privacy: '',

@@ -3,6 +3,7 @@ import { X, Trash2, ShoppingBag, Truck, Zap, ShieldCheck } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useLanguage } from '../context/LanguageContext';
 import { formatPrice } from '../utils/constants';
+import { trackPixelInitiateCheckout } from '../utils/trackingPixels';
 import { translateColorName } from '../i18n/storefront';
 
 export const CartDrawer: React.FC = () => {
@@ -21,6 +22,16 @@ export const CartDrawer: React.FC = () => {
 
   const handleCheckoutAll = () => {
     if (cart.length === 0) return;
+    trackPixelInitiateCheckout({
+      items: cart.map((item) => ({
+        id: item.product.id,
+        name: item.product.name,
+        category: item.product.category,
+        price: Number(item.product.price) || 0,
+        quantity: item.quantity,
+      })),
+      totalValue: cartSubtotal,
+    });
     setIsCartOpen(false);
     setCheckoutProduct({
       product: cart[0].product,

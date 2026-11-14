@@ -26,6 +26,7 @@ import {
   calculateTierOffers,
   getBundlePriceForQuantity,
 } from '../utils/constants';
+import { trackPixelInitiateCheckout } from '../utils/trackingPixels';
 import {
   formatCityLabel,
   getCityValue,
@@ -124,6 +125,21 @@ export const CodCheckoutModal: React.FC = () => {
       setNameError('');
       setPhoneError('');
       setAddressError('');
+
+      const qty = Math.max(1, checkoutProduct.quantity || 1);
+      const calc = getBundlePriceForQuantity(checkoutProduct.product, qty);
+      trackPixelInitiateCheckout({
+        items: [
+          {
+            id: checkoutProduct.product.id,
+            name: checkoutProduct.product.name,
+            category: checkoutProduct.product.category,
+            price: calc.totalPrice / qty,
+            quantity: qty,
+          },
+        ],
+        totalValue: calc.totalPrice,
+      });
     }
   }, [checkoutProduct]);
 

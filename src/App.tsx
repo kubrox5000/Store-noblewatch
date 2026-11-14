@@ -11,6 +11,7 @@ import { ProductVideoSection } from './components/ProductVideoSection';
 import { WhyChooseUs } from './components/WhyChooseUs';
 import { CustomerReviews } from './components/CustomerReviews';
 import { Footer } from './components/Footer';
+import { initTrackingPixels, trackPixelPageView } from './utils/trackingPixels';
 import { CheckCircle, AlertCircle, Info, Sparkles, Compass, ShoppingBag, MessageCircle } from 'lucide-react';
 
 // Code-split heavy views and modals to shrink initial First Load JS
@@ -105,6 +106,19 @@ const MainContent: React.FC = () => {
     : null;
 
   useEffect(() => {
+    if (settings?.trackingPixels) {
+      initTrackingPixels(settings.trackingPixels);
+    }
+  }, [
+    settings?.trackingPixels?.facebookEnabled,
+    settings?.trackingPixels?.facebookPixelId,
+    settings?.trackingPixels?.googleEnabled,
+    settings?.trackingPixels?.googleTagId,
+    settings?.trackingPixels?.googleAdsConversionLabel,
+  ]);
+
+  const prevRouteProductIdRef = React.useRef<string | null | undefined>(undefined);
+  useEffect(() => {
     if (selectedProduct) {
       document.title = isFr
         ? `${selectedProduct.name} - Noblewatch Maroc | Paiement à la livraison`
@@ -114,6 +128,11 @@ const MainContent: React.FC = () => {
         ? 'Noblewatch | Montres & Accessoires de Luxe au Maroc - Paiement à la livraison'
         : 'Noblewatch | متجر الساعات والإكسسوارات الفاخرة بالمغرب - الدفع عند الاستلام';
     }
+    const currentId = selectedProduct?.id || null;
+    if (prevRouteProductIdRef.current !== undefined && prevRouteProductIdRef.current !== currentId) {
+      trackPixelPageView(document.title);
+    }
+    prevRouteProductIdRef.current = currentId;
   }, [selectedProduct, isFr]);
 
   return (

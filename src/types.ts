@@ -180,6 +180,14 @@ export interface SecurityBlockLog {
   ip?: string;
 }
 
+export interface TrackingPixelsSettings {
+  facebookEnabled: boolean;
+  facebookPixelId: string;
+  googleEnabled: boolean;
+  googleTagId: string;
+  googleAdsConversionLabel?: string;
+}
+
 export interface StoreSettings {
   storeName: string;
   tagline: string;
@@ -199,6 +207,7 @@ export interface StoreSettings {
   adminPasswordHash?: string;
   socialLinks?: SocialLinks;
   orderSecurity?: OrderSecuritySettings;
+  trackingPixels?: TrackingPixelsSettings;
   faqs: FaqItem[];
   policies: StorePolicies;
 }
