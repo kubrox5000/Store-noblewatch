@@ -410,7 +410,7 @@ const SPEC_VALUE_FR_TO_AR: Record<string, string> = {
 };
 
 function cleanCompetitorBrand(text: string): string {
-  return text.replace(/\s*sur\s+Eclatic\.ma/gi, '');
+  return text.replace(/[ \t]{2,}/g, ' ').trim();
 }
 
 function translateFrenchFeatureToArabic(raw: string): string {
@@ -716,7 +716,7 @@ export const translateProductDescription = (description: string, lang: Language)
 
   // lang === 'fr'
   if (!hasArabic(normalized)) {
-    return description.replace(/\s*sur\s+Eclatic\.ma/gi, '');
+    return description;
   }
 
   if (EXACT_DESCRIPTIONS_AR_TO_FR[normalized]) {
