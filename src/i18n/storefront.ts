@@ -15,30 +15,111 @@ export const translateOrderStatus = (status: string, lang: Language): string => 
   return map[status] || status;
 };
 
+const COLOR_AR_TO_FR: Record<string, string> = {
+  'أسود ملكي': 'Noir Royal',
+  'فضي كلاسيكي': 'Argent Classique',
+  'ذهبي فاخر': 'Or Luxe',
+  'روز غولد': 'Or Rose',
+  'أزرق ملكي': 'Bleu Royal',
+  'أزرق داكن': 'Bleu Nuit',
+  'أزرق': 'Bleu',
+  'أبيض': 'Blanc',
+  'أبيض لؤلؤي': 'Blanc Nacré',
+  'أسود': 'Noir',
+  'ذهبي': 'Or',
+  'فضي': 'Argent',
+  'أخضر': 'Vert',
+  'أخضر داكن': 'Vert profond',
+  'أخضر زمردي': 'Vert Émeraude',
+  'بني': 'Marron',
+  'رمادي': 'Gris',
+  'أحمر': 'Rouge',
+  'برونزي': 'Bronze',
+  'أصفر ذهبي': 'Jaune',
+  'شوكولاتة': 'Chocolat',
+  'أزرق سماوي': 'Bleu Marine',
+  'تركواز': 'Turquoise',
+  'افتراضي': 'Standard',
+};
+
+const COLOR_FR_TO_AR: Record<string, string> = {
+  'noir royal': 'أسود ملكي',
+  'argent classique': 'فضي كلاسيكي',
+  'or luxe': 'ذهبي فاخر',
+  'or rose': 'روز غولد',
+  'bleu royal': 'أزرق ملكي',
+  'bleu nuit': 'أزرق داكن',
+  'bleu': 'أزرق',
+  'blue': 'أزرق',
+  'blanc': 'أبيض',
+  'white': 'أبيض',
+  'blanc nacré': 'أبيض لؤلؤي',
+  'noir': 'أسود',
+  'black': 'أسود',
+  'or': 'ذهبي',
+  'gold': 'ذهبي',
+  'argent': 'فضي',
+  'silver': 'فضي',
+  'vert': 'أخضر',
+  'green': 'أخضر',
+  'vert profond': 'أخضر داكن',
+  'vert émeraude': 'أخضر زمردي',
+  'marron': 'بني',
+  'brown': 'بني',
+  'brun': 'بني',
+  'gris': 'رمادي',
+  'grey': 'رمادي',
+  'gray': 'رمادي',
+  'rouge': 'أحمر',
+  'red': 'أحمر',
+  'bronze': 'برونزي',
+  'jaune': 'أصفر ذهبي',
+  'yellow': 'أصفر ذهبي',
+  'chocolat': 'شوكولاتة (بني)',
+  'chocolate': 'شوكولاتة (بني)',
+  'marine': 'أزرق داكن',
+  'navy': 'أزرق داكن',
+  'turquoise': 'تركواز',
+  'turquoise / bleu et noir': 'تركواز / أزرق وأسود',
+  'brun / effet tropical': 'بني / تأثير استوائي',
+  'blanc avec compteurs noirs': 'أبيض مع عدادات سوداء',
+  'classique': 'كلاسيكي',
+  'standard': 'قياسي',
+};
+
 export const translateColorName = (name: string, lang: Language): string => {
-  if (lang === 'ar' || !name) return name;
-  const exact: Record<string, string> = {
-    'أسود ملكي': 'Noir Royal',
-    'فضي كلاسيكي': 'Argent Classique',
-    'ذهبي فاخر': 'Or Luxe',
-    'روز غولد': 'Or Rose',
-    'أزرق ملكي': 'Bleu Royal',
-    'أزرق داكن': 'Bleu Nuit',
-    'أزرق': 'Bleu',
-    'أبيض': 'Blanc',
-    'أبيض لؤلؤي': 'Blanc Nacré',
-    'أسود': 'Noir',
-    'ذهبي': 'Or',
-    'فضي': 'Argent',
-    'أخضر': 'Vert',
-    'أخضر زمردي': 'Vert Émeraude',
-    'بني': 'Marron',
-    'رمادي': 'Gris',
-    'أحمر': 'Rouge',
-    'افتراضي': 'Standard',
-  };
-  if (exact[name.trim()]) return exact[name.trim()];
-  return name;
+  if (!name) return name;
+  const trimmed = name.trim();
+  const hasAr = /[\u0600-\u06FF]/.test(trimmed);
+
+  if (lang === 'ar') {
+    if (hasAr) return trimmed;
+    const lower = trimmed.toLowerCase();
+    if (COLOR_FR_TO_AR[lower]) return COLOR_FR_TO_AR[lower];
+
+    // Translate simple multi-part colors separated by "/" or "et"
+    if (trimmed.includes('/')) {
+      return trimmed
+        .split('/')
+        .map((part) => translateColorName(part.trim(), 'ar'))
+        .join(' / ');
+    }
+    if (/\set\s/i.test(trimmed)) {
+      return trimmed
+        .split(/\s+et\s+/i)
+        .map((part) => translateColorName(part.trim(), 'ar'))
+        .join(' و ');
+    }
+    return trimmed;
+  }
+
+  // lang === 'fr'
+  if (COLOR_AR_TO_FR[trimmed]) return COLOR_AR_TO_FR[trimmed];
+  const lower = trimmed.toLowerCase();
+  if (lower === 'blue') return 'Bleu';
+  if (lower === 'black') return 'Noir';
+  if (lower === 'silver') return 'Argent (Silver)';
+  return trimmed;
 };
 
 export const formatCityLabel = (cityEntry: string, lang: Language): string => {
@@ -55,7 +136,8 @@ export const getCityValue = (cityEntry: string, lang: Language): string => {
     const match = cityEntry.match(/\(([^)]+)\)/);
     if (match && match[1]) return match[1].trim();
   }
-  return cityEntry.split(' ')[0];
+  if (cityEntry.startsWith('أخرى')) return 'أخرى';
+  return cityEntry.replace(/\s*\([^)]*\)/g, '').trim();
 };
 
 export const localizeTierBadge = (badge: string | undefined, lang: Language): string | undefined => {

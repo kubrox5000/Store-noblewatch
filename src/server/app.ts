@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import { adminAuth } from '../lib/firebase-admin.ts';
 import {
   DEFAULT_ORDER_SECURITY,
+  DEFAULT_PROMO_CODES,
   assembleMediaChunksDb,
   clearAllOrdersDb,
   clearSecurityLogsDb,
@@ -37,6 +38,72 @@ import {
   isAuthorizedAdminRequest,
   issueAdminSessionToken,
 } from './adminAuth.ts';
+
+function normalizeCityServer(city: unknown): string {
+  const trimmed = String(city || '').trim();
+  if (!trimmed) return '';
+  if (trimmed === 'الدار') return 'الدار البيضاء';
+  if (trimmed === 'بني') return 'بني ملال';
+  if (trimmed === 'القصر') return 'القصر الكبير';
+  return trimmed;
+}
+
+function evaluatePromoCodeServer(
+  rawCode: unknown,
+  subtotal: number,
+  promoList: any[] | undefined,
+  lang: string = 'ar'
+): {
+  valid: boolean;
+  promo?: { code: string; type: 'percent' | 'fixed'; value: number; discountAmount: number };
+  message?: string;
+} {
+  const normalized = String(rawCode || '').trim().toUpperCase();
+  const isFr = lang === 'fr';
+  if (!normalized) {
+    return {
+      valid: false,
+      message: isFr ? 'Veuillez saisir un code promo.' : 'يرجى إدخال رمز التخفيض أولاً.',
+    };
+  }
+  const activeList = Array.isArray(promoList) ? promoList : DEFAULT_PROMO_CODES;
+  const matched = activeList.find(
+    (p: any) => String(p?.code || '').trim().toUpperCase() === normalized && p?.active !== false
+  );
+  if (!matched) {
+    return {
+      valid: false,
+      message: isFr
+        ? 'Code promo invalide ou expiré.'
+        : 'رمز التخفيض غير صحيح أو غير مفعل حالياً.',
+    };
+  }
+  const minAmt = Math.max(0, Number(matched.minOrderAmount) || 0);
+  if (subtotal < minAmt) {
+    return {
+      valid: false,
+      message: isFr
+        ? `Ce code nécessite un montant minimum de ${minAmt} DH.`
+        : `يتطلب هذا الرمز طلباً بقيمة لا تقل عن ${minAmt} درهم.`,
+    };
+  }
+  const ruleType: 'percent' | 'fixed' = matched.type === 'fixed' ? 'fixed' : 'percent';
+  const rawVal = Math.max(0, Number(matched.value) || 0);
+  const discountAmount =
+    ruleType === 'fixed'
+      ? Math.min(subtotal, Math.round(rawVal))
+      : Math.min(subtotal, Math.round((subtotal * Math.min(90, rawVal)) / 100));
+
+  return {
+    valid: true,
+    promo: {
+      code: String(matched.code).trim().toUpperCase(),
+      type: ruleType,
+      value: rawVal,
+      discountAmount,
+    },
+  };
+}
 
 export const IS_SERVERLESS = Boolean(
   process.env.NETLIFY ||
@@ -504,12 +571,17 @@ app.get('/api/store-data', async (req: Request, res: Response) => {
       : [];
 
     const { adminPasswordHash: _pw, ...publicSettings } = db.settings || ({} as any);
+    const mergedOrderSecurity = {
+      ...DEFAULT_ORDER_SECURITY,
+      ...(publicSettings.orderSecurity || {}),
+    };
+    if (!isAdminAuthenticated) {
+      delete (mergedOrderSecurity as any).promoCodes;
+      delete publicSettings.promoCodes;
+    }
     const mergedSettings = {
       ...publicSettings,
-      orderSecurity: {
-        ...DEFAULT_ORDER_SECURITY,
-        ...(publicSettings.orderSecurity || {}),
-      },
+      orderSecurity: mergedOrderSecurity,
     };
 
     return res.json({
@@ -526,6 +598,26 @@ app.get('/api/store-data', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching store-data:', error);
     return res.status(500).json({ success: false, message: 'تعذر تحميل بيانات المتجر من قاعدة البيانات' });
+  }
+});
+
+// Public Promo / Discount Code validation endpoint
+app.post('/api/promo/validate', async (req: Request, res: Response) => {
+  try {
+    const { code, subtotal, lang } = req.body || {};
+    const db = await getStoreSnapshot();
+    const promoList = Array.isArray(db.settings?.promoCodes)
+      ? db.settings.promoCodes
+      : DEFAULT_PROMO_CODES;
+    const numericSubtotal = Math.max(0, Number(subtotal) || 0);
+    const result = evaluatePromoCodeServer(code, numericSubtotal, promoList, String(lang || 'ar'));
+    if (!result.valid || !result.promo) {
+      return res.status(400).json({ success: false, message: result.message });
+    }
+    return res.json({ success: true, promo: result.promo });
+  } catch (error) {
+    console.error('Error validating promo code:', error);
+    return res.status(500).json({ success: false, message: 'تعذر التحقق من رمز التخفيض حالياً' });
   }
 });
 
@@ -562,12 +654,14 @@ app.get('/api/orders/lookup', async (req: Request, res: Response) => {
     await processConfirmedToPreparingTransitions(db);
 
     const upper = rawQuery.toUpperCase();
+    const strippedCertPrefix = upper.replace(/^NW-WR-/, '');
     const cleanedPhone = normalizeMoroccanPhoneServer(rawQuery);
     const deletedSet = new Set(db.deletedOrderIds || []);
 
     const found = (db.orders || []).find((o: any) => {
       if (deletedSet.has(o.id) || deletedSet.has(o.orderNumber)) return false;
-      if (String(o.orderNumber || '').toUpperCase() === upper) return true;
+      const ordNum = String(o.orderNumber || '').toUpperCase();
+      if (ordNum === upper || ordNum === strippedCertPrefix) return true;
       const ordPhone = normalizeMoroccanPhoneServer(o.phone || '');
       return cleanedPhone.length >= 9 && ordPhone === cleanedPhone;
     });
@@ -587,6 +681,7 @@ app.get('/api/orders/lookup', async (req: Request, res: Response) => {
 app.get('/api/orders/public/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const normalizedId = String(id || '').trim().replace(/^NW-WR-/i, '');
     const db = await getStoreSnapshot();
     await processConfirmedToPreparingTransitions(db);
     const deletedSet = new Set(db.deletedOrderIds || []);
@@ -595,7 +690,7 @@ app.get('/api/orders/public/:id', async (req: Request, res: Response) => {
       (o: any) =>
         !deletedSet.has(o.id) &&
         !deletedSet.has(o.orderNumber) &&
-        (o.id === id || o.orderNumber === id)
+        (o.id === id || o.orderNumber === id || o.id === normalizedId || o.orderNumber === normalizedId)
     );
 
     if (!found) {
@@ -853,7 +948,7 @@ app.post('/api/admin/change-password', async (req: Request, res: Response) => {
 app.post('/api/orders', async (req: Request, res: Response) => {
   try {
     cleanupSecurityMaps();
-    const { customerName, phone, city, address, notes, items, security, website } = req.body;
+    const { customerName, phone, city, address, notes, items, security, website, promoCode } = req.body;
 
     if (!customerName || !phone || !city || !address || String(address).trim().length < 5 || !items || !items.length) {
       return res.status(400).json({
@@ -1135,7 +1230,26 @@ app.post('/api/orders', async (req: Request, res: Response) => {
     });
 
     const shippingFee = 0;
-    const totalAmount = subtotal + shippingFee;
+    let discountAmount = 0;
+    let appliedPromoCode = '';
+    if (promoCode && String(promoCode).trim()) {
+      const promoList = Array.isArray(db.settings?.promoCodes)
+        ? db.settings.promoCodes
+        : DEFAULT_PROMO_CODES;
+      const evalRes = evaluatePromoCodeServer(promoCode, subtotal, promoList, 'ar');
+      if (evalRes.valid && evalRes.promo && evalRes.promo.discountAmount > 0) {
+        discountAmount = evalRes.promo.discountAmount;
+        appliedPromoCode = evalRes.promo.code;
+      }
+    }
+    const totalAmount = Math.max(0, subtotal - discountAmount + shippingFee);
+
+    const promoNoteTag = appliedPromoCode
+      ? `[رمز التخفيض: ${appliedPromoCode} (-${discountAmount} MAD)]`
+      : '';
+    const combinedCustomerNotes = [notes ? notes.trim() : '', promoNoteTag]
+      .filter(Boolean)
+      .join(' | ');
 
     const newOrder: any = {
       id: `ord-${Date.now()}`,
@@ -1143,24 +1257,30 @@ app.post('/api/orders', async (req: Request, res: Response) => {
       date: new Date().toISOString(),
       customerName: customerName.trim(),
       phone: phone.trim(),
-      city: city.trim(),
+      city: normalizeCityServer(city),
       address: String(address).trim(),
-      notes: notes ? notes.trim() : '',
+      notes: combinedCustomerNotes,
       items: validatedItems,
       subtotal,
       shippingFee,
       totalAmount,
+      promoCode: appliedPromoCode || undefined,
+      discountAmount: discountAmount || undefined,
       paymentMethod: 'COD (الدفع عند الاستلام)',
       status: 'جديد',
       whatsappSent: false,
       customerAction: 'pending',
       clientIp,
-      adminNotes: 'طلب جديد تم تسجيله بنجاح (تم اجتياز فحص الحماية)',
+      adminNotes: appliedPromoCode
+        ? `طلب جديد تم تسجيله بنجاح — تم تطبيق رمز التخفيض ${appliedPromoCode} (-${discountAmount} MAD)`
+        : 'طلب جديد تم تسجيله بنجاح (تم اجتياز فحص الحماية)',
       history: [
         {
           status: 'جديد',
           time: new Date().toISOString(),
-          note: 'تم تسجيل الطلب عبر المتجر بنجاح بعد التحقق الأمني',
+          note: appliedPromoCode
+            ? `تم تسجيل الطلب عبر المتجر بنجاح مع تطبيق رمز التخفيض ${appliedPromoCode} (-${discountAmount} MAD)`
+            : 'تم تسجيل الطلب عبر المتجر بنجاح بعد التحقق الأمني',
         },
       ],
     };
@@ -1223,7 +1343,7 @@ app.patch('/api/orders/:id', async (req: Request, res: Response) => {
       detailsEdited = true;
     }
     if (city !== undefined) {
-      order.city = String(city).trim();
+      order.city = normalizeCityServer(city);
       detailsEdited = true;
     }
     if (address !== undefined) {
@@ -1579,10 +1699,30 @@ app.put('/api/settings', async (req: Request, res: Response) => {
 
     const payload = { ...req.body };
     delete payload.adminPasswordHash;
+    const stripBidi = (v: unknown) =>
+      typeof v === 'string'
+        ? v.replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '').trim()
+        : v;
+    if (typeof payload.whatsappNumber === 'string') {
+      payload.whatsappNumber = stripBidi(payload.whatsappNumber) as string;
+    }
+    if (typeof payload.contactPhone === 'string') {
+      payload.contactPhone = stripBidi(payload.contactPhone) as string;
+    }
     if (payload.heroImage && typeof payload.heroImage === 'string' && payload.heroImage.startsWith('data:image/')) {
       payload.heroImage = await extractBase64ImageToStorage(payload.heroImage, 'hero_banner', 0);
     }
-    const mergedSettings = { ...db.settings, ...payload };
+    const mergedSettings = {
+      ...db.settings,
+      ...payload,
+      socialLinks: {
+        ...(db.settings?.socialLinks || {}),
+        ...(payload.socialLinks || {}),
+        ...(typeof payload.whatsappNumber === 'string' && payload.whatsappNumber
+          ? { whatsapp: payload.whatsappNumber }
+          : {}),
+      },
+    };
     await updateSettingsDb(mergedSettings);
     const { adminPasswordHash: _pw, ...publicSettings } = mergedSettings;
     return res.json({ success: true, settings: publicSettings });

@@ -16,6 +16,7 @@ import {
   ArrowRight,
   ArrowLeft,
   Check,
+  Gift,
 } from 'lucide-react';
 import { Product } from '../types';
 import {
@@ -23,6 +24,7 @@ import {
   getProductColors,
   calculateTierOffers,
   getBundlePriceForQuantity,
+  buildWhatsAppUrl,
 } from '../utils/constants';
 import { trackPixelViewContent } from '../utils/trackingPixels';
 import { useStore } from '../context/StoreContext';
@@ -349,9 +351,13 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                   <span>{isFr ? 'Vérifiez votre montre avant de payer' : 'افحص ساعتك قبل أن تدفع'}</span>
                 </span>
-                <span className="flex items-center gap-1.5">
+                <span className="flex items-center gap-1.5 text-[#8a5a00]">
                   <ShieldCheck className="w-4 h-4 text-[#996515]" />
-                  <span>{isFr ? 'Garantie officielle 1 an' : 'ضمان رسمي لمدة سنة'}</span>
+                  <span>{isFr ? 'Certificat de garantie 1 an inclus' : 'شهادة ضمان لمدة سنة عند الشراء'}</span>
+                </span>
+                <span className="flex items-center gap-1.5 text-emerald-800 font-bold">
+                  <Gift className="w-4 h-4 text-emerald-700" />
+                  <span>{isFr ? 'Cadeau gratuit offert' : 'هدية مجانية عند الشراء'}</span>
                 </span>
               </div>
             </div>
@@ -622,11 +628,12 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                 </button>
 
                 <a
-                  href={`https://wa.me/${(settings?.whatsappNumber || '+212612345678').replace(/\+/g, '')}?text=${encodeURIComponent(
+                  href={buildWhatsAppUrl(
+                    settings?.whatsappNumber,
                     isFr
                       ? `Bonjour, je souhaite commander la montre ${product.name} (Réf : ${product.sku}) couleur : ${translateColorName(activeColor?.name || '', lang)}`
-                      : `السلام عليكم، بغيت نطلب ساعة ${product.name} (رمز: ${product.sku}) بلون: ${activeColor?.name || 'الافتراضي'}`
-                  )}`}
+                      : `السلام عليكم، بغيت نطلب ساعة ${product.name} (رمز: ${product.sku}) بلون: ${translateColorName(activeColor?.name || 'الافتراضي', lang)}`
+                  )}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold text-xs transition"
@@ -676,16 +683,55 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                 <span>
                   {isFr ? (
                     <>
-                      <strong className="text-gray-900">Échange & Garantie :</strong> échange sous 7 jours et
-                      garantie officielle 1 an.
+                      <strong className="text-gray-900">Échange & Certificat de garantie :</strong> échange sous 7 jours et
+                      certificat de garantie officiel d’un an remis à l’achat.
                     </>
                   ) : (
                     <>
-                      <strong className="text-gray-900">استبدال وضمان:</strong> إمكانية الاستبدال خلال 7
-                      أيام وضمان رسمي لمدة سنة.
+                      <strong className="text-gray-900">استبدال وشهادة ضمان لمدة سنة:</strong> إمكانية الاستبدال خلال 7
+                      أيام، وعند شراء أي منتج تحصلون على شهادة ضمان رسمية لمدة سنة كاملة.
                     </>
                   )}
                 </span>
+              </div>
+            </div>
+
+            {/* Dedicated 1-Year Warranty Certificate & Free Gift Cards */}
+            <div className="space-y-3">
+              <div className="p-3.5 rounded-xl bg-gradient-to-r from-[#fefaf0] to-amber-50/70 border border-[#c5a869]/60 flex items-center gap-3 shadow-xs">
+                <div className="w-9 h-9 rounded-lg bg-[#11131a] text-[#f3d999] flex items-center justify-center flex-shrink-0">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div className="text-xs leading-relaxed text-slate-800">
+                  <div className="font-black text-[#8a5a00]">
+                    {isFr
+                      ? 'Certificat de garantie officiel d’un an inclus'
+                      : 'شهادة ضمان رسمية لمدة سنة كاملة عند الشراء'}
+                  </div>
+                  <p className="text-[11px] text-slate-700">
+                    {isFr
+                      ? 'À l’achat de ce produit, vous obtenez un certificat de garantie officiel d’un an contre tout défaut de fabrication.'
+                      : 'عند شراء هذا المنتج أو أي منتج آخر من المتجر، يحصل الزبون على شهادة ضمان رسمية لمدة سنة ضد أي عطب مصنعي مع رمز تحقق QR.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-50 to-[#fefaf0] border border-emerald-300/80 flex items-center gap-3 shadow-xs">
+                <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center flex-shrink-0">
+                  <Gift className="w-5 h-5" />
+                </div>
+                <div className="text-xs leading-relaxed text-slate-800">
+                  <div className="font-black text-emerald-900">
+                    {isFr
+                      ? 'Cadeau gratuit offert avec votre achat'
+                      : 'هدية مجانية عند شراء أي منتج'}
+                  </div>
+                  <p className="text-[11px] text-slate-700">
+                    {isFr
+                      ? 'Pour l’achat de ce produit ou de tout autre article du site, vous recevez un cadeau gratuit avec votre commande.'
+                      : 'عند شراء هذا المنتج أو أي منتج آخر من الموقع، سوف يحصل الزبون على هدية مجانية مميزة مرفقة مع طلبيته.'}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -853,14 +899,14 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                       <li>Évitez le contact direct avec les parfums concentrés ou produits chimiques.</li>
                       <li>Nettoyez le verre et le boîtier avec un chiffon doux en microfibre.</li>
                       <li>Assurez-vous que la couronne est bien fermée avant tout contact avec l’eau.</li>
-                      <li>La garantie couvre tout défaut de fabrication du mouvement avec réparation ou remplacement gratuit.</li>
+                      <li>La garantie couvre tout défaut de fabrication du mouvement avec réparation ou remplacement gratuit pendant 1 an via votre certificat de garantie officiel remis à l’achat.</li>
                     </>
                   ) : (
                     <>
                       <li>تجنب تعريض الساعة مباشرة للعطور المركزة أو المنظفات الكيميائية الحارقة.</li>
                       <li>امسح زجاج وهيكل الساعة بقطعة قماش ناعمة (Microfiber) عند الحاجة.</li>
                       <li>تأكد من إحكام إغلاق تاج ضبط الوقت (Crown) قبل أي تلامس مع الماء.</li>
-                      <li>يشمل الضمان صيانة عطل المحرك الميكانيكي أو الكهربائي واستبدال أي قطعة مصنعية معيبة مجاناً.</li>
+                      <li>عند شراء أي منتج يحصل الزبون على شهادة ضمان رسمية لمدة سنة كاملة تشمل صيانة أو استبدال أي عطب مصنعي في المحرك مجاناً.</li>
                     </>
                   )}
                 </ul>
@@ -1073,11 +1119,12 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
 
         <div className="flex items-center gap-2 flex-shrink-0">
           <a
-            href={`https://wa.me/${(settings?.whatsappNumber || '+212612345678').replace(/\+/g, '')}?text=${encodeURIComponent(
+            href={buildWhatsAppUrl(
+              settings?.whatsappNumber,
               isFr
                 ? `Bonjour, je souhaite commander ${product.name} (Réf : ${product.sku})`
                 : `السلام عليكم، بغيت نطلب ساعة ${product.name} (رمز: ${product.sku})`
-            )}`}
+            )}
             target="_blank"
             rel="noopener noreferrer"
             className="p-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 active:scale-95 transition"

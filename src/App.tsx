@@ -12,6 +12,7 @@ import { WhyChooseUs } from './components/WhyChooseUs';
 import { CustomerReviews } from './components/CustomerReviews';
 import { Footer } from './components/Footer';
 import { initTrackingPixels, trackPixelPageView } from './utils/trackingPixels';
+import { buildWhatsAppUrl } from './utils/constants';
 import { CheckCircle, AlertCircle, Info, Sparkles, Compass, ShoppingBag, MessageCircle } from 'lucide-react';
 
 // Code-split heavy views and modals to shrink initial First Load JS
@@ -35,6 +36,9 @@ const PoliciesModal = lazy(() =>
 );
 const CustomerOrderActionModal = lazy(() =>
   import('./components/CustomerOrderActionModal').then((m) => ({ default: m.CustomerOrderActionModal }))
+);
+const WarrantyVerificationModal = lazy(() =>
+  import('./components/WarrantyVerificationModal').then((m) => ({ default: m.WarrantyVerificationModal }))
 );
 
 const ProductDetailSkeleton: React.FC = () => {
@@ -69,6 +73,7 @@ const MainContent: React.FC = () => {
     checkoutProduct,
     isAdminOpen,
     isTrackingOpen,
+    isWarrantyCheckOpen,
     activePolicyModal,
     settings,
   } = useStore();
@@ -76,9 +81,15 @@ const MainContent: React.FC = () => {
   const [hasConfirmOrderHash, setHasConfirmOrderHash] = useState(() =>
     window.location.hash.startsWith('#confirm-order')
   );
+  const [hasWarrantyHash, setHasWarrantyHash] = useState(() =>
+    window.location.hash.startsWith('#warranty')
+  );
 
   useEffect(() => {
-    const onHash = () => setHasConfirmOrderHash(window.location.hash.startsWith('#confirm-order'));
+    const onHash = () => {
+      setHasConfirmOrderHash(window.location.hash.startsWith('#confirm-order'));
+      setHasWarrantyHash(window.location.hash.startsWith('#warranty'));
+    };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
@@ -139,11 +150,22 @@ const MainContent: React.FC = () => {
     <div className="min-h-screen bg-[#f8f9fb] text-[#1e293b] flex flex-col font-sans selection:bg-[#c5a869] selection:text-black">
       {/* Toast notifications */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50 max-w-sm rounded-2xl bg-white border border-[#c5a869]/40 p-4 shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5 duration-300">
+        <div
+          dir="rtl"
+          role="alert"
+          aria-live="assertive"
+          className={`fixed bottom-6 right-6 z-[120] max-w-sm rounded-2xl border p-4 shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5 duration-300 ${
+            toast.type === 'success'
+              ? 'bg-emerald-50 border-emerald-400 text-emerald-950'
+              : toast.type === 'error'
+              ? 'bg-rose-50 border-rose-400 text-rose-950'
+              : 'bg-white border-[#c5a869]/50 text-gray-900'
+          }`}
+        >
           {toast.type === 'success' && <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />}
           {toast.type === 'error' && <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />}
           {toast.type === 'info' && <Info className="w-5 h-5 text-[#b8860b] flex-shrink-0" />}
-          <p className="text-xs font-bold text-gray-900 leading-snug">{toast.message}</p>
+          <p className="text-xs font-extrabold leading-snug">{toast.message}</p>
         </div>
       )}
 
@@ -185,6 +207,7 @@ const MainContent: React.FC = () => {
         {isAdminOpen && <AdminDashboard />}
         {activePolicyModal && <PoliciesModal />}
         {hasConfirmOrderHash && <CustomerOrderActionModal />}
+        {(hasWarrantyHash || isWarrantyCheckOpen) && <WarrantyVerificationModal />}
       </Suspense>
 
       {/* ================= STICKY MOBILE BOTTOM NAV ================= */}
@@ -249,11 +272,12 @@ const MainContent: React.FC = () => {
 
           {/* WhatsApp */}
           <a
-            href={`https://wa.me/${(settings?.whatsappNumber || '+212612345678').replace(/\+/g, '')}?text=${encodeURIComponent(
+            href={buildWhatsAppUrl(
+              settings?.whatsappNumber,
               isFr
                 ? 'Bonjour, je souhaite obtenir des informations sur les montres et accessoires Noblewatch au Maroc.'
                 : 'السلام عليكم، بغيت نستفسر على ساعات وإكسسوارات Noblewatch بالمغرب'
-            )}`}
+            )}
             target="_blank"
             rel="noopener noreferrer"
             className="flex flex-col items-center justify-center py-1 px-2 text-emerald-700 active:scale-95 transition min-w-[54px]"

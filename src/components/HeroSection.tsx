@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShoppingBag, Sparkles, ShieldCheck, Truck } from 'lucide-react';
+import { ShoppingBag, Sparkles, ShieldCheck, Truck, Gift } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useLanguage } from '../context/LanguageContext';
 import { localizeSettingText } from '../i18n/storefront';
@@ -79,8 +79,16 @@ export const HeroSection: React.FC = () => {
             {/* Subtitle description */}
             <p className="text-sm sm:text-lg text-gray-600 max-w-2xl leading-relaxed">{heroSubtitle}</p>
 
-            {/* 3 Quality Badges */}
-            <div className="grid grid-cols-3 sm:flex sm:flex-wrap items-center gap-1.5 sm:gap-3 pt-1">
+            {/* Quality & Warranty Badges */}
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-1.5 sm:gap-3 pt-1">
+              <div className="flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg bg-[#fefaf0] border border-[#c5a869]/60 text-[10px] sm:text-xs font-extrabold text-[#8a5a00] shadow-xs text-center">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#996515] flex-shrink-0" />
+                <span>{isFr ? 'Certificat de garantie 1 an' : 'شهادة ضمان لمدة سنة عند الشراء'}</span>
+              </div>
+              <div className="flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-300/80 text-[10px] sm:text-xs font-extrabold text-emerald-800 shadow-xs text-center">
+                <Gift className="w-3.5 h-3.5 text-emerald-700 flex-shrink-0" />
+                <span>{isFr ? 'Cadeau offert à l’achat' : 'هدية مع شراء أي منتج'}</span>
+              </div>
               <div className="flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-[10px] sm:text-xs font-semibold text-gray-800 shadow-xs text-center">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#c5a869] flex-shrink-0"></span>
                 <span>{isFr ? 'Qualité originale' : 'جودة أصلية'}</span>
@@ -114,14 +122,32 @@ export const HeroSection: React.FC = () => {
               </button>
             </div>
 
-            {/* COD reassurance bar */}
-            <div className="flex items-center gap-3 pt-4 text-xs font-medium text-gray-600 border-t border-gray-200">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-              <span>
-                {isFr
-                  ? 'Paiement à la livraison (COD) partout au Maroc : vérifiez votre montre avant de payer le moindre dirham.'
-                  : 'الدفع عند الاستلام (COD) في كافة ربوع المغرب: افحص ساعتك قبل أن تدفع درهماً واحداً.'}
-              </span>
+            {/* COD & Warranty Certificate reassurance bar */}
+            <div className="flex flex-col gap-2 pt-4 text-xs font-medium text-gray-600 border-t border-gray-200">
+              <div className="flex items-center gap-2.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <span>
+                  {isFr
+                    ? 'Paiement à la livraison (COD) partout au Maroc : vérifiez votre montre avant de payer le moindre dirham.'
+                    : 'الدفع عند الاستلام (COD) في كافة ربوع المغرب: افحص ساعتك قبل أن تدفع درهماً واحداً.'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2.5 text-[#8a5a00] font-bold">
+                <ShieldCheck className="w-4 h-4 text-[#996515] flex-shrink-0" />
+                <span>
+                  {isFr
+                    ? 'Pour chaque produit acheté sur notre site, vous recevez un certificat de garantie officiel d’un an.'
+                    : 'عند شراء أي منتج من المتجر، يحصل الزبون على شهادة ضمان رسمية لمدة سنة كاملة.'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2.5 text-emerald-800 font-bold">
+                <Gift className="w-4 h-4 text-emerald-700 flex-shrink-0" />
+                <span>
+                  {isFr
+                    ? 'Cadeau spécial offert : pour l’achat de n’importe quel produit, vous recevez un cadeau gratuit avec votre commande.'
+                    : 'هدية خاصة عند الشراء: عند شراء أي منتج من المتجر، سوف يحصل الزبون على هدية مجانية مميزة مرفقة مع الطلب.'}
+                </span>
+              </div>
             </div>
           </div>
 

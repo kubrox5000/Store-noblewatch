@@ -10,6 +10,7 @@ const normalizeSpaces = (text: string): string =>
 // ============================================================================
 const CITY_AR_TO_FR: Record<string, string> = {
   'الدار البيضاء': 'Casablanca',
+  'الدار': 'Casablanca',
   'كازا': 'Casablanca',
   'الرباط': 'Rabat',
   'مراكش': 'Marrakech',
@@ -79,8 +80,13 @@ const CITY_AR_TO_FR: Record<string, string> = {
 };
 
 export const translateCityName = (city: string, lang: Language): string => {
-  if (!city || lang === 'ar') return city;
-  const trimmed = city.trim();
+  if (!city) return city;
+  let trimmed = city.trim();
+  if (trimmed === 'الدار') trimmed = 'الدار البيضاء';
+  else if (trimmed === 'بني') trimmed = 'بني ملال';
+  else if (trimmed === 'القصر') trimmed = 'القصر الكبير';
+
+  if (lang === 'ar') return trimmed;
 
   if (CITY_AR_TO_FR[trimmed]) return CITY_AR_TO_FR[trimmed];
 
@@ -266,10 +272,198 @@ const EXACT_FEATURES_AR_TO_FR: Record<string, string> = {
     'Design luxueux : élégant avec boîtier finition argentée.',
 };
 
+const EXACT_FEATURES_FR_TO_AR: Record<string, string> = {
+  'paiement à la livraison · livraison gratuite · vérification à réception':
+    'الدفع عند الاستلام · توصيل مجاني · المعاينة قبل الدفع',
+  "fabriquée avec des matériaux de qualité supérieure et dotée d'une finition très minutieuse.":
+    'مصنوعة من مواد عالية الجودة وتتميز بتشطيب دقيق ومتقن للغاية.',
+  'mouvement : automatique': 'الحركة : أوتوماتيكية',
+  'mouvement : automatique — remontage automatique ⚙️':
+    'الحركة : أوتوماتيكية — تعبئة ذاتية ⚙️',
+  'mouvement : mécanique squelette': 'الحركة : ميكانيكية مكشوفة (سكيليتون)',
+  'verre : saphir': 'الزجاج : ياقوت (سافير)',
+  'verre : saphir résistant aux rayures': 'الزجاج : ياقوت (سافير) مقاوم للخدوش',
+  'verre : saphir bombé antireflet': 'الزجاج : سافير مقبب مضاد للانعكاس',
+  'coffret de marque officiel': 'علبة الماركة الرسمية',
+  'packaging de marque officiel': 'تغليف الماركة الرسمي الفاخر',
+};
+
+const SPEC_KEY_FR_TO_AR: Record<string, string> = {
+  marque: 'الماركة',
+  modèle: 'الموديل',
+  modele: 'الموديل',
+  style: 'التصميم / الطراز',
+  boîtier: 'الهيكل',
+  boitier: 'الهيكل',
+  diamètre: 'القطر',
+  diametre: 'القطر',
+  mouvement: 'الحركة',
+  type: 'النوع',
+  cadran: 'المينا',
+  lunette: 'الإطار (Lunette)',
+  glace: 'الزجاج',
+  verre: 'الزجاج',
+  bracelet: 'السوار',
+  fermoir: 'المشبك (القفل)',
+  affichage: 'العرض',
+  fonctions: 'الوظائف',
+  index: 'المؤشرات',
+  finition: 'التشطيب',
+};
+
+const SPEC_VALUE_FR_TO_AR: Record<string, string> = {
+  // Brands
+  rolex: 'رولكس (Rolex)',
+  omega: 'أوميغا (Omega)',
+  'patek philippe': 'باتيك فيليب (Patek Philippe)',
+  cartier: 'كارتييه (Cartier)',
+  // Models
+  'cosmograph daytona': 'كوزموغراف دايتونا (Cosmograph Daytona)',
+  'cosmograph daytona « panda »': 'كوزموغراف دايتونا « باندا »',
+  'cosmograph daytona (réf. 116519ln)': 'كوزموغراف دايتونا (المرجع 116519LN)',
+  'santos de cartier squelette': 'سانتوس دي كارتييه سكيليتون',
+  'complications annual calendar (réf. 5205r-010)':
+    'كومبليكيشنز التقويم السنوي (المرجع 5205R-010)',
+  // Movements & Types
+  automatique: 'أوتوماتيكية',
+  'automatique — remontage automatique ⚙️': 'أوتوماتيكية — تعبئة ذاتية ⚙️',
+  'mécanique squelette': 'ميكانيكية مكشوفة (Squelette)',
+  chronographe: 'كرونوغراف',
+  squelette: 'سكيليتون (هيكل مكشوف)',
+  'montre de plongée': 'ساعة غوص احترافية',
+  'co-axial master chronometer': 'كو-أكسيال ماستر كرونومتر',
+  'calendrier annuel': 'تقويم سنوي',
+  analogique: 'عقارب كلاسيكية (Analogique)',
+  // Cases & Bezels & Straps & Clasps & Glass
+  'oyster, finition or rose': 'أويستر، تشطيب ذهبي وردي (Or Rose)',
+  'oyster, oystersteel': 'أويستر، فولاذ أويستر ستيل المقاوم للصدأ',
+  'oyster, acier bicolore finition or rose': 'أويستر، فولاذ ثنائي اللون بتشطيب ذهبي وردي',
+  'oyster, acier inoxydable': 'أويستر، فولاذ مقاوم للصدأ',
+  'oyster, acier argenté': 'أويستر، فولاذ فضي',
+  'oyster bicolore, acier et finition or rose': 'أويستر ثنائي اللون، فولاذ وتشطيب ذهبي وردي',
+  oysterflex: 'سوار أويستر فليكس (Oysterflex)',
+  oysterlock: 'قفل أويستر لوك (Oysterlock)',
+  'acier inoxydable / finition bicolore selon version':
+    'فولاذ مقاوم للصدأ / تشطيب ثنائي اللون حسب الإصدار',
+  'acier inoxydable, finition or jaune': 'فولاذ مقاوم للصدأ بتشطيب ذهبي أصفر',
+  'finition or rose': 'تشطيب ذهبي وردي (Or Rose)',
+  'acier, finition or jaune, vis apparentes': 'فولاذ بتشطيب ذهبي أصفر مع براغي ظاهرة',
+  'maille milanaise en acier': 'سوار ميلانيز شبكي من الفولاذ المقاوم للصدأ',
+  'cuir véritable': 'جلد طبيعي فاخر',
+  'cuir noir': 'جلد أسود فاخر',
+  'boucle déployante': 'مشبك قابل للطي',
+  'boucle déployante calatrava': 'مشبك كالاترافا قابل للطي',
+  'saphir résistant aux rayures': 'زجاج سافير مقاوم للخدوش',
+  saphir: 'زجاج ياقوت (سافير)',
+  'saphir bombé antireflet': 'زجاج سافير مقبب مضاد للانعكاس',
+  'unidirectionnelle, échelle de plongée': 'دوار باتجاه واحد مع مقياس الغوص',
+  'vert avec échelle de plongée': 'أخضر مع مقياس الغوص',
+  'cerachrom noire en céramique': 'سيراميك سيراكروم أسود',
+  'lunette multicolore, effet sertissage': 'إطار متعدد الألوان بتأثير الترصيع',
+  'lunette tachymétrique': 'إطار تاكيمتر لقياس السرعة',
+  'lunette tachymétrique noire': 'إطار تاكيمتر أسود',
+  'lunette tachymétrique en céramique noire': 'إطار تاكيمتر من السيراميك الأسود',
+  'lisse, finition or rose': 'أملس، بتشطيب ذهبي وردي',
+  // Dials
+  'cadran luxueux avec détails multicolores': 'مينا فاخر بتفاصيل متعددة الألوان',
+  'brun / effet tropical': 'بني / بتأثير استوائي',
+  'turquoise / bleu et noir': 'تركواز / أزرق وأسود',
+  'vert profond': 'أخضر داكن',
+  vert: 'أخضر',
+  'bleu nuit avec guichets jour/mois/date':
+    'أزرق ليلي مع نوافذ اليوم / الشهر / التاريخ',
+  chocolat: 'شوكولاتة (بني)',
+  'squelette ajouré': 'هيكل مكشوف ومفرغ (Squelette)',
+  'blanc avec compteurs noirs': 'أبيض مع عدادات سوداء',
+  gris: 'رمادي',
+  // Functions, Index, Finishes, Styles
+  'heures, minutes': 'الساعات، الدقائق',
+  'heures, minutes, secondes, date': 'الساعات، الدقائق، الثواني، التاريخ',
+  'heures, minutes, petite seconde, chronographe':
+    'الساعات، الدقائق، الثواني الصغيرة، الكرونوغراف',
+  'heures, minutes, secondes, jour, mois, date, phase de lune':
+    'الساعات، الدقائق، الثواني، اليوم، الشهر، التاريخ، أطوار القمر',
+  'index appliqués avec traitement luminescent': 'مؤشرات بارزة معالجة بمادة مضيئة في الظلام',
+  'polie et raffinée': 'مصقولة وراقية',
+  'polie et satinée': 'مصقولة ولامعة مع تشطيب ساتان',
+  'daytona rainbow multicolore': 'دايتونا رينبو متعدد الألوان',
+  'sport-luxe, audacieux et prestigieux': 'رياضي فاخر، جريء وراقي',
+  'sport chic & haut de gamme': 'رياضي أنيق وفئة عليا',
+  'daytona cosmographe 2025, édition tiffany blue (réf. 126518ln)':
+    'دايتونا كوزموغراف 2025، إصدار تيفاني بلو (المرجع 126518LN)',
+  'chronographe sport-luxe, édition collector': 'كرونوغراف رياضي فاخر، إصدار خاص لهواة الجمع',
+  'daytona 2025, cadran vert': 'دايتونا 2025، مينا أخضر',
+  'sport-luxe intemporel': 'رياضي فاخر بأناقة خالدة',
+  'calendrier annuel avec phase de lune': 'تقويم سنوي مع مؤشر أطوار القمر',
+  'haute horlogerie classique et raffinée': 'صناعة ساعات سويسرية رفيعة كلاسيكية وراقية',
+  'daytona chocolat bicolore': 'دايتونا شوكولاتة ثنائية اللون',
+  'sport-luxe bicolore, élégance intemporelle': 'رياضي فاخر ثنائي اللون بأناقة خالدة',
+  'santos squelette bicolore, finition or jaune': 'سانتوس سكيليتون ثنائية اللون بتشطيب ذهبي أصفر',
+  'technique et audacieux': 'تقني وجريء',
+  'daytona panda, cadran blanc et compteurs noirs': 'دايتونا باندا، مينا أبيض وعدادات سوداء',
+  'sport-chic iconique': 'رياضي أنيق وأيقوني',
+  'daytona cadran gris, boîtier acier': 'دايتونا بمينا رمادي وهيكل فولاذي',
+  'sport-luxe raffiné': 'رياضي فاخر وأنيق',
+  '40 mm': '40 ملم',
+  '39,8 mm': '39.8 ملم',
+  '42 mm': '42 ملم',
+};
+
+function cleanCompetitorBrand(text: string): string {
+  return text.replace(/\s*sur\s+Eclatic\.ma/gi, '');
+}
+
+function translateFrenchFeatureToArabic(raw: string): string {
+  const cleaned = normalizeSpaces(raw.replace(/^[•\-–*]\s*/, ''));
+  const lower = cleaned.toLowerCase();
+
+  if (EXACT_FEATURES_FR_TO_AR[lower]) {
+    return EXACT_FEATURES_FR_TO_AR[lower];
+  }
+
+  // Packaging variants e.g. "Coffret complet : 1500 MAD"
+  const packMatch = cleaned.match(/^(Coffret complet|Boîte simple)\s*:\s*(\d+)\s*MAD$/i);
+  if (packMatch) {
+    const label =
+      packMatch[1].toLowerCase() === 'coffret complet'
+        ? 'العلبة الكاملة الرسمية (Coffret complet)'
+        : 'علبة بسيطة (Boîte simple)';
+    return `${label} : ${packMatch[2]} د.م`;
+  }
+
+  // Diameter e.g. "Diamètre : 40 mm"
+  const diamMatch = cleaned.match(/^Diamètre\s*:\s*(.+)$/i);
+  if (diamMatch) {
+    const val = diamMatch[1].trim().replace(/\s*mm$/i, ' ملم');
+    return `القطر : ${val}`;
+  }
+
+  // Generic "Key : Value"
+  const kvMatch = cleaned.match(/^([^:]+?)\s*:\s*(.+)$/);
+  if (kvMatch) {
+    const kRaw = kvMatch[1].trim();
+    const vRaw = kvMatch[2].trim();
+    const kAr = SPEC_KEY_FR_TO_AR[kRaw.toLowerCase()] || kRaw;
+    const vAr =
+      SPEC_VALUE_FR_TO_AR[vRaw.toLowerCase()] ||
+      vRaw.replace(/\bmm\b/gi, 'ملم').replace(/\bMAD\b/g, 'د.م');
+    return `${kAr} : ${vAr}`;
+  }
+
+  return cleaned;
+}
+
 export const translateProductFeature = (feat: string, lang: Language): string => {
-  if (!feat || lang === 'ar') return feat;
+  if (!feat) return feat;
   const f = normalizeSpaces(feat.replace(/^[•\-*]\s*/, ''));
-  if (!hasArabic(f)) return feat;
+
+  if (lang === 'ar') {
+    if (hasArabic(f)) return feat;
+    return translateFrenchFeatureToArabic(f);
+  }
+
+  // lang === 'fr'
+  if (!hasArabic(f)) return cleanCompetitorBrand(feat);
 
   if (EXACT_FEATURES_AR_TO_FR[f]) return EXACT_FEATURES_AR_TO_FR[f];
 
@@ -335,7 +529,7 @@ export const translateProductFeature = (feat: string, lang: Language): string =>
 };
 
 // ============================================================================
-// 4. PRODUCT SUBTITLE & MULTILINE DESCRIPTION (AR -> FR)
+// 4. PRODUCT SUBTITLE & MULTILINE DESCRIPTION (AR <-> FR)
 // ============================================================================
 const SUBTITLE_EXACT_AR_TO_FR: Record<string, string> = {
   'ساعة يد فاخرة بتصميم أنيق ومحرك ياباني دقيق':
@@ -347,10 +541,77 @@ const SUBTITLE_EXACT_AR_TO_FR: Record<string, string> = {
   'إكسسوار فاخر': 'Accessoire de luxe',
 };
 
+const FRENCH_SENTENCE_TO_AR: Record<string, string> = {
+  "Découvrez la collection Rolex — l'excellence horlogère suisse livrée partout au Maroc avec paiement à la livraison. Synonyme de prestige et de précision intemporelle, chaque Rolex est une œuvre d'art au poignet.":
+    'اكتشف مجموعة رولكس الفاخرة — التميز السويسري في صناعة الساعات مع التوصيل لجميع أنحاء المغرب والدفع عند الاستلام. عنوان للفخامة والدقة الخالدة، كل ساعة رولكس هي تحفة فنية على معصمك.',
+  "Découvrez la collection Rolex — l'excellence horlogère suisse livrée partout au Maroc avec paiement à la livraison.":
+    'اكتشف مجموعة رولكس الفاخرة — التميز السويسري في صناعة الساعات مع التوصيل لجميع أنحاء المغرب والدفع عند الاستلام.',
+  "Synonyme de prestige et de précision intemporelle, chaque Rolex est une œuvre d'art au poignet.":
+    'عنوان للفخامة والدقة الخالدة، كل ساعة رولكس هي تحفة فنية على معصمك.',
+  "Découvrez la collection Rolex — montres de prestige disponibles au Maroc avec livraison gratuite et paiement à la livraison. Rolex, l'excellence horlogère depuis 1905.":
+    'اكتشف مجموعة رولكس الفاخرة — ساعات مرموقة متوفرة في المغرب مع توصيل مجاني والدفع عند الاستلام. رولكس، التميز السويسري منذ عام 1905.',
+  "Découvrez la collection Omega — montres de légende portées par les astronautes et les champions olympiques, disponibles au Maroc avec paiement à la livraison. Omega : précision suisse, héritage spatial.":
+    'اكتشف مجموعة أوميغا الأسطورية — ساعات تاريخية ارتداها رواد الفضاء والأبطال الأولمبيون، متوفرة في المغرب مع الدفع عند الاستلام. أوميغا: دقة سويسرية وإرث فضائي عريق.',
+  "Explorez la collection Omega — montres suisses emblématiques disponibles au Maroc avec livraison gratuite et paiement à la livraison. Omega, la montre officielle des astronautes et des Jeux Olympiques.":
+    'استكشف مجموعة أوميغا — ساعات سويسرية أيقونية متوفرة في المغرب مع توصيل مجاني والدفع عند الاستلام. أوميغا، الساعة الرسمية لرواد الفضاء والألعاب الأولمبية.',
+  "Découvrez la maison Patek Philippe — montres d'exception transmises de génération en génération, disponibles au Maroc avec paiement à la livraison. Patek Philippe, l'ultime référence de la haute horlogerie genevoise.":
+    'اكتشف دار باتيك فيليب العريقة — ساعات استثنائية تتوارثها الأجيال، متوفرة في المغرب مع الدفع عند الاستلام. باتيك فيليب، المرجع الأسمى لصناعة الساعات السويسرية الراقية في جنيف.',
+  "Découvrez la Maison Cartier — montres d'art intemporelles disponibles au Maroc avec livraison gratuite et paiement à la livraison. Cartier, le joaillier des rois depuis 1847.":
+    'اكتشف دار كارتييه العريقة — ساعات فنية خالدة متوفرة في المغرب مع توصيل مجاني والدفع عند الاستلام. كارتييه، صائغ الملوك منذ عام 1847.',
+  "Paiement à la livraison · Livraison gratuite · Vérification à réception":
+    'الدفع عند الاستلام · توصيل مجاني · المعاينة قبل الدفع',
+  "Fabriquée avec des matériaux de qualité supérieure et dotée d'une finition très minutieuse.":
+    'مصنوعة من مواد عالية الجودة وتتميز بتشطيب دقيق ومتقن للغاية.',
+  'Cette montre s\'accompagne de :': 'تأتي هذه الساعة مرفقة بـ :',
+  '– Coffret de marque officiel': '– علبة الماركة الرسمية الفاخرة',
+  '– Packaging de marque officiel': '– تغليف الماركة الرسمي',
+  '- Coffret de marque officiel': '– علبة الماركة الرسمية الفاخرة',
+  '- Packaging de marque officiel': '– تغليف الماركة الرسمي',
+  'Caractéristiques détaillées :': 'المواصفات التقنية المفصلة:',
+};
+
+function translateFrenchIntroToArabic(raw: string): string {
+  const cleaned = normalizeSpaces(cleanCompetitorBrand(raw));
+  if (FRENCH_SENTENCE_TO_AR[cleaned]) return FRENCH_SENTENCE_TO_AR[cleaned];
+
+  // Match prefix even if truncated with "..."
+  const noEllipsis = cleaned.replace(/\.{3}$/, '').trim();
+  for (const [fr, ar] of Object.entries(FRENCH_SENTENCE_TO_AR)) {
+    if (noEllipsis.length > 25 && fr.startsWith(noEllipsis)) {
+      return ar;
+    }
+    if (cleaned.includes(fr)) {
+      return ar;
+    }
+  }
+
+  // Fallback for any other French subtitle
+  if (/Rolex/i.test(cleaned)) {
+    return 'اكتشف مجموعة ساعات رولكس الفاخرة — التميز السويسري مع توصيل مجاني والدفع عند الاستلام في المغرب.';
+  }
+  if (/Omega/i.test(cleaned)) {
+    return 'اكتشف مجموعة ساعات أوميغا السويسرية — دقة عالية وتصميم فاخر مع توصيل مجاني والدفع عند الاستلام.';
+  }
+  if (/Patek Philippe/i.test(cleaned)) {
+    return 'اكتشف دار باتيك فيليب — ساعات سويسرية استثنائية متوفرة في المغرب مع توصيل مجاني والدفع عند الاستلام.';
+  }
+  if (/Cartier/i.test(cleaned)) {
+    return 'اكتشف دار كارتييه — ساعات فنية راقية متوفرة في المغرب مع توصيل مجاني والدفع عند الاستلام.';
+  }
+  return 'ساعة فاخرة بتصميم سويسري دقيق متوفرة الآن مع توصيل مجاني والدفع عند الاستلام في جميع مدن المغرب.';
+}
+
 export const translateProductSubtitle = (subtitle: string, lang: Language): string => {
-  if (!subtitle || lang === 'ar') return subtitle;
+  if (!subtitle) return subtitle;
   const s = normalizeSpaces(subtitle);
-  if (!hasArabic(s)) return subtitle;
+
+  if (lang === 'ar') {
+    if (hasArabic(s)) return subtitle;
+    return translateFrenchIntroToArabic(s);
+  }
+
+  // lang === 'fr'
+  if (!hasArabic(s)) return cleanCompetitorBrand(subtitle);
   if (SUBTITLE_EXACT_AR_TO_FR[s]) return SUBTITLE_EXACT_AR_TO_FR[s];
 
   const tags: string[] = [];
@@ -415,10 +676,48 @@ const DESCRIPTION_LINE_MAP: Record<string, string> = {
     'Avec un diamètre de 40 mm, un mouvement automatique et un verre saphir synthétique (Sapphire), cette montre réunit esthétique remarquable, confort et praticité.',
 };
 
+function translateFrenchDescriptionToArabic(description: string): string {
+  const lines = description.replace(/\r\n/g, '\n').split('\n');
+  const translatedLines: string[] = [];
+
+  for (const rawLine of lines) {
+    const cleaned = normalizeSpaces(cleanCompetitorBrand(rawLine));
+    if (!cleaned) {
+      translatedLines.push('');
+      continue;
+    }
+    if (hasArabic(cleaned)) {
+      translatedLines.push(cleaned);
+      continue;
+    }
+    if (FRENCH_SENTENCE_TO_AR[cleaned]) {
+      translatedLines.push(FRENCH_SENTENCE_TO_AR[cleaned]);
+      continue;
+    }
+    if (cleaned.startsWith('•') || cleaned.startsWith('-') || cleaned.startsWith('–')) {
+      const prefix = cleaned.startsWith('•') ? '• ' : '– ';
+      translatedLines.push(`${prefix}${translateFrenchFeatureToArabic(cleaned)}`);
+      continue;
+    }
+    translatedLines.push(translateFrenchIntroToArabic(cleaned));
+  }
+
+  return translatedLines.join('\n').trim();
+}
+
 export const translateProductDescription = (description: string, lang: Language): string => {
-  if (!description || lang === 'ar') return description;
+  if (!description) return description;
   const normalized = normalizeSpaces(description);
-  if (!hasArabic(normalized)) return description;
+
+  if (lang === 'ar') {
+    if (hasArabic(normalized)) return description;
+    return translateFrenchDescriptionToArabic(description);
+  }
+
+  // lang === 'fr'
+  if (!hasArabic(normalized)) {
+    return description.replace(/\s*sur\s+Eclatic\.ma/gi, '');
+  }
 
   if (EXACT_DESCRIPTIONS_AR_TO_FR[normalized]) {
     return EXACT_DESCRIPTIONS_AR_TO_FR[normalized];
@@ -435,7 +734,7 @@ export const translateProductDescription = (description: string, lang: Language)
       continue;
     }
     if (!hasArabic(trimmed)) {
-      translatedLines.push(trimmed);
+      translatedLines.push(cleanCompetitorBrand(trimmed));
       continue;
     }
     if (DESCRIPTION_LINE_MAP[trimmed]) {
@@ -446,7 +745,6 @@ export const translateProductDescription = (description: string, lang: Language)
       translatedLines.push(`- ${translateProductFeature(trimmed, 'fr')}`);
       continue;
     }
-    // Generic Arabic sentence translation fallback
     const sub = translateProductSubtitle(trimmed, 'fr');
     if (trimmed.includes('ضمان')) {
       translatedLines.push(`${sub}, livrée dans son coffret luxe avec garantie officielle d’un an.`);

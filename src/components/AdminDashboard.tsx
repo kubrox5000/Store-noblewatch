@@ -57,7 +57,7 @@ import {
   Calendar,
   Activity,
 } from 'lucide-react';
-import { SocialLinks, StorePolicies, SecurityBlockLog, OrderSecuritySettings, TrackingPixelsSettings } from '../types';
+import { SocialLinks, StorePolicies, SecurityBlockLog, OrderSecuritySettings, TrackingPixelsSettings, PromoCode } from '../types';
 import {
   isValidFacebookPixelId,
   isValidGoogleTagId,
@@ -69,6 +69,8 @@ import {
 } from '../utils/trackingPixels';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
+import { WarrantyCertificateModal } from './WarrantyCertificateModal';
+import { PromoCodeVoucherModal } from './PromoCodeVoucherModal';
 import { Product, Order, OrderItem, OrderStatus, Review, StoreSettings } from '../types';
 import {
   MOROCCAN_CITIES,
@@ -81,6 +83,8 @@ import {
   getWhatsAppCustomerOrderUrl,
   generateCustomerConfirmationMessage,
   formatPhoneForWhatsApp,
+  sanitizePhoneText,
+  buildWhatsAppUrl,
   exportOrdersToOzonExpressXlsx,
   generateCustomerShippedMessage,
   getWhatsAppCustomerShippedUrl,
@@ -175,9 +179,19 @@ export const AdminDashboard: React.FC = () => {
 
   // Settings editing state
   const [localSettings, setLocalSettings] = useState<StoreSettings | null>(settings);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [settingsSaveFeedback, setSettingsSaveFeedback] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
   const [securityLogs, setSecurityLogs] = useState<SecurityBlockLog[]>([]);
   const [manualBlockPhoneInput, setManualBlockPhoneInput] = useState('');
   const [isLoadingSecurityLogs, setIsLoadingSecurityLogs] = useState(false);
+  const [newPromoCodeInput, setNewPromoCodeInput] = useState('');
+  const [newPromoTypeInput, setNewPromoTypeInput] = useState<'percent' | 'fixed'>('percent');
+  const [newPromoValueInput, setNewPromoValueInput] = useState('10');
+  const [newPromoMinOrderInput, setNewPromoMinOrderInput] = useState('0');
+  const [previewPromoVoucher, setPreviewPromoVoucher] = useState<PromoCode | null>(null);
 
   const fetchSecurityOverview = React.useCallback(async () => {
     const token = localStorage.getItem('noblewatch_admin_token');
@@ -210,6 +224,18 @@ export const AdminDashboard: React.FC = () => {
       setLocalSettings(settings);
     }
   }, [settings]);
+
+  // Toggle body print class while delivery receipt preview is open
+  React.useEffect(() => {
+    if (printingOrder) {
+      document.body.classList.add('printing-delivery-slip');
+    } else {
+      document.body.classList.remove('printing-delivery-slip');
+    }
+    return () => {
+      document.body.classList.remove('printing-delivery-slip');
+    };
+  }, [printingOrder]);
 
   const newOrders = useMemo(
     () => (Array.isArray(orders) ? orders.filter((o) => o.status === 'جديد') : []),
@@ -1016,14 +1042,14 @@ export const AdminDashboard: React.FC = () => {
         },
       };
 
-      if (editingProduct.id) {
-        await updateProduct(editingProduct.id, payload);
-      } else {
-        await addProduct(payload);
-      }
+      const ok = editingProduct.id
+        ? await updateProduct(editingProduct.id, payload)
+        : await addProduct(payload);
 
-      setIsEditingProduct(false);
-      setEditingProduct(null);
+      if (ok) {
+        setIsEditingProduct(false);
+        setEditingProduct(null);
+      }
     } finally {
       setIsSavingProduct(false);
     }
@@ -1130,6 +1156,52 @@ export const AdminDashboard: React.FC = () => {
       setPixelReport(getPixelDiagnostics(localSettings.trackingPixels));
     }
   }, [activeTab]);
+
+  const handleSaveSettings = async (
+    targetSettings: StoreSettings | null = localSettings,
+    customSuccessText?: string
+  ): Promise<boolean> => {
+    if (!targetSettings || isSavingSettings) return false;
+    setIsSavingSettings(true);
+    setSettingsSaveFeedback(null);
+    try {
+      const cleanWhatsApp = sanitizePhoneText(targetSettings.whatsappNumber);
+      const cleanContact = sanitizePhoneText(targetSettings.contactPhone);
+      const cleanedTarget: StoreSettings = {
+        ...targetSettings,
+        whatsappNumber: cleanWhatsApp,
+        contactPhone: cleanContact,
+        socialLinks: {
+          ...(targetSettings.socialLinks || {}),
+          ...(cleanWhatsApp ? { whatsapp: cleanWhatsApp } : {}),
+        },
+      };
+      setLocalSettings(cleanedTarget);
+      const savedOk = await updateSettings(cleanedTarget);
+      if (savedOk) {
+        setSettingsSaveFeedback({
+          type: 'success',
+          text:
+            customSuccessText ||
+            'تم حفظ جميع المعلومات والتعديلات بنجاح وتطبيقها فوراً على المتجر.',
+        });
+        return true;
+      }
+      setSettingsSaveFeedback({
+        type: 'error',
+        text: 'تم رفض أو فشل حفظ المعلومات! يرجى التحقق من صلاحية الجلسة أو البيانات المدخلة والمحاولة مجدداً.',
+      });
+      return false;
+    } catch {
+      setSettingsSaveFeedback({
+        type: 'error',
+        text: 'فشل حفظ المعلومات بسبب تعذر الاتصال بالخادم، يرجى المحاولة مجدداً.',
+      });
+      return false;
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
 
   const handleSaveAndVerifyPixels = async () => {
     if (!localSettings) return;
@@ -2816,7 +2888,7 @@ export const AdminDashboard: React.FC = () => {
                                       type="button"
                                       onClick={() => setPrintingOrder(ord)}
                                       className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[#c5a869] cursor-pointer"
-                                      title="طباعة بون التوصيل والفاتورة"
+                                      title="عرض وطباعة شهادة الضمان الرسمية (سنة كاملة)"
                                     >
                                       <Printer className="w-3.5 h-3.5" />
                                     </button>
@@ -3182,7 +3254,7 @@ export const AdminDashboard: React.FC = () => {
                           </span>
                         </div>
                         <p className="text-xs text-gray-300 mt-1">
-                          تصل إلى هذا القسم تلقائياً جميع الطلبات التي تغيّرت حالتها إلى «قيد التجهيز» لتسهيل تحضير الساعات والألوان المطلوبة، تصدير ملف الإكسل المعتمد لشركة الشحن، وطباعة بون التوصيل.
+                          تصل إلى هذا القسم تلقائياً جميع الطلبات التي تغيّرت حالتها إلى «قيد التجهيز» لتسهيل تحضير الساعات والألوان المطلوبة، تصدير ملف الإكسل المعتمد لشركة الشحن، وإصدار وطباعة شهادة الضمان الرسمية (سنة كاملة).
                         </p>
                       </div>
                     </div>
@@ -3395,10 +3467,10 @@ export const AdminDashboard: React.FC = () => {
                               type="button"
                               onClick={() => setPrintingOrder(ord)}
                               className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#c5a869]/20 hover:bg-[#c5a869]/30 text-[#c5a869] border border-[#c5a869]/40 font-bold text-xs transition cursor-pointer"
-                              title="طباعة بون التوصيل والفاتورة لإرفاقها مع الطرد"
+                              title="معاينة وطباعة أو إرسال شهادة الضمان الرسمية لمدة سنة"
                             >
-                              <Printer className="w-4 h-4" />
-                              <span>طباعة بون التوصيل</span>
+                              <ShieldCheck className="w-4 h-4" />
+                              <span>شهادة الضمان (سنة)</span>
                             </button>
 
                             <button
@@ -3765,9 +3837,9 @@ export const AdminDashboard: React.FC = () => {
                               type="button"
                               onClick={() => setPrintingOrder(ord)}
                               className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-[#c5a869] border border-white/10 text-xs cursor-pointer"
-                              title="طباعة بون التوصيل"
+                              title="شهادة الضمان الرسمية (سنة كاملة)"
                             >
-                              <Printer className="w-4 h-4" />
+                              <ShieldCheck className="w-4 h-4" />
                             </button>
 
                             <button
@@ -4290,23 +4362,61 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'settings' && localSettings && (
               <div className="space-y-6">
                 {/* Header Action Bar */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-[#151822] border border-white/5">
-                  <div>
-                    <h3 className="text-base font-bold text-white flex items-center gap-2">
-                      <Settings className="w-5 h-5 text-[#c5a869]" />
-                      <span>تخصيص المتجر، بيانات التواصل، والسياسات</span>
-                    </h3>
-                    <p className="text-xs text-gray-400 mt-1">
-                      قم بتعديل البريد الإلكتروني الرسمي، روابط السوشيال ميديا، أرقام الهاتف وسياسات المتجر التي تظهر للزبناء
-                    </p>
+                <div className="p-5 rounded-2xl bg-[#151822] border border-white/5 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-base font-bold text-white flex items-center gap-2">
+                        <Settings className="w-5 h-5 text-[#c5a869]" />
+                        <span>تخصيص المتجر، بيانات التواصل، والسياسات</span>
+                      </h3>
+                      <p className="text-xs text-gray-400 mt-1">
+                        قم بتعديل البريد الإلكتروني الرسمي، روابط السوشيال ميديا، أرقام الهاتف وسياسات المتجر التي تظهر للزبناء
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isSavingSettings}
+                      onClick={() => handleSaveSettings(localSettings)}
+                      className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl gold-gradient-bg text-black font-extrabold text-xs shadow-lg hover:brightness-110 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed transition cursor-pointer"
+                    >
+                      {isSavingSettings ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4" />
+                      )}
+                      <span>
+                        {isSavingSettings ? 'جاري حفظ المعلومات...' : 'حفظ جميع التعديلات والسياسات'}
+                      </span>
+                    </button>
                   </div>
-                  <button
-                    onClick={() => updateSettings(localSettings)}
-                    className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl gold-gradient-bg text-black font-extrabold text-xs shadow-lg hover:brightness-110 active:scale-95 transition cursor-pointer"
-                  >
-                    <Save className="w-4 h-4" />
-                    <span>حفظ جميع التعديلات والسياسات</span>
-                  </button>
+
+                  {settingsSaveFeedback && (
+                    <div
+                      role="status"
+                      className={`p-3.5 rounded-xl text-xs font-bold flex items-center justify-between gap-3 ${
+                        settingsSaveFeedback.type === 'success'
+                          ? 'bg-emerald-950/60 border border-emerald-500/40 text-emerald-300'
+                          : 'bg-rose-950/60 border border-rose-500/40 text-rose-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        {settingsSaveFeedback.type === 'success' ? (
+                          <CheckCircle className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+                        ) : (
+                          <AlertTriangle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+                        )}
+                        <span>{settingsSaveFeedback.text}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSettingsSaveFeedback(null)}
+                        className="p-1 rounded-lg hover:bg-white/10 transition cursor-pointer"
+                        aria-label="إغلاق الإشعار"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* 0. Change Admin Dashboard Password */}
@@ -4480,7 +4590,10 @@ export const AdminDashboard: React.FC = () => {
                         type="text"
                         value={localSettings.contactPhone || ''}
                         onChange={(e) =>
-                          setLocalSettings({ ...localSettings, contactPhone: e.target.value })
+                          setLocalSettings({
+                            ...localSettings,
+                            contactPhone: sanitizePhoneText(e.target.value),
+                          })
                         }
                         placeholder="+212 6 12 34 56 78"
                         className="w-full bg-[#1b1f2b] border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-[#c5a869] text-left font-mono"
@@ -4491,21 +4604,51 @@ export const AdminDashboard: React.FC = () => {
 
                     {/* WhatsApp Orders Number */}
                     <div>
-                      <label className="block text-gray-300 font-semibold mb-1 flex items-center gap-1.5">
-                        <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>رقم الواتساب للطلبات والتأكيد السريع</span>
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-gray-300 font-semibold flex items-center gap-1.5">
+                          <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>رقم الواتساب للطلبات والتأكيد السريع</span>
+                        </label>
+                        {formatPhoneForWhatsApp(localSettings.whatsappNumber || '') && (
+                          <a
+                            href={buildWhatsAppUrl(
+                              localSettings.whatsappNumber,
+                              'تجربة رابط واتساب خدمة العملاء - Noblewatch'
+                            )}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-emerald-400 hover:underline flex items-center gap-1"
+                          >
+                            <span>تجربة فتح واتساب</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
                       <input
                         type="text"
                         value={localSettings.whatsappNumber || ''}
-                        onChange={(e) =>
-                          setLocalSettings({ ...localSettings, whatsappNumber: e.target.value })
-                        }
-                        placeholder="+212612345678"
+                        onChange={(e) => {
+                          const clean = sanitizePhoneText(e.target.value);
+                          setLocalSettings({
+                            ...localSettings,
+                            whatsappNumber: clean,
+                            socialLinks: {
+                              ...(localSettings.socialLinks || {}),
+                              whatsapp: clean,
+                            },
+                          });
+                        }}
+                        placeholder="+212612345678 أو 0612345678"
                         className="w-full bg-[#1b1f2b] border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-emerald-500 text-left font-mono"
                         dir="ltr"
                       />
-                      <span className="text-[10px] text-gray-500 mt-1 block">الرقم المربوط بأزرار "الطلب المباشر عبر واتساب"</span>
+                      <span className="text-[10px] text-gray-500 mt-1 block">
+                        الرقم المربوط بأزرار «تواصل معنا عبر واتساب» و«واتساب للطلب» (يتم تحويله تلقائياً إلى:{' '}
+                        <span className="font-mono text-emerald-400" dir="ltr">
+                          {formatPhoneForWhatsApp(localSettings.whatsappNumber || '') || '212612345678'}
+                        </span>
+                        )
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -4961,6 +5104,192 @@ export const AdminDashboard: React.FC = () => {
                         </div>
                       )}
                     </div>
+                  </div>
+                </div>
+
+                {/* 2c. Promo / Discount Codes Manager */}
+                <div className="p-6 rounded-2xl bg-[#151822] border border-[#c5a869]/30 space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-[#c5a869]/15 flex items-center justify-center text-[#c5a869]">
+                        <Tag className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white">
+                          أكواد ورموز التخفيض للزبناء (Promo Codes)
+                        </h4>
+                        <p className="text-[11px] text-gray-400">
+                          أنشئ وفعّل رموز الخصم التي يستعملها الزبناء في صفحة تأكيد الطلب (مثال: NOBLE10)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Add new promo code row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end text-xs bg-[#1b1f2b] p-4 rounded-xl border border-white/5">
+                    <div className="sm:col-span-4">
+                      <label className="block text-gray-400 mb-1 font-semibold">رمز التخفيض (Code)</label>
+                      <input
+                        type="text"
+                        value={newPromoCodeInput}
+                        onChange={(e) => setNewPromoCodeInput(e.target.value.toUpperCase())}
+                        placeholder="مثال: EID15"
+                        dir="ltr"
+                        className="w-full bg-[#151822] border border-white/10 rounded-xl px-3 py-2 text-white font-mono uppercase focus:outline-none focus:border-[#c5a869]"
+                      />
+                    </div>
+                    <div className="sm:col-span-3">
+                      <label className="block text-gray-400 mb-1 font-semibold">نوع الخصم</label>
+                      <select
+                        value={newPromoTypeInput}
+                        onChange={(e) => setNewPromoTypeInput(e.target.value as 'percent' | 'fixed')}
+                        className="w-full bg-[#151822] border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#c5a869]"
+                      >
+                        <option value="percent">نسبة مئوية (%)</option>
+                        <option value="fixed">مبلغ ثابت (MAD)</option>
+                      </select>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-gray-400 mb-1 font-semibold">القيمة</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={newPromoTypeInput === 'percent' ? 90 : 5000}
+                        value={newPromoValueInput}
+                        onChange={(e) => setNewPromoValueInput(e.target.value)}
+                        dir="ltr"
+                        className="w-full bg-[#151822] border border-white/10 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-[#c5a869]"
+                      />
+                    </div>
+                    <div className="sm:col-span-3 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const code = newPromoCodeInput.trim().toUpperCase();
+                          const val = Number(newPromoValueInput) || 0;
+                          const minAmt = Math.max(0, Number(newPromoMinOrderInput) || 0);
+                          if (!code || code.length < 3) {
+                            showToast('يرجى كتابة رمز تخفيض مكون من 3 أحرف على الأقل', 'error');
+                            return;
+                          }
+                          if (val <= 0) {
+                            showToast('يرجى تحديد قيمة خصم صحيحة', 'error');
+                            return;
+                          }
+                          const existing: PromoCode[] = Array.isArray(localSettings.promoCodes)
+                            ? localSettings.promoCodes
+                            : [{ code: 'NOBLE10', type: 'percent', value: 10, active: true, minOrderAmount: 0 }];
+                          const nextRule: PromoCode = {
+                            code,
+                            type: newPromoTypeInput,
+                            value: newPromoTypeInput === 'percent' ? Math.min(90, val) : val,
+                            active: true,
+                            minOrderAmount: minAmt,
+                          };
+                          const nextList = [
+                            ...existing.filter((p) => p.code.toUpperCase() !== code),
+                            nextRule,
+                          ];
+                          const updated = { ...localSettings, promoCodes: nextList };
+                          setLocalSettings(updated);
+                          const ok = await handleSaveSettings(
+                            updated,
+                            `تم حفظ رمز التخفيض ${code} بنجاح وتفعيله في صفحة الطلب.`
+                          );
+                          if (ok) {
+                            setNewPromoCodeInput('');
+                          }
+                        }}
+                        className="w-full py-2 px-3 rounded-xl gold-gradient-bg text-black font-extrabold flex items-center justify-center gap-1.5 cursor-pointer hover:brightness-105"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>إضافة وحفظ</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Active Promo Codes List */}
+                  <div className="space-y-2 text-xs">
+                    {(Array.isArray(localSettings.promoCodes) && localSettings.promoCodes.length > 0
+                      ? localSettings.promoCodes
+                      : [{ code: 'NOBLE10', type: 'percent' as const, value: 10, active: true, minOrderAmount: 0 }]
+                    ).map((promo) => (
+                      <div
+                        key={promo.code}
+                        className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-[#1b1f2b] border border-white/5"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="px-2.5 py-1 rounded-lg bg-[#c5a869]/15 border border-[#c5a869]/40 text-[#f3d999] font-mono font-black" dir="ltr">
+                            {promo.code}
+                          </span>
+                          <span className="text-white font-bold">
+                            خصم {promo.value} {promo.type === 'percent' ? '%' : 'MAD'}
+                          </span>
+                          {Number(promo.minOrderAmount) > 0 && (
+                            <span className="text-gray-400 text-[11px]">
+                              (الحد الأدنى: {promo.minOrderAmount} MAD)
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewPromoVoucher(promo)}
+                            className="px-3 py-1 rounded-lg bg-[#c5a869]/15 hover:bg-[#c5a869]/25 text-[#f3d999] border border-[#c5a869]/50 font-extrabold text-[11px] flex items-center gap-1.5 cursor-pointer transition"
+                            title="معاينة وتحميل بطاقة رمز التخفيض لإرسالها للزبناء"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>تحميل بطاقة للزبون</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const currentList: PromoCode[] = Array.isArray(localSettings.promoCodes)
+                                ? localSettings.promoCodes
+                                : [{ code: 'NOBLE10', type: 'percent', value: 10, active: true, minOrderAmount: 0 }];
+                              const nextList = currentList.map((p) =>
+                                p.code === promo.code ? { ...p, active: !p.active } : p
+                              );
+                              const updated = { ...localSettings, promoCodes: nextList };
+                              setLocalSettings(updated);
+                              await handleSaveSettings(
+                                updated,
+                                `تم تحديث حالة رمز التخفيض ${promo.code} وحفظه بنجاح.`
+                              );
+                            }}
+                            className={`px-2.5 py-1 rounded-lg font-bold text-[11px] cursor-pointer ${
+                              promo.active
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                : 'bg-gray-700/40 text-gray-400 border border-white/10'
+                            }`}
+                          >
+                            {promo.active ? 'مفعل' : 'معطل'}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const currentList: PromoCode[] = Array.isArray(localSettings.promoCodes)
+                                ? localSettings.promoCodes
+                                : [{ code: 'NOBLE10', type: 'percent', value: 10, active: true, minOrderAmount: 0 }];
+                              const nextList = currentList.filter((p) => p.code !== promo.code);
+                              const updated = { ...localSettings, promoCodes: nextList };
+                              setLocalSettings(updated);
+                              await handleSaveSettings(
+                                updated,
+                                `تم حذف رمز التخفيض ${promo.code} وحفظ التغييرات بنجاح.`
+                              );
+                            }}
+                            className="p-1.5 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 cursor-pointer"
+                            title="حذف الرمز"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -5512,17 +5841,54 @@ export const AdminDashboard: React.FC = () => {
                 </div>
 
                 {/* Bottom Save Button */}
-                <div className="p-5 rounded-2xl bg-[#151822] border border-white/5 flex items-center justify-between">
-                  <span className="text-xs text-gray-400">
-                    💡 احرص على حفظ التغييرات ليتم تطبيقها فوراً على كامل صفحات الموقع
-                  </span>
-                  <button
-                    onClick={() => updateSettings(localSettings)}
-                    className="flex items-center gap-2 px-8 py-3.5 rounded-xl gold-gradient-bg text-black font-extrabold text-sm shadow-xl hover:brightness-110 active:scale-95 transition cursor-pointer"
-                  >
-                    <Save className="w-4 h-4" />
-                    <span>حفظ جميع التعديلات والسياسات</span>
-                  </button>
+                <div className="p-5 rounded-2xl bg-[#151822] border border-white/5 space-y-4">
+                  {settingsSaveFeedback && (
+                    <div
+                      role="status"
+                      className={`p-3.5 rounded-xl text-xs font-bold flex items-center justify-between gap-3 ${
+                        settingsSaveFeedback.type === 'success'
+                          ? 'bg-emerald-950/60 border border-emerald-500/40 text-emerald-300'
+                          : 'bg-rose-950/60 border border-rose-500/40 text-rose-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        {settingsSaveFeedback.type === 'success' ? (
+                          <CheckCircle className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+                        ) : (
+                          <AlertTriangle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+                        )}
+                        <span>{settingsSaveFeedback.text}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSettingsSaveFeedback(null)}
+                        className="p-1 rounded-lg hover:bg-white/10 transition cursor-pointer"
+                        aria-label="إغلاق الإشعار"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <span className="text-xs text-gray-400">
+                      💡 احرص على حفظ التغييرات ليتم تطبيقها فوراً على كامل صفحات الموقع
+                    </span>
+                    <button
+                      type="button"
+                      disabled={isSavingSettings}
+                      onClick={() => handleSaveSettings(localSettings)}
+                      className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl gold-gradient-bg text-black font-extrabold text-sm shadow-xl hover:brightness-110 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed transition cursor-pointer"
+                    >
+                      {isSavingSettings ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4" />
+                      )}
+                      <span>
+                        {isSavingSettings ? 'جاري حفظ المعلومات...' : 'حفظ جميع التعديلات والسياسات'}
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -5736,10 +6102,10 @@ export const AdminDashboard: React.FC = () => {
                       setPrintingOrder(selectedOrder);
                       setSelectedOrder(null);
                     }}
-                    className="px-4 py-2 rounded-xl bg-[#c5a869]/20 text-[#c5a869] border border-[#c5a869]/40 text-xs font-bold flex items-center gap-1.5"
+                    className="px-4 py-2 rounded-xl bg-[#c5a869]/20 text-[#c5a869] border border-[#c5a869]/40 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                   >
-                    <Printer className="w-3.5 h-3.5" />
-                    <span>طباعة بون التوصيل</span>
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>شهادة الضمان (سنة)</span>
                   </button>
                   <button
                     onClick={() => setSelectedOrder(null)}
@@ -5753,118 +6119,13 @@ export const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* ================= MODAL: PRINT SHIPPING INVOICE / SLIP ================= */}
+        {/* ================= MODAL: OFFICIAL 1-YEAR WARRANTY CERTIFICATE ================= */}
         {printingOrder && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:p-6 bg-black/90 overflow-y-auto">
-            <div className="relative w-full max-w-2xl bg-white text-black p-8 rounded-2xl space-y-6 text-right shadow-2xl my-4 sm:my-8 print:p-0 print:m-0 print:shadow-none">
-              {/* Slip Header */}
-              <div className="flex items-center justify-between border-b-2 border-black pb-4">
-                <div className="text-left">
-                  <h1 className="text-3xl font-black font-serif tracking-wider">NOBLEWATCH</h1>
-                  <span className="text-xs uppercase font-mono tracking-widest text-gray-700">
-                    LUXURY TIMEPIECES • MAROC
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-sm font-bold text-gray-800">بون تسليم وشحن الدفع عند الاستلام</span>
-                  <div className="text-xl font-mono font-black text-black">
-                    {printingOrder.orderNumber}
-                  </div>
-                  <span className="text-xs text-gray-600">
-                    التاريخ: {new Date(printingOrder.date).toLocaleDateString('ar-MA')}
-                  </span>
-                </div>
-              </div>
-
-              {/* Customer and Delivery Info */}
-              <div className="grid grid-cols-2 gap-4 border border-black p-4 rounded-lg text-xs">
-                <div>
-                  <strong className="block text-gray-700 mb-1">المرسل:</strong>
-                  <span className="font-bold">متجر Noblewatch الرسمي بالمغرب</span>
-                  <p className="text-gray-600">الدار البيضاء، المملكة المغربية</p>
-                  <p className="text-gray-600">الهاتف: +212 6 12 34 56 78</p>
-                </div>
-
-                <div className="border-r border-black pr-4">
-                  <strong className="block text-gray-700 mb-1">بيانات المرسل إليه (الزبون):</strong>
-                  <span className="font-bold text-sm block">{printingOrder.customerName}</span>
-                  <p className="text-gray-900 font-mono text-sm" dir="ltr">
-                    {printingOrder.phone}
-                  </p>
-                  <p className="font-semibold text-gray-900">
-                    المدينة: {printingOrder.city}
-                  </p>
-                  <p className="text-gray-700">العنوان: {printingOrder.address}</p>
-                </div>
-              </div>
-
-              {/* Products Table */}
-              <table className="w-full text-xs text-right border-collapse border border-black">
-                <thead>
-                  <tr className="bg-gray-100 border-b border-black">
-                    <th className="p-2 border-l border-black">المنتج والموديل</th>
-                    <th className="p-2 border-l border-black">اللون</th>
-                    <th className="p-2 border-l border-black text-center">الكمية</th>
-                    <th className="p-2 border-l border-black text-center">السعر</th>
-                    <th className="p-2 text-center">المجموع</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {printingOrder.items.map((it, idx) => (
-                    <tr key={idx} className="border-b border-gray-300">
-                      <td className="p-2 border-l border-black font-semibold">{it.name}</td>
-                      <td className="p-2 border-l border-black">{it.color}</td>
-                      <td className="p-2 border-l border-black text-center font-mono font-bold">
-                        {it.quantity}
-                      </td>
-                      <td className="p-2 border-l border-black text-center font-mono">
-                        {it.price} MAD
-                      </td>
-                      <td className="p-2 text-center font-mono font-bold">
-                        {it.price * it.quantity} MAD
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              {/* Total & Payment Instruction */}
-              <div className="flex items-center justify-between p-4 bg-gray-50 border-2 border-black rounded-lg">
-                <div className="text-xs space-y-1">
-                  <span className="font-bold block text-sm">
-                    طريقة الدفع: الدفع عند الاستلام (COD)
-                  </span>
-                  <span className="text-gray-700">
-                    يحق للزبون فتح وفحص الطرد قبل دفع المبلغ لموزع شركة التوصيل.
-                  </span>
-                </div>
-
-                <div className="text-left font-mono">
-                  <span className="text-xs text-gray-600 block">المبلغ الصافي المطلوب:</span>
-                  <span className="text-2xl font-black text-black">
-                    {printingOrder.totalAmount} MAD
-                  </span>
-                </div>
-              </div>
-
-              {/* Buttons (Hidden when printed) */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 print:hidden">
-                <button
-                  onClick={() => window.print()}
-                  className="px-6 py-2.5 rounded-xl bg-black text-white font-bold text-xs flex items-center gap-2 hover:bg-gray-800 cursor-pointer"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>طباعة الآن (Ctrl + P)</span>
-                </button>
-                <button
-                  onClick={() => setPrintingOrder(null)}
-                  className="px-4 py-2.5 rounded-xl bg-gray-200 text-gray-800 text-xs font-semibold"
-                >
-                  إغلاق
-                </button>
-              </div>
-            </div>
-          </div>
+          <WarrantyCertificateModal
+            order={printingOrder}
+            settings={settings}
+            onClose={() => setPrintingOrder(null)}
+          />
         )}
 
         {/* ================= MODAL: ADD / EDIT PRODUCT ================= */}
@@ -7036,6 +7297,14 @@ export const AdminDashboard: React.FC = () => {
               </form>
             </div>
           </div>
+        )}
+        {/* ================= MODAL: PROMO CODE DOWNLOADABLE VOUCHER ================= */}
+        {previewPromoVoucher && (
+          <PromoCodeVoucherModal
+            promo={previewPromoVoucher}
+            settings={localSettings || settings}
+            onClose={() => setPreviewPromoVoucher(null)}
+          />
         )}
       </div>
     </div>

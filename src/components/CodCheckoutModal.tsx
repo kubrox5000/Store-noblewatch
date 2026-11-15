@@ -13,6 +13,7 @@ import {
   Check,
   Sparkles,
   Tag,
+  Loader2,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -25,6 +26,7 @@ import {
   getProductColors,
   calculateTierOffers,
   getBundlePriceForQuantity,
+  buildWhatsAppUrl,
 } from '../utils/constants';
 import { trackPixelInitiateCheckout } from '../utils/trackingPixels';
 import {
@@ -110,6 +112,14 @@ export const CodCheckoutModal: React.FC = () => {
   const [addressError, setAddressError] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [orderSuccess, setOrderSuccess] = useState<any | null>(null);
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<{
+    code: string;
+    type: 'percent' | 'fixed';
+    value: number;
+  } | null>(null);
+  const [promoError, setPromoError] = useState('');
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
 
   // Silent anti-bot & anti-duplicate tracking
   const [honeypot, setHoneypot] = useState('');
@@ -125,6 +135,9 @@ export const CodCheckoutModal: React.FC = () => {
       setNameError('');
       setPhoneError('');
       setAddressError('');
+      setPromoCodeInput('');
+      setAppliedPromo(null);
+      setPromoError('');
 
       const qty = Math.max(1, checkoutProduct.quantity || 1);
       const calc = getBundlePriceForQuantity(checkoutProduct.product, qty);
@@ -157,8 +170,56 @@ export const CodCheckoutModal: React.FC = () => {
   const bundleCalculation = getBundlePriceForQuantity(product, quantity, lang);
   const subtotal = bundleCalculation.totalPrice;
   const savingsAmount = bundleCalculation.savingsMAD;
+  const promoDiscountAmount = appliedPromo
+    ? appliedPromo.type === 'fixed'
+      ? Math.min(subtotal, Math.round(appliedPromo.value))
+      : Math.min(subtotal, Math.round((subtotal * Math.min(90, appliedPromo.value)) / 100))
+    : 0;
   const shippingFee = 0; // Free delivery
-  const totalAmount = subtotal + shippingFee;
+  const totalAmount = Math.max(0, subtotal - promoDiscountAmount + shippingFee);
+
+  const handleApplyPromoCode = async () => {
+    const code = promoCodeInput.trim().toUpperCase();
+    setPromoError('');
+    if (!code) {
+      setPromoError(isFr ? 'Veuillez saisir un code promo.' : 'يرجى إدخال رمز التخفيض أولاً.');
+      return;
+    }
+
+    setIsValidatingPromo(true);
+    try {
+      const res = await fetch('/api/promo/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, subtotal, lang }),
+      });
+      const data = await res.json();
+      if (res.ok && data?.success && data.promo) {
+        setAppliedPromo({
+          code: data.promo.code,
+          type: data.promo.type,
+          value: Number(data.promo.value) || 0,
+        });
+        setPromoCodeInput(data.promo.code);
+        setPromoError('');
+      } else {
+        setAppliedPromo(null);
+        setPromoError(
+          data?.message ||
+            (isFr ? 'Code promo invalide ou expiré.' : 'رمز التخفيض غير صحيح أو غير مفعل حالياً.')
+        );
+      }
+    } catch {
+      setAppliedPromo(null);
+      setPromoError(
+        isFr
+          ? 'Impossible de vérifier le code pour le moment.'
+          : 'تعذر التحقق من رمز التخفيض حالياً، يرجى المحاولة مجدداً.'
+      );
+    } finally {
+      setIsValidatingPromo(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -289,6 +350,7 @@ export const CodCheckoutModal: React.FC = () => {
           image: product.images[0],
         },
       ],
+      promoCode: appliedPromo?.code || undefined,
       security: {
         honeypot,
         formOpenedAt: formOpenedAtRef.current,
@@ -444,6 +506,16 @@ export const CodCheckoutModal: React.FC = () => {
                   )}
                 </div>
               </div>
+              {(orderSuccess.promoCode || Number(orderSuccess.discountAmount) > 0) && (
+                <div className="flex justify-between text-emerald-800 pt-1 border-t border-gray-200/60 font-bold">
+                  <span>
+                    {isFr
+                      ? `Code promo (${orderSuccess.promoCode}) :`
+                      : `خصم الرمز الترويجي (${orderSuccess.promoCode}):`}
+                  </span>
+                  <span>- {formatPrice(Number(orderSuccess.discountAmount) || 0, lang)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-gray-700 pt-1 border-t border-gray-200/60">
                 <span>{isFr ? 'Total à la livraison :' : 'المبلغ الواجب دفعه عند الاستلام:'}</span>
                 <span className="text-emerald-700 font-black text-sm">
@@ -456,11 +528,12 @@ export const CodCheckoutModal: React.FC = () => {
             {/* Actions */}
             <div className="space-y-3 pt-2">
               <a
-                href={`https://wa.me/${(settings?.whatsappNumber || '+212612345678').replace(/\+/g, '')}?text=${encodeURIComponent(
+                href={buildWhatsAppUrl(
+                  settings?.whatsappNumber,
                   isFr
                     ? `Bonjour, je viens de passer la commande ${orderSuccess.orderNumber} pour ${product.name} (${orderSuccess.items[0]?.bundleLabel || ''} - Couleurs : ${orderSuccess.items[0]?.color || selectedColor}) d'un montant de ${formatPrice(orderSuccess.totalAmount, lang)}. Merci de confirmer l'envoi.`
                     : `السلام عليكم، قمت بتأكيد الطلب رقم ${orderSuccess.orderNumber} لساعة ${product.name} (${orderSuccess.items[0]?.bundleLabel || ''} - الألوان: ${orderSuccess.items[0]?.color || selectedColor}) بمبلغ ${formatPrice(orderSuccess.totalAmount)}. المرجو تأكيد الشحن.`
-                )}`}
+                )}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md transition"
@@ -1003,6 +1076,85 @@ export const CodCheckoutModal: React.FC = () => {
                   className="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:outline-none"
                 />
               </div>
+              {/* Discount / Promo Code Section */}
+              <div className="p-3.5 rounded-2xl bg-[#fefaf0] border border-[#c5a869]/50 space-y-2">
+                <label className="block text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-[#996515]" />
+                  <span>
+                    {isFr
+                      ? 'Vous avez un code promo ? (Optionnel)'
+                      : 'هل لديك رمز تخفيض؟ (اختياري)'}
+                  </span>
+                </label>
+
+                {appliedPromo ? (
+                  <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 text-xs">
+                    <div className="flex items-center gap-2 text-emerald-900 font-bold">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                      <span>
+                        {isFr
+                          ? `Code ${appliedPromo.code} appliqué (-${
+                              appliedPromo.type === 'percent'
+                                ? `${appliedPromo.value}%`
+                                : formatPrice(appliedPromo.value, lang)
+                            })`
+                          : `تم تفعيل رمز التخفيض (${appliedPromo.code}) — خصم ${
+                              appliedPromo.type === 'percent'
+                                ? `${appliedPromo.value}%`
+                                : formatPrice(appliedPromo.value, lang)
+                            }`}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAppliedPromo(null);
+                        setPromoCodeInput('');
+                        setPromoError('');
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-white border border-emerald-200 text-rose-700 hover:bg-rose-50 font-bold text-[11px] cursor-pointer"
+                    >
+                      {isFr ? 'Retirer' : 'إزالة'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={promoCodeInput}
+                      onChange={(e) => {
+                        setPromoCodeInput(e.target.value.toUpperCase());
+                        if (promoError) setPromoError('');
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleApplyPromoCode();
+                        }
+                      }}
+                      placeholder={isFr ? 'Ex : NOBLE10' : 'مثال: NOBLE10'}
+                      dir="ltr"
+                      className="flex-1 bg-white border border-gray-300 rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold uppercase text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#c5a869]"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyPromoCode}
+                      disabled={isValidatingPromo}
+                      className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-[#f3d999] font-extrabold text-xs transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer disabled:opacity-60"
+                    >
+                      {isValidatingPromo && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                      <span>{isFr ? 'Appliquer' : 'تطبيق'}</span>
+                    </button>
+                  </div>
+                )}
+
+                {promoError && (
+                  <p className="text-[11px] text-rose-600 font-semibold flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>{promoError}</span>
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* Price Breakdown Calculation */}
@@ -1027,6 +1179,20 @@ export const CodCheckoutModal: React.FC = () => {
                     <span>{isFr ? 'Économie totale sur le pack :' : 'إجمالي التوفير في باقة العرض:'}</span>
                   </span>
                   <span>- {formatPrice(savingsAmount, lang)} 🎉</span>
+                </div>
+              )}
+
+              {promoDiscountAmount > 0 && appliedPromo && (
+                <div className="flex justify-between text-emerald-800 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200 font-bold">
+                  <span className="flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>
+                      {isFr
+                        ? `Remise code promo (${appliedPromo.code}) :`
+                        : `تخفيض الكود (${appliedPromo.code}):`}
+                    </span>
+                  </span>
+                  <span>- {formatPrice(promoDiscountAmount, lang)}</span>
                 </div>
               )}
 

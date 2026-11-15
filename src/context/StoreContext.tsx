@@ -46,6 +46,8 @@ interface StoreContextType {
   setIsAdminOpen: (val: boolean) => void;
   isTrackingOpen: boolean;
   setIsTrackingOpen: (val: boolean) => void;
+  isWarrantyCheckOpen: boolean;
+  setIsWarrantyCheckOpen: (val: boolean) => void;
   activePolicyModal: string | null;
   setActivePolicyModal: (policy: string | null) => void;
   searchQuery: string;
@@ -177,6 +179,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, []);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
+  const [isWarrantyCheckOpen, setIsWarrantyCheckOpen] = useState(false);
   const [activePolicyModal, setActivePolicyModal] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -250,11 +253,17 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, [cart]);
 
+  const toastTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
     setToast({ message, type });
-    setTimeout(() => {
+    toastTimerRef.current = setTimeout(() => {
       setToast(null);
-    }, 4000);
+      toastTimerRef.current = null;
+    }, 4500);
   };
 
   const saveLocalProducts = (updatedProducts: Product[]) => {
@@ -323,8 +332,21 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           let resolvedProducts: Product[] = json.data.products || [];
 
           // Only re-sync custom products when an authenticated admin has local custom changes
+          // and the server doesn't already have newer/additional products inserted externally
           const isAuthedAdmin = Boolean(localStorage.getItem('noblewatch_admin_token')) && json.isAdminAuthenticated !== false;
-          if (isAuthedAdmin && hasCustomEdits && savedLocal && savedLocal.length > 0) {
+          const serverIds = new Set(resolvedProducts.map((p: Product) => p.id));
+          const hasUnseenServerProducts =
+            Array.isArray(savedLocal) &&
+            resolvedProducts.some((p: Product) => !savedLocal!.some((lp) => lp.id === p.id));
+          if (
+            isAuthedAdmin &&
+            hasCustomEdits &&
+            savedLocal &&
+            savedLocal.length > 0 &&
+            !hasUnseenServerProducts &&
+            resolvedProducts.length <= savedLocal.length &&
+            savedLocal.some((lp) => serverIds.has(lp.id))
+          ) {
             resolvedProducts = savedLocal;
             setProducts(savedLocal);
             const localSig = JSON.stringify(savedLocal.map((p) => `${p.id}:${p.price}:${p.stock}:${p.name}:${p.images?.length || 0}`));
@@ -341,6 +363,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             if (resolvedProducts.length > 0) {
               try {
                 localStorage.setItem('noblewatch_saved_products', JSON.stringify(resolvedProducts));
+                if (hasUnseenServerProducts) {
+                  localStorage.removeItem('noblewatch_has_custom_data');
+                }
               } catch {}
             }
           }
@@ -566,8 +591,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         showToast('انتهت جلسة الإدارة، يرجى تسجيل الدخول مجدداً', 'error');
         return false;
       }
-      const data = await res.json();
-      if (data.success) {
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.success) {
         if (status) {
           const effectiveStatus = data.order?.status || status;
           if (status === 'تم التأكيد' && effectiveStatus === 'قيد التجهيز') {
@@ -575,13 +600,16 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           } else {
             showToast(`تم تحديث حالة الطلب إلى "${effectiveStatus}"`, 'success');
           }
+        } else {
+          showToast('تم حفظ تحديثات الطلب بنجاح', 'success');
         }
         await refreshData();
         return true;
       }
+      showToast(data?.message || 'تم رفض تحديث الطلب، يرجى المحاولة مجدداً', 'error');
       return false;
     } catch {
-      showToast('فشل تحديث الطلب', 'error');
+      showToast('فشل تحديث الطلب: تعذر الاتصال بالخادم', 'error');
       return false;
     }
   };
@@ -1057,18 +1085,25 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       });
       if (res.status === 401) {
         handleUnauthorizedAdmin();
-        showToast('انتهت جلسة الإدارة، يرجى تسجيل الدخول مجدداً', 'error');
+        showToast('تم رفض الحفظ: انتهت جلسة الإدارة، يرجى تسجيل الدخول مجدداً', 'error');
         return false;
       }
-      const data = await res.json();
-      if (data.success) {
-        showToast('تم حفظ إعدادات المتجر بنجاح', 'success');
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.success) {
+        if (data.settings) {
+          setSettings(data.settings);
+        }
+        showToast('تم حفظ المعلومات والإعدادات بنجاح', 'success');
         await refreshData();
         return true;
       }
+      showToast(
+        data?.message || 'تم رفض حفظ المعلومات، يرجى التحقق من البيانات والمحاولة مجدداً',
+        'error'
+      );
       return false;
     } catch {
-      showToast('فشل حفظ الإعدادات', 'error');
+      showToast('فشل حفظ المعلومات: تعذر الاتصال بالخادم', 'error');
       return false;
     }
   };
@@ -1096,6 +1131,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setIsAdminOpen,
         isTrackingOpen,
         setIsTrackingOpen,
+        isWarrantyCheckOpen,
+        setIsWarrantyCheckOpen,
         activePolicyModal,
         setActivePolicyModal,
         searchQuery,

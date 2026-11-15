@@ -69,15 +69,15 @@ export const PoliciesModal: React.FC = () => {
     },
     warranty: {
       title: isFr
-        ? 'Politique de garantie officielle (2 ans)'
-        : 'سياسة الضمان الرسمي المعتمد (سنتان)',
+        ? 'Certificat de garantie officiel (1 an)'
+        : 'سياسة شهادة الضمان الرسمية (سنة واحدة)',
       icon: CheckCircle2,
       content: localizeSettingText(
         settings?.policies?.warranty,
         [
-          'تستفيد جميع منتجات وساعات وإكسسوارات Noblewatch من ضمان دولي شامل لمدة 24 شهراً ضد عيوب الصناعة وعطل المحرك أو بهتان وتغير لون الطلاء. يشمل الضمان إصلاح أو استبدال المنتج مجاناً.',
+          'عند شراء أي منتج من متجر Noblewatch، يحصل الزبون على شهادة ضمان رسمية لمدة سنة كاملة (12 شهراً) ضد أي عطب مصنعي في المحرك أو التصنيع. يشمل الضمان إصلاح أو استبدال المنتج مجاناً، مع إمكانية التحقق من صحة الشهادة عبر رمز QR.',
         ],
-        'Toutes les montres et accessoires Noblewatch profitent d’une garantie complète de 24 mois contre tout défaut de fabrication, panne du mouvement ou altération du placage. La réparation ou le remplacement est gratuit.',
+        'Pour chaque produit acheté chez Noblewatch, vous recevez un certificat de garantie officiel d’un an (12 mois) couvrant tout défaut de fabrication du mouvement. La réparation ou le remplacement est gratuit, avec vérification instantanée par QR code.',
         lang
       ),
     },

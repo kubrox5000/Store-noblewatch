@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Order } from '../types';
-import { formatPrice } from '../utils/constants';
+import { formatPrice, formatPhoneForWhatsApp } from '../utils/constants';
 import { translateColorName } from '../i18n/storefront';
 import {
   CheckCircle2,
@@ -151,7 +151,7 @@ export const CustomerOrderActionModal: React.FC = () => {
     }
   };
 
-  const storeWhatsApp = (settings?.whatsappNumber || '+212612345678').replace(/\+/g, '');
+  const storeWhatsApp = formatPhoneForWhatsApp(settings?.whatsappNumber || '+212612345678') || '212612345678';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200">

@@ -7,11 +7,13 @@ import {
   X,
   Truck,
   Clock,
+  ShieldCheck,
   Globe,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useLanguage } from '../context/LanguageContext';
 import { localizeSettingText } from '../i18n/storefront';
+import { buildWhatsAppUrl, sanitizePhoneText } from '../utils/constants';
 
 export const Header: React.FC = () => {
   const {
@@ -23,13 +25,14 @@ export const Header: React.FC = () => {
     searchQuery,
     setSearchQuery,
     setIsTrackingOpen,
+    setIsWarrantyCheckOpen,
   } = useStore();
   const { lang, isFr, toggleLang, setLang } = useLanguage();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
-  const handleNavClick = (catId?: string, action?: 'tracking' | 'home' | 'reviews') => {
+  const handleNavClick = (catId?: string, action?: 'tracking' | 'warranty' | 'home' | 'reviews') => {
     setActiveProductId(null);
     setMobileMenuOpen(false);
 
@@ -38,6 +41,8 @@ export const Header: React.FC = () => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (action === 'tracking') {
       setIsTrackingOpen(true);
+    } else if (action === 'warranty') {
+      setIsWarrantyCheckOpen(true);
     } else if (action === 'reviews') {
       const el = document.getElementById('reviews-section');
       if (el) el.scrollIntoView({ behavior: 'smooth' });
@@ -75,11 +80,12 @@ export const Header: React.FC = () => {
 
         <div className="hidden sm:flex items-center gap-3 text-xs">
           <a
-            href={`https://wa.me/${(settings?.whatsappNumber || '+212612345678').replace(/\+/g, '')}?text=${encodeURIComponent(
+            href={buildWhatsAppUrl(
+              settings?.whatsappNumber,
               isFr
                 ? 'Bonjour, je souhaite obtenir des renseignements sur les montres et accessoires Noblewatch.'
                 : 'السلام عليكم، بغيت نستفسر على ساعات وإكسسوارات Noblewatch'
-            )}`}
+            )}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1 hover:underline font-bold"
@@ -130,7 +136,7 @@ export const Header: React.FC = () => {
           </div>
 
           {/* Desktop Live Search Bar */}
-          <div className="hidden md:flex flex-1 max-w-md mx-6">
+          <div className="hidden md:flex flex-1 max-w-md mx-2 xl:mx-5">
             <div className="relative w-full">
               <input
                 type="text"
@@ -196,13 +202,24 @@ export const Header: React.FC = () => {
               <span>{isFr ? 'Suivi commande' : 'تتبع الطلب'}</span>
             </button>
 
+            {/* Direct Warranty Verification Button */}
+            <button
+              onClick={() => setIsWarrantyCheckOpen(true)}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold text-gray-800 bg-amber-50/70 hover:bg-amber-100/80 border border-[#c5a869]/60 transition cursor-pointer"
+              title={isFr ? 'Vérifier votre certificat de garantie' : 'تحقق من شهادة الضمان الرسمية'}
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-[#996515]" />
+              <span>{isFr ? 'Vérifier garantie' : 'تحقق من الضمان'}</span>
+            </button>
+
             {/* WhatsApp Quick Order */}
             <a
-              href={`https://wa.me/${(settings?.whatsappNumber || '+212612345678').replace(/\+/g, '')}?text=${encodeURIComponent(
+              href={buildWhatsAppUrl(
+                settings?.whatsappNumber,
                 isFr
                   ? 'Bonjour, je souhaite vérifier la disponibilité des montres et la livraison au Maroc.'
                   : 'السلام عليكم، أريد الاستفسار عن توفر الساعات والإكسسوارات والتوصيل في المغرب'
-              )}`}
+              )}
               target="_blank"
               rel="noopener noreferrer"
               className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition"
@@ -324,6 +341,14 @@ export const Header: React.FC = () => {
             >
               {isFr ? 'Suivre ma commande' : 'طريقة تتبع الطلب'}
             </button>
+            <span>•</span>
+            <button
+              onClick={() => handleNavClick(undefined, 'warranty')}
+              className="text-[#996515] hover:text-black transition font-bold flex items-center gap-1 cursor-pointer"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>{isFr ? 'Vérifier garantie' : 'تحقق من الضمان'}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -432,17 +457,43 @@ export const Header: React.FC = () => {
                 {isFr ? 'Suivre →' : 'متابعة ←'}
               </span>
             </button>
+
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setIsWarrantyCheckOpen(true);
+              }}
+              className="w-full flex items-center justify-between p-3 rounded-xl bg-[#fefaf0] border border-[#c5a869]/60 text-sm text-gray-900 font-bold"
+            >
+              <span className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-[#996515]" />
+                {isFr ? 'Vérifier mon certificat de garantie' : 'تحقق من شهادة الضمان'}
+              </span>
+              <span className="text-xs text-[#996515] font-black">
+                {isFr ? 'Vérifier →' : 'تحقق الآن ←'}
+              </span>
+            </button>
           </div>
 
           <div className="pt-2">
             <a
-              href={`https://wa.me/${(settings?.whatsappNumber || '+212612345678').replace(/\+/g, '')}`}
+              href={buildWhatsAppUrl(
+                settings?.whatsappNumber,
+                isFr
+                  ? 'Bonjour, je souhaite contacter le service client Noblewatch.'
+                  : 'السلام عليكم، أريد التواصل مع خدمة العملاء في Noblewatch'
+              )}
               target="_blank"
               rel="noopener noreferrer"
               className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md transition"
             >
               <MessageCircle className="w-4 h-4" />
-              {isFr ? 'Contacter sur WhatsApp (+212 612 345 678)' : 'تواصل عبر واتساب (+212 612 345 678)'}
+              <span>
+                {isFr ? 'Contacter sur WhatsApp' : 'تواصل عبر واتساب'}
+                {sanitizePhoneText(settings?.whatsappNumber)
+                  ? ` (${sanitizePhoneText(settings?.whatsappNumber)})`
+                  : ''}
+              </span>
             </a>
           </div>
         </div>

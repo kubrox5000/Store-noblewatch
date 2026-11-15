@@ -22,6 +22,7 @@ import {
 import { useStore } from '../context/StoreContext';
 import { useLanguage } from '../context/LanguageContext';
 import { localizeFaqItem } from '../i18n/storefront';
+import { buildWhatsAppUrl, buildTelHref, sanitizePhoneText } from '../utils/constants';
 
 export const Footer: React.FC = () => {
   const {
@@ -30,6 +31,7 @@ export const Footer: React.FC = () => {
     setSelectedCategory,
     setActiveProductId,
     setIsTrackingOpen,
+    setIsWarrantyCheckOpen,
     showToast,
   } = useStore();
   const { lang, isFr } = useLanguage();
@@ -379,11 +381,12 @@ export const Footer: React.FC = () => {
               {/* Social media links */}
               <div className="flex items-center gap-2 pt-1">
                 <a
-                  href={
-                    settings?.socialLinks?.whatsapp
-                      ? `https://wa.me/${settings.socialLinks.whatsapp.replace(/\+/g, '')}`
-                      : `https://wa.me/${(settings?.whatsappNumber || '+212612345678').replace(/\+/g, '')}`
-                  }
+                  href={buildWhatsAppUrl(
+                    settings?.whatsappNumber || settings?.socialLinks?.whatsapp,
+                    isFr
+                      ? 'Bonjour, je souhaite contacter le service client Noblewatch.'
+                      : 'السلام عليكم، أريد التواصل مع خدمة العملاء في متجر Noblewatch'
+                  )}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="WhatsApp"
@@ -503,13 +506,20 @@ export const Footer: React.FC = () => {
                   <span>{isFr ? 'Accessoires Femme (Parures & Bracelets)' : 'إكسسوارات نسائية (أطقم وأساور)'}</span>
                 </button>
               </li>
-              <li className="pt-2">
+              <li className="pt-2 space-y-2">
                 <button
                   onClick={() => setIsTrackingOpen(true)}
                   className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[#f7dfa5] hover:bg-amber-500/20 text-xs font-bold transition cursor-pointer w-full"
                 >
                   <Search className="w-3.5 h-3.5 text-[#c5a869]" />
                   <span>{isFr ? 'Suivre votre commande au Maroc 🚚' : 'تتبع حالة طلبيتك بالمغرب 🚚'}</span>
+                </button>
+                <button
+                  onClick={() => setIsWarrantyCheckOpen(true)}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/20 text-xs font-bold transition cursor-pointer w-full"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>{isFr ? 'Vérifier votre certificat de garantie' : 'تحقق من شهادة الضمان الرسمية'}</span>
                 </button>
               </li>
             </ul>
@@ -578,7 +588,7 @@ export const Footer: React.FC = () => {
             </h4>
             <div className="space-y-3 text-xs">
               <a
-                href={`tel:${settings?.contactPhone || '+212612345678'}`}
+                href={buildTelHref(settings?.contactPhone)}
                 className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/20 hover:text-white transition group"
                 dir="ltr"
               >
@@ -589,18 +599,19 @@ export const Footer: React.FC = () => {
                   <span className="text-[10px] text-gray-500 block">
                     {isFr ? 'Appel téléphonique direct' : 'اتصال هاتفي مباشر'}
                   </span>
-                  <span className="font-bold text-gray-200 group-hover:text-white">
-                    {settings?.contactPhone || '+212 6 12 34 56 78'}
+                  <span className="font-bold text-gray-200 group-hover:text-white font-mono" dir="ltr">
+                    {sanitizePhoneText(settings?.contactPhone) || '+212 6 12 34 56 78'}
                   </span>
                 </div>
               </a>
 
               <a
-                href={`https://wa.me/${(settings?.whatsappNumber || '+212612345678').replace(/\+/g, '')}?text=${encodeURIComponent(
+                href={buildWhatsAppUrl(
+                  settings?.whatsappNumber,
                   isFr
                     ? 'Bonjour, je souhaite obtenir des informations sur les montres et accessoires Noblewatch.'
                     : 'السلام عليكم، أريد الاستفسار عن ساعات وإكسسوارات متجر Noblewatch'
-                )}`}
+                )}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 hover:bg-emerald-900/40 text-emerald-300 hover:text-emerald-200 transition group"

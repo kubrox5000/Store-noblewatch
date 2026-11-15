@@ -42,6 +42,15 @@ export const MOROCCAN_CITIES = [
   'أخرى (مدينة / قرية مغربية أخرى)'
 ];
 
+export function normalizeMoroccanCityName(city: string): string {
+  const trimmed = (city || '').trim();
+  if (!trimmed) return '';
+  if (trimmed === 'الدار') return 'الدار البيضاء';
+  if (trimmed === 'بني') return 'بني ملال';
+  if (trimmed === 'القصر') return 'القصر الكبير';
+  return trimmed;
+}
+
 export function formatPrice(amount: number, currencyOrLang: string = 'MAD', lang?: 'ar' | 'fr'): string {
   const isFr = lang === 'fr' || currencyOrLang === 'fr';
   const currencyLabel =
@@ -331,22 +340,69 @@ export function getBundlePriceForQuantity(
 }
 
 /**
+ * Strip invisible Unicode bidi/formatting marks (e.g. U+2066..U+2069, U+200E/F) copied from phones/WhatsApp
+ */
+export function sanitizePhoneText(phone?: string): string {
+  if (!phone) return '';
+  return String(phone)
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '')
+    .trim();
+}
+
+/**
  * Format any Moroccan phone number into standard international format for WhatsApp wa.me links
- * e.g. '0612345678' -> '212612345678', '+212 6 12 34 56 78' -> '212612345678'
+ * e.g. '0612345678' -> '212612345678', '+212 6 12 34 56 78' -> '212612345678', '⁦+212699139119⁩' -> '212699139119'
  */
 export function formatPhoneForWhatsApp(phone: string): string {
   if (!phone) return '';
-  let cleaned = phone.replace(/[^\d+]/g, '');
+  let raw = sanitizePhoneText(phone);
+  // If user pasted a full wa.me or api.whatsapp.com link, extract the phone part first
+  const waMeMatch = raw.match(/wa\.me\/([^/?#\s]+)/i);
+  if (waMeMatch && waMeMatch[1]) {
+    raw = waMeMatch[1];
+  } else {
+    const queryPhoneMatch = raw.match(/[?&]phone=([^&\s]+)/i);
+    if (queryPhoneMatch && queryPhoneMatch[1]) {
+      raw = queryPhoneMatch[1];
+    }
+  }
+
+  let cleaned = raw.replace(/[^\d+]/g, '');
   if (cleaned.startsWith('+')) {
-    cleaned = cleaned.substring(1);
+    cleaned = cleaned.substring(1).replace(/\D/g, '');
   } else if (cleaned.startsWith('00')) {
-    cleaned = cleaned.substring(2);
-  } else if (cleaned.startsWith('0')) {
+    cleaned = cleaned.substring(2).replace(/\D/g, '');
+  } else {
+    cleaned = cleaned.replace(/\D/g, '');
+  }
+
+  if (cleaned.startsWith('2120') && cleaned.length >= 13) {
+    cleaned = '212' + cleaned.substring(4);
+  } else if (cleaned.startsWith('0') && cleaned.length >= 9) {
     cleaned = '212' + cleaned.substring(1);
   } else if (!cleaned.startsWith('212') && cleaned.length === 9) {
     cleaned = '212' + cleaned;
   }
-  return cleaned;
+  return cleaned.replace(/\D/g, '');
+}
+
+/**
+ * Build a clean, valid https://wa.me/<digits>?text=... URL from any phone input format
+ */
+export function buildWhatsAppUrl(phone?: string, text?: string): string {
+  const digits = formatPhoneForWhatsApp(phone || '') || '212612345678';
+  if (text && text.trim().length > 0) {
+    return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
+  }
+  return `https://wa.me/${digits}`;
+}
+
+/**
+ * Build a clean tel: href stripping invisible directional characters and spaces
+ */
+export function buildTelHref(phone?: string): string {
+  const clean = sanitizePhoneText(phone || '+212612345678').replace(/[^\d+]/g, '');
+  return `tel:${clean || '+212612345678'}`;
 }
 
 /**
@@ -491,6 +547,7 @@ export function getWhatsAppCustomerShippedUrl(order: any, storeName = 'Noblewatc
 
 const ARABIC_TO_OZON_CITY_MAP: Record<string, string> = {
   'الدار البيضاء': 'Casablanca',
+  'الدار': 'Casablanca',
   'كازا': 'Casablanca',
   'الرباط': 'Rabat',
   'مراكش': 'Marrakech',

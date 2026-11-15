@@ -118,6 +118,8 @@ export interface Order {
   whatsappSentDate?: string;
   confirmedAt?: string;
   customerAction?: 'confirmed' | 'cancelled' | 'pending';
+  promoCode?: string;
+  discountAmount?: number;
 }
 
 
@@ -167,6 +169,15 @@ export interface OrderSecuritySettings {
   autoBlockCancelThreshold: number;
   maxOrdersPerIpPerHour: number;
   blockedPhones: string[];
+  promoCodes?: PromoCode[];
+}
+
+export interface PromoCode {
+  code: string;
+  type: 'percent' | 'fixed';
+  value: number;
+  active: boolean;
+  minOrderAmount?: number;
 }
 
 export interface SecurityBlockLog {
@@ -208,6 +219,7 @@ export interface StoreSettings {
   socialLinks?: SocialLinks;
   orderSecurity?: OrderSecuritySettings;
   trackingPixels?: TrackingPixelsSettings;
+  promoCodes?: PromoCode[];
   faqs: FaqItem[];
   policies: StorePolicies;
 }

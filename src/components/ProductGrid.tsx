@@ -19,9 +19,11 @@ export const ProductGrid: React.FC = () => {
         const matchSku = product.sku.toLowerCase().includes(q);
         const matchDesc =
           product.description.toLowerCase().includes(q) ||
+          translateProductDescription(product.description, 'ar').toLowerCase().includes(q) ||
           translateProductDescription(product.description, 'fr').toLowerCase().includes(q);
         const matchSubtitle =
           (product.subtitle || '').toLowerCase().includes(q) ||
+          translateProductSubtitle(product.subtitle || '', 'ar').toLowerCase().includes(q) ||
           translateProductSubtitle(product.subtitle || '', 'fr').toLowerCase().includes(q);
         const matchModel = product.specs?.model?.toLowerCase().includes(q);
         if (!matchName && !matchSku && !matchDesc && !matchSubtitle && !matchModel) return false;

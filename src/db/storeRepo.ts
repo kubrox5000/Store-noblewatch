@@ -18,11 +18,21 @@ import type {
   Order,
   OrderSecuritySettings,
   Product,
+  PromoCode,
   Review,
   SecurityBlockLog,
   StoreSettings,
   TrackingPixelsSettings,
 } from '../types.ts';
+
+function normalizeMoroccanCityName(city: string): string {
+  const trimmed = String(city || '').trim();
+  if (!trimmed) return '';
+  if (trimmed === 'الدار') return 'الدار البيضاء';
+  if (trimmed === 'بني') return 'بني ملال';
+  if (trimmed === 'القصر') return 'القصر الكبير';
+  return trimmed;
+}
 
 function resolveSeedFile(): string {
   const candidates = [
@@ -66,6 +76,16 @@ export const DEFAULT_TRACKING_PIXELS: TrackingPixelsSettings = {
   googleAdsConversionLabel: '',
 };
 
+export const DEFAULT_PROMO_CODES: PromoCode[] = [
+  {
+    code: 'NOBLE10',
+    type: 'percent',
+    value: 10,
+    active: true,
+    minOrderAmount: 0,
+  },
+];
+
 export interface StoreDatabaseSnapshot {
   settings: StoreSettings & { adminPasswordHash?: string };
   categories: Category[];
@@ -85,21 +105,31 @@ export function invalidateStoreCache() {
 }
 
 function buildSettingsObject(row: typeof storeSettingsTable.$inferSelect | undefined): StoreSettings & { adminPasswordHash?: string } {
+  const rawSec = (row?.orderSecurity as Partial<OrderSecuritySettings>) || {};
   const sec = {
     ...DEFAULT_ORDER_SECURITY,
-    ...((row?.orderSecurity as Partial<OrderSecuritySettings>) || {}),
+    ...rawSec,
   };
+  const promoCodes: PromoCode[] = Array.isArray(rawSec.promoCodes)
+    ? rawSec.promoCodes
+    : DEFAULT_PROMO_CODES;
   const trackingPixels: TrackingPixelsSettings = {
     ...DEFAULT_TRACKING_PIXELS,
     ...((row?.trackingPixels as Partial<TrackingPixelsSettings>) || {}),
   };
+  const stripBidi = (val?: string | null) =>
+    String(val || '')
+      .replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '')
+      .trim();
+  const cleanWhatsApp = stripBidi(row?.whatsappNumber);
+  const rawSocial = ((row?.socialLinks as any) || {}) as Record<string, string>;
   return {
     storeName: row?.storeName || 'Noblewatch',
     tagline: row?.tagline || '',
     announcementText: row?.announcementText || '',
     currency: row?.currency || 'د.م.',
-    whatsappNumber: row?.whatsappNumber || '',
-    contactPhone: row?.contactPhone || '',
+    whatsappNumber: cleanWhatsApp,
+    contactPhone: stripBidi(row?.contactPhone),
     contactEmail: row?.contactEmail || '',
     city: row?.city || 'الدار البيضاء',
     heroTitle: row?.heroTitle || '',
@@ -110,9 +140,13 @@ function buildSettingsObject(row: typeof storeSettingsTable.$inferSelect | undef
     heroSecondaryText: row?.heroSecondaryText || 'تواصل عبر واتساب',
     freeShippingThreshold: row?.freeShippingThreshold ?? 0,
     adminPasswordHash: row?.adminPasswordHash || 'admin123',
-    socialLinks: (row?.socialLinks as any) || {},
+    socialLinks: {
+      ...rawSocial,
+      whatsapp: cleanWhatsApp || stripBidi(rawSocial.whatsapp),
+    },
     orderSecurity: sec,
     trackingPixels,
+    promoCodes,
     faqs: Array.isArray(row?.faqs) ? row.faqs : [],
     policies: (row?.policies as any) || {
       privacy: '',
@@ -161,7 +195,7 @@ function mapOrderRow(row: typeof ordersTable.$inferSelect): Order & { clientIp?:
     date: row.date,
     customerName: row.customerName,
     phone: row.phone,
-    city: row.city,
+    city: normalizeMoroccanCityName(row.city),
     address: row.address,
     notes: row.notes || '',
     items: Array.isArray(row.items) ? row.items : [],
@@ -185,7 +219,7 @@ function mapReviewRow(row: typeof reviewsTable.$inferSelect): Review {
     id: row.id,
     productId: row.productId,
     author: row.author,
-    city: row.city || 'المغرب',
+    city: normalizeMoroccanCityName(row.city || 'المغرب'),
     rating: Number(row.rating || 5),
     date: row.date,
     comment: row.comment,
@@ -999,6 +1033,17 @@ export async function deleteReviewDb(id: string): Promise<void> {
 
 export async function updateSettingsDb(merged: StoreSettings & { adminPasswordHash?: string }): Promise<void> {
   try {
+    const persistedPromoCodes = Array.isArray(merged.promoCodes)
+      ? merged.promoCodes
+      : Array.isArray(merged.orderSecurity?.promoCodes)
+      ? merged.orderSecurity.promoCodes
+      : DEFAULT_PROMO_CODES;
+    const persistedOrderSecurity: OrderSecuritySettings = {
+      ...DEFAULT_ORDER_SECURITY,
+      ...(merged.orderSecurity || {}),
+      promoCodes: persistedPromoCodes,
+    };
+
     await db
       .insert(storeSettingsTable)
       .values({
@@ -1020,7 +1065,7 @@ export async function updateSettingsDb(merged: StoreSettings & { adminPasswordHa
         freeShippingThreshold: Number(merged.freeShippingThreshold) || 0,
         adminPasswordHash: merged.adminPasswordHash || 'admin123',
         socialLinks: merged.socialLinks || {},
-        orderSecurity: merged.orderSecurity || DEFAULT_ORDER_SECURITY,
+        orderSecurity: persistedOrderSecurity,
         trackingPixels: merged.trackingPixels || DEFAULT_TRACKING_PIXELS,
         faqs: merged.faqs || [],
         policies: merged.policies || {
@@ -1052,7 +1097,7 @@ export async function updateSettingsDb(merged: StoreSettings & { adminPasswordHa
           freeShippingThreshold: Number(merged.freeShippingThreshold) || 0,
           adminPasswordHash: merged.adminPasswordHash || 'admin123',
           socialLinks: merged.socialLinks || {},
-          orderSecurity: merged.orderSecurity || DEFAULT_ORDER_SECURITY,
+          orderSecurity: persistedOrderSecurity,
           trackingPixels: merged.trackingPixels || DEFAULT_TRACKING_PIXELS,
           faqs: merged.faqs || [],
           policies: merged.policies || {

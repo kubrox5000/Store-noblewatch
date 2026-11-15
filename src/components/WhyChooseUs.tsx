@@ -73,12 +73,12 @@ export const WhyChooseUs: React.FC = () => {
               <Award className="w-5 h-5 sm:w-7 sm:h-7" />
             </div>
             <h3 className="text-xs sm:text-base font-bold text-gray-900 mb-1 sm:mb-2">
-              {isFr ? 'Garantie 1 an incluse' : 'ضمان لمدة سنة'}
+              {isFr ? 'Garantie 1 an & Cadeau offert' : 'ضمان لمدة سنة + هدية مجانية'}
             </h3>
             <p className="text-[11px] sm:text-xs text-gray-600 leading-relaxed">
               {isFr
-                ? 'Tous nos produits bénéficient d’une garantie officielle d’un an'
-                : 'جميع منتوجات تتضمن ضمان لمدة سنة'}
+                ? 'Pour tout produit acheté, vous recevez un certificat de garantie officiel d’un an ainsi qu’un cadeau gratuit'
+                : 'عند شراء أي منتج يحصل الزبون على شهادة ضمان رسمية لمدة سنة كاملة بالإضافة إلى هدية مجانية مميزة'}
             </p>
           </div>
         </div>

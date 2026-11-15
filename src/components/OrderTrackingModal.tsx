@@ -4,6 +4,7 @@ import { useStore } from '../context/StoreContext';
 import { useLanguage } from '../context/LanguageContext';
 import { STATUS_COLORS, formatPrice } from '../utils/constants';
 import { translateOrderStatus } from '../i18n/storefront';
+import { translateCityName } from '../i18n/catalogTranslations';
 import { Order } from '../types';
 
 export const OrderTrackingModal: React.FC = () => {
@@ -155,7 +156,7 @@ export const OrderTrackingModal: React.FC = () => {
                   <div className="flex justify-between gap-3 text-gray-600">
                     <span>{isFr ? 'Ville et adresse :' : 'المدينة والعنوان:'}</span>
                     <span className="text-gray-900 font-semibold">
-                      {matchedOrder.city} - {matchedOrder.address}
+                      {translateCityName(matchedOrder.city, lang)} - {matchedOrder.address}
                     </span>
                   </div>
                   <div className="flex justify-between gap-3 text-gray-600">
