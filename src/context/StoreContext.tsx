@@ -809,7 +809,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           glass: 'زجاج ياقوتي مقاوم للخدش',
           clasp: 'مشبك أمان كلاسيكي',
           waterResistance: '5ATM مقاوم للماء',
-          warranty: 'سنتان ضمان شامل',
+          warranty: 'ضمان رسمي لمدة سنة كاملة',
         },
         boxContents: ['ساعة Noblewatch الأصلية', 'علبة هدايا جلدية فاخرة', 'بطاقة الضمان الدولي'],
         description: sanitizedPayload.description || 'ساعة يد فاخرة بتصميم أنيق ومحرك ياباني دقيق.',

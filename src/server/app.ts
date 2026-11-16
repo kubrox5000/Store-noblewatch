@@ -1502,7 +1502,7 @@ app.post('/api/products', async (req: Request, res: Response) => {
         glass: 'زجاج ياقوتي مقاوم للخدش',
         clasp: 'مشبك أمان كلاسيكي',
         waterResistance: '5ATM مقاوم للماء',
-        warranty: 'سنتان ضمان شامل',
+        warranty: 'ضمان رسمي لمدة سنة كاملة',
       },
       boxContents: productData.boxContents || [
         'ساعة Noblewatch الأصلية',

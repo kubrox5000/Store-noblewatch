@@ -174,6 +174,7 @@ export const AdminDashboard: React.FC = () => {
   const [newColorName, setNewColorName] = useState('');
   const [newColorCode, setNewColorCode] = useState('#111111');
   const [newColorImageIndex, setNewColorImageIndex] = useState(0);
+  const [newFeatureText, setNewFeatureText] = useState('');
   const [isVideoUploading, setIsVideoUploading] = useState(false);
   const [isSavingProduct, setIsSavingProduct] = useState(false);
 
@@ -958,6 +959,7 @@ export const AdminDashboard: React.FC = () => {
     setNewColorName('');
     setNewColorCode('#111111');
     setNewColorImageIndex(0);
+    setNewFeatureText('');
     setEditingProduct({
       name: '',
       sku: '',
@@ -1022,6 +1024,9 @@ export const AdminDashboard: React.FC = () => {
         images: Array.isArray(editingProduct.images) ? editingProduct.images : [],
         colors: Array.isArray(editingProduct.colors) ? editingProduct.colors : [],
         videos: Array.isArray(editingProduct.videos) ? editingProduct.videos : [],
+        features: Array.isArray(editingProduct.features)
+          ? editingProduct.features.map((f) => String(f || '').trim()).filter(Boolean)
+          : [],
         tieredPricing: {
           enabled: editingProduct.tieredPricing?.enabled !== false,
           mode: editingProduct.tieredPricing?.mode || 'auto',
@@ -4273,7 +4278,11 @@ export const AdminDashboard: React.FC = () => {
                         <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => {
-                              setEditingProduct(p);
+                              setNewFeatureText('');
+                              setEditingProduct({
+                                ...p,
+                                features: Array.isArray(p.features) ? [...p.features] : [],
+                              });
                               setIsEditingProduct(true);
                             }}
                             className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300"
@@ -6235,6 +6244,16 @@ export const AdminDashboard: React.FC = () => {
                   >
                     🎥 الفيديوهات
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById('prod-features-section');
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-[#c5a869]/20 hover:text-amber-300 text-gray-300 font-bold transition cursor-pointer whitespace-nowrap"
+                  >
+                    ✨ المميزات الحصرية
+                  </button>
                 </div>
               </div>
 
@@ -6831,6 +6850,150 @@ export const AdminDashboard: React.FC = () => {
                       maxVideos={4}
                       onUploadingChange={setIsVideoUploading}
                     />
+                  </div>
+
+                  {/* أهم المميزات الحصرية (تعديل / إضافة / حذف) */}
+                  <div
+                    id="prod-features-section"
+                    className="sm:col-span-2 rounded-2xl bg-[#161a25] border border-white/10 p-4 sm:p-5 space-y-4 scroll-mt-28"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-[#c5a869]" />
+                          <span>أهم المميزات الحصرية (تظهر في صفحة المنتج)</span>
+                        </h4>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          يمكنك تعديل نص أي ميزة، إعادة ترتيبها، إضافة ميزات جديدة أو حذفها نهائياً
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] bg-[#c5a869]/20 text-amber-300 border border-[#c5a869]/40 px-2.5 py-1 rounded-full font-bold">
+                          {(editingProduct.features || []).length} ميزة
+                        </span>
+                        {(editingProduct.features || []).length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setEditingProduct({ ...editingProduct, features: [] })}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-[11px] font-bold transition cursor-pointer"
+                            title="حذف جميع المميزات"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>حذف الكل</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Add new feature row */}
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        placeholder="أضف ميزة حصرية جديدة (مثال: مقاومة للماء 5ATM، علبة فاخرة...)"
+                        value={newFeatureText}
+                        onChange={(e) => setNewFeatureText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const trimmed = newFeatureText.trim();
+                            if (!trimmed) return;
+                            setEditingProduct({
+                              ...editingProduct,
+                              features: [...(editingProduct.features || []), trimmed],
+                            });
+                            setNewFeatureText('');
+                          }
+                        }}
+                        className="flex-1 bg-[#1b1f2b] border border-white/10 rounded-xl px-3.5 py-2 text-white text-xs focus:outline-none focus:border-[#c5a869]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const trimmed = newFeatureText.trim();
+                          if (!trimmed) return;
+                          setEditingProduct({
+                            ...editingProduct,
+                            features: [...(editingProduct.features || []), trimmed],
+                          });
+                          setNewFeatureText('');
+                        }}
+                        className="px-4 py-2 rounded-xl gold-gradient-bg text-black font-bold text-xs flex items-center justify-center gap-1.5 hover:brightness-110 cursor-pointer whitespace-nowrap"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>إضافة ميزة</span>
+                      </button>
+                    </div>
+
+                    {/* Features list */}
+                    {(editingProduct.features || []).length === 0 ? (
+                      <div className="text-center py-4 text-gray-500 text-[11px] bg-[#1b1f2b]/50 rounded-xl border border-dashed border-white/10">
+                        لا توجد مميزات مضافة حالياً. أضف ميزة جديدة من الحقل أعلاه أو اتركه فارغاً لإخفاء هذا القسم.
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                        {(editingProduct.features || []).map((feat, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-2 p-2 rounded-xl bg-[#1b1f2b] border border-white/10"
+                          >
+                            <span className="w-6 h-6 rounded-lg bg-[#c5a869]/15 text-[#c5a869] font-bold text-[11px] flex items-center justify-center flex-shrink-0">
+                              {idx + 1}
+                            </span>
+                            <input
+                              type="text"
+                              value={feat}
+                              onChange={(e) => {
+                                const updated = [...(editingProduct.features || [])];
+                                updated[idx] = e.target.value;
+                                setEditingProduct({ ...editingProduct, features: updated });
+                              }}
+                              className="flex-1 bg-[#141720] border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-[#c5a869]"
+                            />
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button
+                                type="button"
+                                disabled={idx === 0}
+                                onClick={() => {
+                                  if (idx === 0) return;
+                                  const updated = [...(editingProduct.features || [])];
+                                  [updated[idx - 1], updated[idx]] = [updated[idx], updated[idx - 1]];
+                                  setEditingProduct({ ...editingProduct, features: updated });
+                                }}
+                                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 disabled:opacity-30 cursor-pointer text-[10px]"
+                                title="تحريك لأعلى"
+                              >
+                                ▲
+                              </button>
+                              <button
+                                type="button"
+                                disabled={idx === (editingProduct.features || []).length - 1}
+                                onClick={() => {
+                                  const list = [...(editingProduct.features || [])];
+                                  if (idx >= list.length - 1) return;
+                                  [list[idx], list[idx + 1]] = [list[idx + 1], list[idx]];
+                                  setEditingProduct({ ...editingProduct, features: list });
+                                }}
+                                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 disabled:opacity-30 cursor-pointer text-[10px]"
+                                title="تحريك لأسفل"
+                              >
+                                ▼
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = (editingProduct.features || []).filter((_, i) => i !== idx);
+                                  setEditingProduct({ ...editingProduct, features: updated });
+                                }}
+                                className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition cursor-pointer"
+                                title="حذف هذه الميزة"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="sm:col-span-2">

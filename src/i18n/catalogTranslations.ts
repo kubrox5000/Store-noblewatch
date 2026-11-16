@@ -201,8 +201,8 @@ const REVIEW_COMMENTS_AR_TO_FR: Record<string, string> = {
     'Reçue en un temps record ! L’emballage est soigné et le coffret convient parfaitement pour un cadeau prestigieux. La montre est dense et très luxueuse.',
   'الجودة تفوت الثمن بكتير، زجاج السافير كيحافظ على اللمعان ديالو وما كيتجرحش واخا تقيسو ف السوارت.':
     'La qualité dépasse largement le prix : le verre saphir garde tout son éclat et ne se raye pas même au contact des clés.',
-  'الضمان ديال عامين المعتمد كيريح البال، هاد الناس معقولين وكيخافو الله فالسلعة لي كيبيعو.':
-    'La garantie officielle apporte une vraie tranquillité d’esprit. Des vendeurs honnêtes et sérieux qui proposent de la belle marchandise.',
+  'الضمان ديال عام كامل المعتمد كيريح البال، هاد الناس معقولين وكيخافو الله فالسلعة لي كيبيعو.':
+    'La garantie officielle d’un an apporte une vraie tranquillité d’esprit. Des vendeurs honnêtes et sérieux qui proposent de la belle marchandise.',
   'المنظر ديال التروس والعجلات كيدورو من الواجهة ومن الظهر زجاج شفاف يخليك جالس حاضيها، متعة حقيقية.':
     'Voir les rouages tourner côté cadran et à travers le fond transparent est hypnotisant, un vrai plaisir horloger !',
 };
@@ -286,6 +286,36 @@ const EXACT_FEATURES_FR_TO_AR: Record<string, string> = {
   'verre : saphir bombé antireflet': 'الزجاج : سافير مقبب مضاد للانعكاس',
   'coffret de marque officiel': 'علبة الماركة الرسمية',
   'packaging de marque officiel': 'تغليف الماركة الرسمي الفاخر',
+  'mouvement automatique (sans pile)': 'حركة أوتوماتيكية (تعبئة ذاتية بدون بطارية)',
+  "design inspiré d'un modèle emblématique de luxe": 'تصميم مستوحى من موديل أيقوني فاخر',
+  "finitions haut de gamme avec cadran nid d'abeille et fond transparent":
+    'تشطيبات راقية مع مينا بنقشة خلية النحل وظهر شفاف',
+  'bracelet intégré confortable et résistant': 'سوار مدمج مريح ومتين للاستخدام اليومي',
+  'verre saphir résistant aux rayures': 'زجاج ياقوت (سافير) مقاوم للخدوش',
+  'fermoir invisible sécurisé': 'قفل مخفي آمن ومحكم الإغلاق',
+  'mouvement : swiss automatique': 'الحركة : أوتوماتيكية سويسرية (Swiss Automatique)',
+  'verre : saphir anti-reflets': 'الزجاج : ياقوت (سافير) مضاد للانعكاس',
+  'verre : cristal sapphire': 'الزجاج : كريستال سافير مقاوم للخدوش',
+  'garantie officielle d’un an': 'ضمان رسمي لمدة سنة كاملة ضد العيوب المصنعية',
+  "garantie officielle d'un an": 'ضمان رسمي لمدة سنة كاملة ضد العيوب المصنعية',
+  'boitier : 41 mm': 'قطر الهيكل : 41 ملم',
+  'verre : sapphir': 'الزجاج : ياقوت (سافير)',
+  'étanchéité : 50m': 'مقاومة الماء : 50 متر',
+  'étanchéité : 120m (12atm)': 'مقاومة الماء : 120 متر (12ATM)',
+  'boîtier : 42mm · acier inoxydable': 'الهيكل : 42 ملم · فولاذ مقاوم للصدأ',
+  'boîtier : 42.5mm · acier': 'الهيكل : 42.5 ملم · فولاذ مقاوم للصدأ',
+  'mouvement : quartz': 'الحركة : كوارتز عالي الدقة (Quartz)',
+  'verre : glace saphir': 'الزجاج : ياقوت (سافير) مقاوم للخدوش',
+  'étanchéité : 100m (10 atm)': 'مقاومة الماء : 100 متر (10 ATM)',
+  'étanchéité : 30m (3 atm)': 'مقاومة الماء : 30 متر (3 ATM)',
+  'étanchéité : 3 atm': 'مقاومة الماء : 3 ATM',
+  'boîtier : 36mm or rose': 'الهيكل : 36 ملم · تشطيب ذهبي وردي',
+  'boîtier : 36mm acier inoxydable': 'الهيكل : 36 ملم · فولاذ مقاوم للصدأ',
+  'boitier : 35 mm': 'قطر الهيكل : 35 ملم',
+  'boîtier : 32 mm doré': 'الهيكل : 32 ملم · تشطيب ذهبي',
+  'épaisseur de boîtier : 8,5mm': 'سماكة الهيكل : 8.5 ملم',
+  'diamètre : 24,6 x 18,7 mm': 'الأبعاد : 24.6 × 18.7 ملم',
+  'diamètre : 33,7 mm': 'القطر : 33.7 ملم',
 };
 
 const SPEC_KEY_FR_TO_AR: Record<string, string> = {
@@ -309,6 +339,17 @@ const SPEC_KEY_FR_TO_AR: Record<string, string> = {
   fonctions: 'الوظائف',
   index: 'المؤشرات',
   finition: 'التشطيب',
+  fond: 'الظهر',
+  collection: 'المجموعة',
+  garantie: 'الضمان',
+  modéle: 'الموديل',
+  référence: 'المرجع (Réf.)',
+  étanchéité: 'مقاومة الماء',
+  'sous-cadrans': 'العدادات الفرعية',
+  'détail unique': 'تفصيل مميز',
+  genre: 'الفئة',
+  'largeur réglable': 'طول السوار القابل للتعديل',
+  'épaisseur de boîtier': 'سماكة الهيكل',
 };
 
 const SPEC_VALUE_FR_TO_AR: Record<string, string> = {
@@ -317,6 +358,10 @@ const SPEC_VALUE_FR_TO_AR: Record<string, string> = {
   omega: 'أوميغا (Omega)',
   'patek philippe': 'باتيك فيليب (Patek Philippe)',
   cartier: 'كارتييه (Cartier)',
+  hublot: 'هوبلو (Hublot)',
+  tissot: 'تيسو (Tissot)',
+  'audemars piguet': 'أوديمار بيغيه (Audemars Piguet)',
+  'vacheron constantin': 'فاشرون كونستانتان (Vacheron Constantin)',
   // Models
   'cosmograph daytona': 'كوزموغراف دايتونا (Cosmograph Daytona)',
   'cosmograph daytona « panda »': 'كوزموغراف دايتونا « باندا »',
@@ -407,6 +452,208 @@ const SPEC_VALUE_FR_TO_AR: Record<string, string> = {
   '40 mm': '40 ملم',
   '39,8 mm': '39.8 ملم',
   '42 mm': '42 ملم',
+  'land-dweller style': 'لاند-دويلر ستايل (Land-Dweller Style)',
+  'automatique (sans pile)': 'أوتوماتيكية (تعبئة ذاتية بدون بطارية)',
+  "motif nid d'abeille haute finition": 'نقشة خلية النحل بتشطيب عالٍ',
+  'cannelée élégante': 'مخدد أنيق (Cannelée)',
+  'transparent laissant apparaître le mécanisme': 'شفاف يكشف حركة الماكينة الداخلية',
+  'acier inoxydable haute qualité': 'فولاذ مقاوم للصدأ عالي الجودة',
+  'flat jubilee intégré confortable et résistant': 'سوار فلات جوبيلي مدمج مريح ومتين',
+  'fermoir invisible sécurisé': 'مشبك مخفي آمن ومحكم',
+  'santos squelette, mouvement apparent': 'سانتوس سكيليتون بمكينة مكشوفة',
+  'acier inoxydable, forme carrée': 'فولاذ مقاوم للصدأ بتصميم مربع',
+  'acier, maillons interchangeables': 'فولاذ مقاوم للصدأ بحلقات قابلة للتبديل',
+  'cosmograph daytona (réf. 116515)': 'كوزموغراف دايتونا (المرجع 116515)',
+  'daytona finition or rose, cadran noir': 'دايتونا بتشطيب ذهبي وردي ومينا أسود',
+  noir: 'أسود',
+  'lunette tachymétrique, finition or rose': 'إطار تاكيمتر بتشطيب ذهبي وردي',
+  'saphir anti-reflets': 'زجاج سافير مضاد للانعكاس',
+  'luxe discret et intemporel': 'فخامة هادئة وأناقة خالدة',
+  'daytona cadran bleu glacier transparent, lunette marron': 'دايتونا بمينا أزرق جليدي شفاف وإطار بني',
+  'bleu glacier': 'أزرق جليدي (Ice Blue)',
+  'lunette tachymétrique cerachrom marron': 'إطار تاكيمتر سيراكروم باللون البني',
+  'édition rare et élégante': 'إصدار نادر وأنيق',
+  'santos de cartier': 'سانتوس دي كارتييه (Santos de Cartier)',
+  'santos acier, cadran bleu': 'سانتوس فولاذية بمينا أزرق',
+  classique: 'كلاسيكية',
+  'bleu, chiffres romains': 'أزرق بأرقام رومانية',
+  'acier, vis apparentes': 'فولاذ مقاوم للصدأ مع براغي ظاهرة',
+  'heures, minutes, secondes': 'الساعات، الدقائق، الثواني',
+  'élégance sportive intemporelle': 'أناقة رياضية خالدة',
+  'classic fusion aerofusion, finition king gold': 'كلاسيك فيوجن أيروفيوجن بتشطيب كينغ غولد',
+  'aerofusion squelette, finition dorée': 'أيروفيوجن سكيليتون بتشطيب ذهبي',
+  'finition king gold, lunette six vis en h': 'تشطيب كينغ غولد مع إطار بـ 6 براغي بشكل H',
+  'chronographe squelette': 'كرونوغراف سكيليتون (هيكل مكشوف)',
+  'squelette, finition dorée': 'مكشوف (Squelette) بتشطيب ذهبي',
+  'finition king gold, six vis en h': 'تشطيب كينغ غولد مع 6 براغي بشكل H',
+  'caoutchouc structuré noir': 'مطاط فاخر أسود منقوش',
+  'satinée et polie': 'تشطيب ساتان ومصقول',
+  'luxe technique et audacieux': 'فخامة تقنية وجريئة',
+  'nautilus (réf. 5711/1a)': 'نوتيلوس (المرجع 5711/1A)',
+  'nautilus cadran vert olive, boîtier acier': 'نوتيلوس بمينا أخضر زيتوني وهيكل فولاذي',
+  'acier inoxydable, forme octogonale arrondie': 'فولاذ مقاوم للصدأ بشكل ثماني مستدير',
+  '40,8 mm': '40.8 ملم',
+  'classique à date': 'كلاسيكية مع نافذة التاريخ',
+  'vert olive, motif horizontal embossé': 'أخضر زيتوني بنقشة أفقية بارزة',
+  'lunette octogonale arrondie': 'إطار ثماني مستدير أيقوني',
+  'octogonale arrondie': 'ثماني مستدير أيقوني',
+  'acier inoxydable intégré': 'فولاذ مقاوم للصدأ مدمج',
+  'luxe sportif discret': 'فخامة رياضية راقية',
+  nautilus: 'نوتيلوس (Nautilus)',
+  'nautilus acier, cadran blanc': 'نوتيلوس فولاذية بمينا أبيض',
+  blanc: 'أبيض',
+  'acier gris': 'فولاذ رمادي مقاوم للصدأ',
+  'sport-luxe discret': 'رياضي فاخر وأنيق',
+  'pxr powermatic 80': 'PRX باورماتيك 80 (Powermatic 80)',
+  't137.407.11.051.00': 'T137.407.11.051.00',
+  'cristal sapphire': 'زجاج كريستال سافير',
+  'acier inoxydable': 'فولاذ مقاوم للصدأ',
+  'swiss automatique': 'أوتوماتيكية سويسرية (Swiss Automatique)',
+  '41 mm': '41 ملم',
+  '1 an': 'سنة كاملة (شهادة ضمان رسمية)',
+  'gmt-master ii « pepsi » (réf. 126710blro)': 'جي إم تي ماستر 2 « بيبسي » (المرجع 126710BLRO)',
+  'gmt voyageur, lunette bicolore rouge et bleue': 'GMT للمسافرين بإطار ثنائي اللون أحمر وأزرق',
+  'gmt, double fuseau horaire': 'GMT بتوقيت مزدوج لمنطقتين زمنيتين',
+  'cerachrom bicolore rouge et bleu « pepsi »': 'سيراميك سيراكروم أحمر وأزرق « بيبسي »',
+  'heures, minutes, secondes, date, second fuseau horaire': 'الساعات، الدقائق، الثواني، التاريخ، التوقيت الثاني GMT',
+  'sport-chic, esprit voyageur': 'رياضي أنيق بروح السفر',
+  'gmt-master ii « batman » (réf. 126710blnr)': 'جي إم تي ماستر 2 « باتمان » (المرجع 126710BLNR)',
+  'gmt voyageur, lunette bicolore noire et bleue': 'GMT للمسافرين بإطار ثنائي اللون أسود وأزرق',
+  'cerachrom bicolore noir et bleu « batman »': 'سيراميك سيراكروم أسود وأزرق « باتمان »',
+  'jubilée, acier': 'سوار جوبيلي من الفولاذ المقاوم للصدأ',
+  'day-date 40 (réf. 228235)': 'داي-ديت 40 (المرجع 228235)',
+  'day-date finition or rose, cadran olive': 'داي-ديت بتشطيب ذهبي وردي ومينا أخضر زيتوني',
+  'classique à jour et date': 'كلاسيكية مع عرض اليوم والتاريخ',
+  'vert olive': 'أخضر زيتوني',
+  'president, finition or rose': 'سوار بريزيدنت بتشطيب ذهبي وردي',
+  'fermoir dissimulé president': 'مشبك بريزيدنت مخفي',
+  'heures, minutes, secondes, jour, date': 'الساعات، الدقائق، الثواني، اليوم، التاريخ',
+  'prestige discret et intemporel': 'فخامة هادئة وهيبة خالدة',
+  'submariner date « hulk » (réf. 116610lv)': 'سبمارينر ديت « هالك » (المرجع 116610LV)',
+  'submariner hulk tout vert': 'سبمارينر هالك بالكامل باللون الأخضر',
+  plongée: 'ساعة غوص احترافية',
+  'lunette de plongée unidirectionnelle cerachrom verte': 'إطار غوص دوار باتجاه واحد من السيراميك الأخضر',
+  glidelock: 'قفل غلايد لوك (Glidelock)',
+  'sport-luxe iconique': 'رياضي فاخر وأيقوني',
+  'datejust 41 (réf. 126300)': 'ديت جست 41 (المرجع 126300)',
+  'datejust cadran bleu, bracelet oyster': 'ديت جست بمينا أزرق وسوار أويستر',
+  bleu: 'أزرق',
+  'lisse, acier poli': 'أملس من الفولاذ المصقول',
+  'élégance intemporelle': 'أناقة كلاسيكية خالدة',
+  'royal oak': 'رويال أوك (Royal Oak)',
+  '15450st.oo.1256st.01': '15450ST.OO.1256ST.01',
+  sapphir: 'زجاج ياقوت (سافير)',
+  '41mm': '41 ملم',
+  '50m': '50 متر',
+  'seamaster aqua terra worldtimer': 'سيماستر أكوا تيرا وورلد تايمر',
+  'montre homme': 'ساعة رجالية فاخرة',
+  'bleu avec carte du monde': 'أزرق مع خريطة العالم',
+  'worldtimer – fuseaux horaires': 'توقيت عالمي (Worldtimer) لجميع المناطق الزمنية',
+  caoutchouc: 'مطاط رياضي فاخر',
+  'luxe / élégant / sport-chic': 'فاخر / أنيق / سبور شيك',
+  'speedmaster silver snoopy award 50th anniversary': 'سبيدماستر الذكرى الخمسين Silver Snoopy Award',
+  'argenté guilloché': 'فضي بنقشة غيوشيه (Guilloché)',
+  'snoopy en relief à 9h': 'رسم سنوبي بارز عند الساعة 9',
+  'nylon bleu avec surpiqûres blanches': 'نايلون أزرق مع تطريز أبيض أنيق',
+  'céramique bleue tachymétrique': 'سيراميك أزرق بمقياس التاكيمتر',
+  'chronographe · calibre omega 3861': 'كرونوغراف · كاليبر أوميغا 3861',
+  'saphir avec animation snoopy lunaire': 'ظهر سافير مع حركة القمر وسنوبي',
+  'classic fusion, titane, cadran bleu': 'كلاسيك فيوجن من التيتانيوم ومينا أزرق',
+  'classic fusion épurée, boîtier titane': 'كلاسيك فيوجن بتصميم نقي وهيكل تيتانيوم',
+  'titane, lunette six vis en h': 'تيتانيوم مع إطار بـ 6 براغي بشكل H',
+  'titane, six vis en h': 'تيتانيوم بـ 6 براغي بشكل H',
+  'caoutchouc structuré bleu': 'مطاط فاخر أزرق منقوش',
+  'élégance minimaliste et moderne': 'أناقة عصرية وبساطة راقية',
+  overseas: 'أوفرسيز (Overseas)',
+  argent: 'فضي',
+  '120m (12atm)': '120 متر (12ATM)',
+  '42mm · acier inoxydable': '42 ملم · فولاذ مقاوم للصدأ',
+  '42.5mm · acier': '42.5 ملم · فولاذ مقاوم للصدأ',
+  // Women's catalog brands, models, and details
+  bvlgari: 'بولغاري (Bvlgari)',
+  chopard: 'شوبارد (Chopard)',
+  'michael kors': 'مايكل كورس (Michael Kors)',
+  'daniel wellington': 'دانيال ولينغتون (Daniel Wellington)',
+  'emporio armani': 'إمبوريو أرماني (Emporio Armani)',
+  guess: 'غيس (Guess)',
+  quartz: 'كوارتز عالي الدقة (Quartz)',
+  femme: 'نسائية',
+  'ballon bleu (réf. w6920046)': 'بالون بلو (المرجع W6920046)',
+  'ballon bleu bicolore, effet sertissage or rose': 'بالون بلو ثنائية اللون بتأثير ترصيع ذهبي وردي',
+  'blanc, chiffres romains': 'أبيض بأرقام رومانية',
+  "acier, couronne sertie d'un saphir bleu synthétique": 'فولاذ مع تاج مرصع بحجر سافير أزرق',
+  'acier et finition or rose': 'فولاذ مقاوم للصدأ مع تشطيب ذهبي وردي',
+  'élégance ronde raffinée': 'أناقة دائرية راقية',
+  'baignoire 25mm': 'بينوار (Baignoire) 25 ملم',
+  'baignoire ovale, finition or jaune': 'بينوار بيضاوية بتشطيب ذهبي أصفر',
+  'finition or jaune, forme ovale': 'تشطيب ذهبي أصفر، تصميم بيضاوي',
+  'argenté, chiffres romains': 'فضي بأرقام رومانية',
+  'lisse, finition or jaune': 'أملس، بتشطيب ذهبي أصفر',
+  'joaillier, élégance intemporelle': 'تصميم مجوهرات بأناقة خالدة',
+  'baignoire mini': 'بينوار ميني (Baignoire Mini)',
+  'baignoire mini, bracelet cuir noir': 'بينوار ميني بسوار جلد أسود',
+  'acier inoxydable, forme ovale': 'فولاذ مقاوم للصدأ بتصميم بيضاوي',
+  '24,6 x 18,7 mm': '24.6 × 18.7 ملم',
+  argenté: 'فضي لامع',
+  'lisse, acier': 'أملس من الفولاذ',
+  'boucle ardillon': 'إبزيم كلاسيكي (Boucle ardillon)',
+  polie: 'مصقولة بلمعان فاخر',
+  'élégance discrète et raffinée': 'أناقة ناعمة وراقية',
+  'panthère de cartier': 'بانثير دي كارتييه (Panthère de Cartier)',
+  'panthère acier, effet sertissage': 'بانثير فولاذية مرصعة بالكريستال',
+  'acier, effet sertissage': 'فولاذ مرصع بالكريستال',
+  'acier inoxydable, maillons panthère': 'فولاذ مقاوم للصدأ بحلقات بانثير الأيقونية',
+  'fermoir dissimulé': 'مشبك مخفي أنيق',
+  'joaillier, féminin et intemporel': 'تصميم مجوهرات نسائي خالد',
+  'panthère finition or rose intégrale': 'بانثير كاملة بتشطيب ذهبي وردي',
+  'finition or rose, maillons panthère': 'تشطيب ذهبي وردي بحلقات بانثير الأيقونية',
+  'joaillier, féminin et prestigieux': 'تصميم مجوهرات نسائي فاخر',
+  'tank must': 'تانك ماست (Tank Must)',
+  'tank rectangulaire, bracelet acier': 'تانك مستطيلة بسوار فولاذي',
+  'acier inoxydable, forme rectangulaire': 'فولاذ مقاوم للصدأ بتصميم مستطيل',
+  '33,7 mm': '33.7 ملم',
+  'élégance intemporelle art déco': 'أناقة آرت ديكو خالدة',
+  'ballon bleu de cartier': 'بالون بلو دي كارتييه (Ballon Bleu)',
+  'ballon bleu, bracelet cuir noir': 'بالون بلو بسوار جلد أسود',
+  'acier inoxydable, forme ronde bombée': 'فولاذ مقاوم للصدأ بتصميم دائري مقبب',
+  'opalin argenté': 'أوبالين فضي ناصع',
+  'élégance ronde et féminine': 'أناقة دائرية أنثوية راقية',
+  'serpenti tubogas': 'سيربنتي توبوغاز (Serpenti Tubogas)',
+  'or rose serti': 'ذهبي وردي مرصع بالكريستال',
+  'or rose': 'ذهبي وردي (Or Rose)',
+  'serpenti seduttori': 'سيربنتي سيدوتوري (Serpenti Seduttori)',
+  'or jaune': 'ذهبي أصفر (Or Jaune)',
+  '35 mm': '35 ملم',
+  'oyster perpetual': 'أويستر بربتشوال (Oyster Perpetual)',
+  'oyster perpetual, cadran rose': 'أويستر بربتشوال بمينا وردي',
+  rose: 'وردي ناعم',
+  'oyster perpetual (réf. 276200)': 'أويستر بربتشوال (المرجع 276200)',
+  'oyster perpetual compacte, boîtier acier': 'أويستر بربتشوال مدمجة بهيكل فولاذي',
+  'coloré, selon disponibilité': 'مينا ملون أنيق حسب الإصدار',
+  'oyster perpetual (réf. 277200)': 'أويستر بربتشوال (المرجع 277200)',
+  'oyster perpetual, boîtier acier': 'أويستر بربتشوال بهيكل فولاذي',
+  'alpine eagle 36': 'ألبين إيغل 36 (Alpine Eagle 36)',
+  'glace saphir': 'زجاج ياقوت (سافير)',
+  '100m (10 atm)': '100 متر (10 ATM)',
+  '36mm or rose': '36 ملم · تشطيب ذهبي وردي',
+  '36mm acier inoxydable': '36 ملم · فولاذ مقاوم للصدأ',
+  'mini monroe pavé two-tone': 'ميني مونرو بافيه ثنائية اللون',
+  'acier bicolore': 'فولاذ ثنائي اللون (فضي وذهبي)',
+  'blanc pavé': 'أبيض مرصع بالكريستال',
+  emery: 'إيمري (Emery)',
+  dw00100341: 'DW00100341',
+  'iconic link': 'أيكونيك لينك (Iconic Link)',
+  'verre minéral nacre': 'زجاج معدني ومينا عرق اللؤلؤ',
+  'acier inoxydable argenté 20mm': 'فولاذ مقاوم للصدأ فضي (20 ملم)',
+  '142-208mm': 'قابل للتعديل من 142 إلى 208 ملم',
+  '3 atm': 'مقاومة رذاذ الماء (3 ATM)',
+  '8,5mm': '8.5 ملم',
+  ar1926: 'AR1926',
+  retro: 'ريترو الكلاسيكية (Retro)',
+  '32 mm doré': '32 ملم بتشطيب ذهبي',
+  'acier inoxydable argent / doré': 'فولاذ مقاوم للصدأ فضي / ذهبي',
+  '30m (3 atm)': '30 متر (3 ATM)',
+  w0836l3: 'W0836L3',
 };
 
 function cleanCompetitorBrand(text: string): string {
@@ -467,11 +714,8 @@ export const translateProductFeature = (feat: string, lang: Language): string =>
 
   if (EXACT_FEATURES_AR_TO_FR[f]) return EXACT_FEATURES_AR_TO_FR[f];
 
-  if (f.includes('ضمان معتمد لمدة سنة')) {
+  if (f.includes('ضمان معتمد لمدة سنة') || f.includes('ضمان رسمي لمدة سنة')) {
     return 'Garantie officielle d’un an contre tout défaut de fabrication';
-  }
-  if (f.includes('ضمان') && (f.includes('عامين') || f.includes('سنتين'))) {
-    return 'Garantie officielle de 2 ans contre tout défaut de fabrication';
   }
   if (f.includes('ضمان')) {
     return 'Garantie officielle d’un an incluse';
@@ -568,6 +812,40 @@ const FRENCH_SENTENCE_TO_AR: Record<string, string> = {
   '- Coffret de marque officiel': '– علبة الماركة الرسمية الفاخرة',
   '- Packaging de marque officiel': '– تغليف الماركة الرسمي',
   'Caractéristiques détaillées :': 'المواصفات التقنية المفصلة:',
+  "Montre Style Land-Dweller – Élégance Automatique. Affichez un style raffiné avec cette montre inspirée d'un design emblématique de l'horlogerie de luxe.":
+    'ساعة Rolex Land-Dweller Style — أناقة أوتوماتيكية فاخرة بتصميم أيقوني مستوحى من أرقى الساعات السويسرية، متوفرة في المغرب مع توصيل مجاني والدفع عند الاستلام.',
+  'Montre Style Land-Dweller – Élégance Automatique':
+    'ساعة Land-Dweller Style – أناقة أوتوماتيكية فاخرة',
+  "L'élégance qui marque les esprits.":
+    'أناقة راقية تلفت الأنظار وتترك انطباعاً استثنائياً.',
+  "Affichez un style raffiné avec cette montre inspirée d'un design emblématique de l'horlogerie de luxe. Son boîtier soigné, ses finitions premium et son mouvement automatique en font le choix idéal pour les amateurs de belles montres.":
+    'تألّق بإطلالة راقية مع هذه الساعة المستوحاة من تصميم أيقوني عالمي في عالم الساعات الفاخرة. هيكلها المتقن، تشطيباتها الرفيعة وحركتها الأوتوماتيكية تجعلها الخيار المثالي لعشاق الساعات الراقية.',
+  "Que ce soit pour le travail, un rendez-vous, un mariage ou une sortie entre amis, elle apporte une touche de prestige à votre poignet et renforce votre image avec élégance.":
+    'سواء للعمل، لقاء مهم، حفل زفاف أو خرجة مع الأصدقاء، تضفي على معصمك لمسة من الهيبة والفخامة وتعزّز حضورك بكل أناقة.',
+  "Explorez la maison Cartier — montres joaillières d'exception disponibles au Maroc avec livraison gratuite et paiement à la livraison. Cartier, l'alliance parfaite entre l'art horloger et le raffinement français.":
+    'استكشف دار كارتييه العريقة — ساعات مجوهرات استثنائية متوفرة في المغرب مع توصيل مجاني والدفع عند الاستلام. كارتييه، التناغم المثالي بين فن صناعة الساعات والرقي الفرنسي.',
+  "Explorez la collection Hublot — l'Art de la Fusion entre haute horlogerie et matériaux innovants, disponible au Maroc avec livraison gratuite et paiement à la livraison. Hublot redéfinit les codes du luxe contemporain.":
+    'استكشف مجموعة هوبلو — فن الاندماج بين صناعة الساعات الراقية والمواد المبتكرة، متوفرة في المغرب مع توصيل مجاني والدفع عند الاستلام. هوبلو تعيد تعريف رموز الفخامة المعاصرة.',
+  "Découvrez la collection Patek Philippe — montres de haute complication livrées partout au Maroc avec paiement à la livraison. Patek Philippe : vous ne posséderez jamais une montre, vous la préserverez pour la prochaine génération.":
+    'اكتشف مجموعة باتيك فيليب — ساعات التعقيدات السويسرية الرفيعة مع التوصيل لجميع أنحاء المغرب والدفع عند الاستلام. باتيك فيليب: أنت لا تقتني مجرد ساعة، بل تحفظ إرثاً للجيل القادم.',
+  "Découvrez la collection Tissot — l'horlogerie suisse accessible alliant qualité, innovation et style contemporain, disponible au Maroc avec paiement à la livraison. Innovators by Tradition.":
+    'اكتشف مجموعة تيسو (Tissot) — صناعة الساعات السويسرية التي تجمع بين الجودة والابتكار والتصميم العصري، متوفرة في المغرب مع الدفع عند الاستلام. مبتكرون عبر التقاليد.',
+  "Explorez la collection Audemars Piguet — le Royal Oak, icône de la haute horlogerie, disponible au Maroc avec livraison gratuite et paiement à la livraison. Le summum du savoir-faire horloger suisse.":
+    'استكشف مجموعة أوديمار بيغيه — رويال أوك، أيقونة الساعات السويسرية الراقية، متوفرة في المغرب مع توصيل مجاني والدفع عند الاستلام. قمة الإبداع السويسري في صناعة الساعات.',
+  "Découvrez la collection Vacheron Constantin — l'une des plus anciennes manufactures horlogères du monde depuis 1755, disponible au Maroc avec paiement à la livraison. L'excellence horlogère genevoise à votre poignet.":
+    'اكتشف مجموعة فاشرون كونستانتان — إحدى أعرق دور الساعات السويسرية في العالم منذ 1755، متوفرة في المغرب مع الدفع عند الاستلام. التميز السويسري من جنيف على معصمك.',
+  "Découvrez la maison Bvlgari — montres à l'italianité affirmée, disponibles au Maroc avec livraison gratuite et paiement à la livraison. Bvlgari, l'audace du design romain.":
+    'اكتشفي دار بولغاري (Bvlgari) — ساعات إيطالية راقية بتصميم روماني جريء، متوفرة في المغرب مع توصيل مجاني والدفع عند الاستلام.',
+  "Explorez la maison Chopard — montres et joaillerie d'exception disponibles au Maroc avec livraison gratuite et paiement à la livraison. Chopard, l'art du luxe depuis 1860.":
+    'اكتشفي دار شوبارد (Chopard) — ساعات ومجوهرات سويسرية استثنائية متوفرة في المغرب مع توصيل مجاني والدفع عند الاستلام. شوبارد، فن الفخامة منذ 1860.',
+  "Explorez la collection Michael Kors — montres glamour et tendance disponibles au Maroc avec livraison gratuite et paiement à la livraison. Michael Kors, l'élégance new-yorkaise.":
+    'اكتشفي مجموعة مايكل كورس — ساعات نسائية عصرية وجذابة متوفرة في المغرب مع توصيل مجاني والدفع عند الاستلام. مايكل كورس، أناقة نيويورك الراقية.',
+  'Découvrez la collection Daniel Wellington — montres minimalistes et élégantes disponibles au Maroc avec livraison gratuite et paiement à la livraison. Daniel Wellington, la montre suédoise qui définit le minimalisme moderne.':
+    'اكتشفي مجموعة دانيال ولينغتون — ساعات بسيطة وأنيقة بتصميم سويدي عصري، متوفرة في المغرب مع توصيل مجاني والدفع عند الاستلام.',
+  "Découvrez la collection Emporio Armani — montres au style italien raffiné disponibles au Maroc avec paiement à la livraison. Emporio Armani, le luxe accessible à l'italienne.":
+    'اكتشفي مجموعة إمبوريو أرماني — ساعات نسائية بأسلوب إيطالي راقٍ متوفرة في المغرب مع توصيل مجاني والدفع عند الاستلام.',
+  'Découvrez la collection Guess — montres tendance et audacieuses disponibles au Maroc avec paiement à la livraison. Guess, the original American fashion brand.':
+    'اكتشفي مجموعة غيس (Guess) — ساعات عصرية وجريئة مرصعة بتفاصيل أنيقة، متوفرة في المغرب مع توصيل مجاني والدفع عند الاستلام.',
 };
 
 function translateFrenchIntroToArabic(raw: string): string {
@@ -597,6 +875,36 @@ function translateFrenchIntroToArabic(raw: string): string {
   }
   if (/Cartier/i.test(cleaned)) {
     return 'اكتشف دار كارتييه — ساعات فنية راقية متوفرة في المغرب مع توصيل مجاني والدفع عند الاستلام.';
+  }
+  if (/Bvlgari/i.test(cleaned)) {
+    return 'اكتشفي دار بولغاري — ساعات إيطالية راقية بتصميم فاخر مع توصيل مجاني والدفع عند الاستلام.';
+  }
+  if (/Chopard/i.test(cleaned)) {
+    return 'اكتشفي دار شوبارد السويسرية — ساعات ومجوهرات فاخرة مع توصيل مجاني والدفع عند الاستلام.';
+  }
+  if (/Michael Kors/i.test(cleaned)) {
+    return 'اكتشفي مجموعة مايكل كورس النسائية — تصميم عصري وأنيق مع توصيل مجاني والدفع عند الاستلام.';
+  }
+  if (/Daniel Wellington/i.test(cleaned)) {
+    return 'اكتشفي ساعات دانيال ولينغتون — أناقة كلاسيكية ناعمة مع توصيل مجاني والدفع عند الاستلام.';
+  }
+  if (/Emporio Armani/i.test(cleaned)) {
+    return 'اكتشفي مجموعة إمبوريو أرماني النسائية — تصميم إيطالي راقٍ مع توصيل مجاني والدفع عند الاستلام.';
+  }
+  if (/Guess/i.test(cleaned)) {
+    return 'اكتشفي مجموعة غيس (Guess) النسائية — أناقة عصرية جذابة مع توصيل مجاني والدفع عند الاستلام.';
+  }
+  if (/Hublot/i.test(cleaned)) {
+    return 'اكتشف مجموعة ساعات هوبلو الفاخرة — تصميم عصري جريء متوفر في المغرب مع توصيل مجاني والدفع عند الاستلام.';
+  }
+  if (/Tissot/i.test(cleaned)) {
+    return 'اكتشف ساعات تيسو السويسرية — جودة ودقة سويسرية مع توصيل مجاني والدفع عند الاستلام.';
+  }
+  if (/Audemars/i.test(cleaned)) {
+    return 'اكتشف ساعات أوديمار بيغيه رويال أوك الفاخرة — تصميم سويسري أيقوني مع توصيل مجاني والدفع عند الاستلام.';
+  }
+  if (/Vacheron/i.test(cleaned)) {
+    return 'اكتشف ساعات فاشرون كونستانتان السويسرية العريقة — فخامة جنيف مع توصيل مجاني والدفع عند الاستلام.';
   }
   return 'ساعة فاخرة بتصميم سويسري دقيق متوفرة الآن مع توصيل مجاني والدفع عند الاستلام في جميع مدن المغرب.';
 }

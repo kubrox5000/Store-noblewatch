@@ -17,6 +17,13 @@ import {
   ArrowLeft,
   Check,
   Gift,
+  Pencil,
+  Trash2,
+  Plus,
+  Loader2,
+  X,
+  Users,
+  MessageSquare,
 } from 'lucide-react';
 import { Product } from '../types';
 import {
@@ -45,7 +52,7 @@ interface ProductDetailPageProps {
 }
 
 export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, onBack }) => {
-  const { setCheckoutProduct, addToCart, reviews, settings, showToast } = useStore();
+  const { setCheckoutProduct, addToCart, reviews, settings, showToast, isAdmin, updateProduct } = useStore();
   const { lang, isFr } = useLanguage();
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -55,6 +62,14 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
   const [activeTab, setActiveTab] = useState<'desc' | 'care'>('desc');
   const [isZoomed, setIsZoomed] = useState(false);
   const [reviewsLimit, setReviewsLimit] = useState(6);
+
+  // Admin inline exclusive features management
+  const [editingFeatureIdx, setEditingFeatureIdx] = useState<number | null>(null);
+  const [editingFeatureValue, setEditingFeatureValue] = useState('');
+  const [isAddingFeature, setIsAddingFeature] = useState(false);
+  const [newFeatureValue, setNewFeatureValue] = useState('');
+  const [isSavingFeature, setIsSavingFeature] = useState(false);
+  const [deletingFeatureIdx, setDeletingFeatureIdx] = useState<number | null>(null);
 
   const productColors = getProductColors(product);
   const activeColor = productColors[selectedColorIndex] || productColors[0];
@@ -153,6 +168,25 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
 
   // Product reviews
   const productReviews = reviews.filter((r) => r.productId === product.id && r.isApproved);
+  const effectiveReviewCount =
+    productReviews.length > 0 ? productReviews.length : Number(product.reviewCount || 0);
+  const effectiveRating =
+    productReviews.length > 0
+      ? Number(
+          (
+            productReviews.reduce((sum, r) => sum + (Number(r.rating) || 5), 0) /
+            productReviews.length
+          ).toFixed(1)
+        )
+      : Number(product.rating || 5);
+  const fiveStarCount = productReviews.filter((r) => r.rating === 5).length;
+
+  const scrollToProductReviews = () => {
+    const el = document.getElementById('product-reviews-section');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#f8f9fb] text-gray-900 pb-24">
@@ -296,25 +330,38 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
             </div>
 
             {/* Ratings Bar */}
-            <div className="flex items-center gap-3 py-2 border-y border-gray-200">
-              <div className="flex items-center gap-1 text-amber-500">
-                {[...Array(5)].map((_, i) => (
-                  <Star
-                    key={i}
-                    className={`w-4 h-4 ${
-                      i < Math.floor(product.rating)
-                        ? 'fill-amber-400 text-amber-400'
-                        : 'text-gray-300'
-                    }`}
-                  />
-                ))}
-              </div>
-              <span className="text-sm font-bold text-gray-900">{product.rating}</span>
-              <span className="text-xs text-gray-500">
-                {isFr
-                  ? `(${product.reviewCount} avis clients vérifiés au Maroc)`
-                  : `(${product.reviewCount} تقييم حقيقي من زبناء المغرب)`}
-              </span>
+            <div className="flex flex-wrap items-center justify-between gap-2 py-2.5 border-y border-gray-200">
+              <button
+                type="button"
+                onClick={scrollToProductReviews}
+                className="flex flex-wrap items-center gap-2.5 text-start group cursor-pointer"
+                title={isFr ? 'Voir les commentaires clients' : 'عرض تعليقات وتقييمات الزبناء'}
+              >
+                <div className="flex items-center gap-1 text-amber-500">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`w-4 h-4 ${
+                        i < Math.round(effectiveRating)
+                          ? 'fill-amber-400 text-amber-400'
+                          : 'text-gray-300'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="text-sm font-black text-gray-900">{effectiveRating}</span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-xs font-bold text-amber-900 group-hover:bg-amber-100 transition-colors">
+                  <Users className="w-3.5 h-3.5 text-amber-600" />
+                  <span>
+                    {isFr
+                      ? `${effectiveReviewCount.toLocaleString('fr-FR')} clients ont commenté`
+                      : `${effectiveReviewCount.toLocaleString('en-US')} شخص علّقوا على هذه الساعة`}
+                  </span>
+                </span>
+                <span className="text-[11px] font-semibold text-[#996515] group-hover:underline">
+                  {isFr ? 'Lire les avis ↓' : 'قراءة التعليقات ↓'}
+                </span>
+              </button>
             </div>
 
             {/* Moroccan Price Display */}
@@ -837,45 +884,255 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                 </div>
 
                 {(() => {
-                  const rawFeatures = product.features && product.features.length > 0 ? product.features : [];
-                  const hasWarranty = rawFeatures.some(
-                    (f) => f.includes('ضمان') || f.toLowerCase().includes('garantie')
-                  );
-                  const allFeatures = hasWarranty
-                    ? rawFeatures
-                    : ['ضمان معتمد لمدة سنة كاملة ضد أي عيوب مصنعية', ...rawFeatures];
+                  const allFeatures = Array.isArray(product.features) ? product.features : [];
+                  if (allFeatures.length === 0 && !isAdmin) {
+                    return null;
+                  }
+
+                  const handleSaveEditedFeature = async (idx: number) => {
+                    const trimmed = editingFeatureValue.trim();
+                    if (!trimmed || isSavingFeature) return;
+                    setIsSavingFeature(true);
+                    try {
+                      const nextFeatures = [...allFeatures];
+                      nextFeatures[idx] = trimmed;
+                      const ok = await updateProduct(product.id, { features: nextFeatures });
+                      if (ok) {
+                        setEditingFeatureIdx(null);
+                        setEditingFeatureValue('');
+                      }
+                    } finally {
+                      setIsSavingFeature(false);
+                    }
+                  };
+
+                  const handleDeleteFeature = async (idx: number) => {
+                    if (isSavingFeature || deletingFeatureIdx !== null) return;
+                    setDeletingFeatureIdx(idx);
+                    try {
+                      const nextFeatures = allFeatures.filter((_, i) => i !== idx);
+                      await updateProduct(product.id, { features: nextFeatures });
+                      if (editingFeatureIdx === idx) {
+                        setEditingFeatureIdx(null);
+                        setEditingFeatureValue('');
+                      }
+                    } finally {
+                      setDeletingFeatureIdx(null);
+                    }
+                  };
+
+                  const handleAddNewFeature = async () => {
+                    const trimmed = newFeatureValue.trim();
+                    if (!trimmed || isSavingFeature) return;
+                    setIsSavingFeature(true);
+                    try {
+                      const nextFeatures = [...allFeatures, trimmed];
+                      const ok = await updateProduct(product.id, { features: nextFeatures });
+                      if (ok) {
+                        setNewFeatureValue('');
+                        setIsAddingFeature(false);
+                      }
+                    } finally {
+                      setIsSavingFeature(false);
+                    }
+                  };
 
                   return (
                     <div>
-                      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-[#b8860b]" />
-                        <span>{isFr ? 'Points forts exclusifs :' : 'أهم المميزات الحصرية:'}</span>
-                      </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {allFeatures.map((feat, idx) => {
-                          const isWarranty =
-                            feat.includes('ضمان') || feat.toLowerCase().includes('garantie');
-                          return (
-                            <div
-                              key={idx}
-                              className={`flex items-start gap-3 p-3.5 rounded-xl border text-xs sm:text-sm transition ${
-                                isWarranty
-                                  ? 'bg-[#fefaf0] border-[#c5a869]/50 text-gray-900 ring-1 ring-[#c5a869]/25 shadow-xs'
-                                  : 'bg-gray-50 border-gray-200 text-gray-800'
-                              }`}
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                          <Sparkles className="w-5 h-5 text-[#b8860b]" />
+                          <span>{isFr ? 'Points forts exclusifs :' : 'أهم المميزات الحصرية:'}</span>
+                        </h3>
+
+                        {isAdmin && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsAddingFeature((prev) => !prev);
+                                setEditingFeatureIdx(null);
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#fefaf0] hover:bg-[#c5a869]/20 text-[#996515] border border-[#c5a869]/50 text-xs font-bold transition cursor-pointer"
                             >
-                              {isWarranty ? (
-                                <ShieldCheck className="w-5 h-5 text-[#996515] flex-shrink-0 mt-0.5" />
-                              ) : (
-                                <CheckCircle2 className="w-5 h-5 text-[#b8860b] flex-shrink-0 mt-0.5" />
-                              )}
-                              <span className={isWarranty ? 'font-bold text-[#996515]' : 'font-medium'}>
-                                {localizeProductFeature(feat, lang)}
-                              </span>
-                            </div>
-                          );
-                        })}
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>{isFr ? 'Ajouter un point fort' : 'إضافة ميزة جديدة'}</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
+
+                      {isAdmin && isAddingFeature && (
+                        <div className="mb-4 p-3 rounded-xl bg-[#fefaf0] border border-[#c5a869]/50 flex flex-col sm:flex-row gap-2">
+                          <input
+                            type="text"
+                            value={newFeatureValue}
+                            onChange={(e) => setNewFeatureValue(e.target.value)}
+                            placeholder={
+                              isFr
+                                ? 'Saisir un nouveau point fort...'
+                                : 'اكتب الميزة الحصرية الجديدة هنا...'
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddNewFeature();
+                              } else if (e.key === 'Escape') {
+                                setIsAddingFeature(false);
+                                setNewFeatureValue('');
+                              }
+                            }}
+                            className="flex-1 bg-white border border-[#c5a869]/50 rounded-lg px-3 py-2 text-xs sm:text-sm text-gray-900 focus:outline-none focus:border-[#996515]"
+                          />
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              disabled={isSavingFeature || !newFeatureValue.trim()}
+                              onClick={handleAddNewFeature}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg gold-gradient-bg text-black font-bold text-xs disabled:opacity-50 cursor-pointer"
+                            >
+                              {isSavingFeature ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Check className="w-3.5 h-3.5" />
+                              )}
+                              <span>{isFr ? 'Enregistrer' : 'حفظ'}</span>
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isSavingFeature}
+                              onClick={() => {
+                                setIsAddingFeature(false);
+                                setNewFeatureValue('');
+                              }}
+                              className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs cursor-pointer"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                              <span>{isFr ? 'Annuler' : 'إلغاء'}</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {allFeatures.length === 0 ? (
+                        <div className="p-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 text-xs text-gray-500 text-center">
+                          {isFr
+                            ? 'Aucun point fort ajouté pour le moment.'
+                            : 'لا توجد مميزات حصرية مضافة حالياً لهذا المنتج.'}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {allFeatures.map((feat, idx) => {
+                            const isWarranty =
+                              feat.includes('ضمان') || feat.toLowerCase().includes('garantie');
+                            const isEditingThis = isAdmin && editingFeatureIdx === idx;
+                            const isDeletingThis = deletingFeatureIdx === idx;
+
+                            return (
+                              <div
+                                key={idx}
+                                className={`flex items-start justify-between gap-3 p-3.5 rounded-xl border text-xs sm:text-sm transition ${
+                                  isWarranty
+                                    ? 'bg-[#fefaf0] border-[#c5a869]/50 text-gray-900 ring-1 ring-[#c5a869]/25 shadow-xs'
+                                    : 'bg-gray-50 border-gray-200 text-gray-800'
+                                }`}
+                              >
+                                {isEditingThis ? (
+                                  <div className="flex-1 flex flex-col gap-2">
+                                    <input
+                                      type="text"
+                                      value={editingFeatureValue}
+                                      onChange={(e) => setEditingFeatureValue(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          handleSaveEditedFeature(idx);
+                                        } else if (e.key === 'Escape') {
+                                          setEditingFeatureIdx(null);
+                                          setEditingFeatureValue('');
+                                        }
+                                      }}
+                                      autoFocus
+                                      className="w-full bg-white border border-[#c5a869] rounded-lg px-2.5 py-1.5 text-xs sm:text-sm text-gray-900 focus:outline-none"
+                                    />
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        disabled={isSavingFeature || !editingFeatureValue.trim()}
+                                        onClick={() => handleSaveEditedFeature(idx)}
+                                        className="inline-flex items-center gap-1 px-3 py-1 rounded-lg gold-gradient-bg text-black font-bold text-xs disabled:opacity-50 cursor-pointer"
+                                      >
+                                        {isSavingFeature ? (
+                                          <Loader2 className="w-3 h-3 animate-spin" />
+                                        ) : (
+                                          <Check className="w-3 h-3" />
+                                        )}
+                                        <span>{isFr ? 'Enregistrer' : 'حفظ'}</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={isSavingFeature}
+                                        onClick={() => {
+                                          setEditingFeatureIdx(null);
+                                          setEditingFeatureValue('');
+                                        }}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-xs cursor-pointer"
+                                      >
+                                        <X className="w-3 h-3" />
+                                        <span>{isFr ? 'Annuler' : 'إلغاء'}</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <div className="flex items-start gap-3 flex-1">
+                                      {isWarranty ? (
+                                        <ShieldCheck className="w-5 h-5 text-[#996515] flex-shrink-0 mt-0.5" />
+                                      ) : (
+                                        <CheckCircle2 className="w-5 h-5 text-[#b8860b] flex-shrink-0 mt-0.5" />
+                                      )}
+                                      <span className={isWarranty ? 'font-bold text-[#996515]' : 'font-medium'}>
+                                        {localizeProductFeature(feat, lang)}
+                                      </span>
+                                    </div>
+
+                                    {isAdmin && (
+                                      <div className="flex items-center gap-1 flex-shrink-0">
+                                        <button
+                                          type="button"
+                                          disabled={isSavingFeature || deletingFeatureIdx !== null}
+                                          onClick={() => {
+                                            setEditingFeatureIdx(idx);
+                                            setEditingFeatureValue(feat);
+                                            setIsAddingFeature(false);
+                                          }}
+                                          className="p-1.5 rounded-lg bg-white hover:bg-amber-50 text-[#996515] border border-gray-200 hover:border-[#c5a869] transition cursor-pointer"
+                                          title={isFr ? 'Modifier' : 'تعديل الميزة'}
+                                        >
+                                          <Pencil className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          disabled={isSavingFeature || deletingFeatureIdx !== null}
+                                          onClick={() => handleDeleteFeature(idx)}
+                                          className="p-1.5 rounded-lg bg-white hover:bg-rose-50 text-rose-600 border border-gray-200 hover:border-rose-300 transition cursor-pointer"
+                                          title={isFr ? 'Supprimer' : 'حذف الميزة'}
+                                        >
+                                          {isDeletingThis ? (
+                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                          ) : (
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          )}
+                                        </button>
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
@@ -917,31 +1174,59 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
 
         {/* ================= SECTION 6: CUSTOMER REVIEWS ================= */}
         <div
-          className={`rounded-3xl bg-white border border-gray-200 p-6 sm:p-10 space-y-6 shadow-sm ${
+          id="product-reviews-section"
+          className={`rounded-3xl bg-white border border-gray-200 p-6 sm:p-10 space-y-6 shadow-sm scroll-mt-24 ${
             isFr ? 'text-left' : 'text-right'
           }`}
         >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="inline-flex items-center gap-1.5 text-xs text-[#996515] font-bold mb-1">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-1.5 text-xs text-[#996515] font-bold">
                 <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                <span>{isFr ? 'Avis vérifiés' : 'تقييمات موثقة'}</span>
+                <span>{isFr ? 'Avis vérifiés des acheteurs' : 'تقييمات وتعليقات موثقة من مشترين حقيقيين'}</span>
               </div>
               <h2 className="text-2xl sm:text-3xl font-black text-gray-900">
                 {isFr ? 'Avis de nos clients sur cette montre ⭐' : 'شنو قالو زبناءنا على الساعة؟ ⭐'}
               </h2>
+              <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-extrabold text-emerald-800">
+                  <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>
+                    {isFr
+                      ? `${effectiveReviewCount.toLocaleString('fr-FR')} personnes ont commenté ce modèle`
+                      : `عدد الأشخاص الذين علّقوا: ${effectiveReviewCount.toLocaleString('en-US')} زبون`}
+                  </span>
+                </span>
+                {productReviews.length > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 border border-gray-200 text-[11px] font-bold text-gray-700">
+                    <span>
+                      {isFr
+                        ? `${fiveStarCount.toLocaleString('fr-FR')} avis 5★`
+                        : `${fiveStarCount.toLocaleString('en-US')} تقييم 5 نجوم`}
+                    </span>
+                  </span>
+                )}
+              </div>
             </div>
 
-            <div className="flex items-center gap-3 bg-[#fefaf0] border border-[#c5a869]/30 px-4 py-2.5 rounded-2xl">
-              <span className="text-2xl font-black text-amber-600">{product.rating}</span>
-              <div className={isFr ? 'text-left' : 'text-right'}>
+            <div className="flex items-center gap-3.5 bg-[#fefaf0] border border-[#c5a869]/35 px-5 py-3 rounded-2xl shadow-xs self-start md:self-auto">
+              <div className="text-center">
+                <span className="text-3xl font-black text-amber-600 block leading-none">{effectiveRating}</span>
+                <span className="text-[10px] text-gray-500 font-bold">{isFr ? 'sur 5' : 'من 5'}</span>
+              </div>
+              <div className={`space-y-1 ${isFr ? 'text-left' : 'text-right'}`}>
                 <div className="flex items-center gap-1 text-amber-500">
                   {[...Array(5)].map((_, i) => (
                     <Star key={i} className="w-3.5 h-3.5 fill-amber-400" />
                   ))}
                 </div>
-                <span className="text-[10px] text-gray-600 font-semibold">
-                  {isFr ? 'Note moyenne globale' : 'معدل التقييمات العامة'}
+                <span className="text-xs text-gray-900 font-extrabold block">
+                  {isFr
+                    ? `Basé sur ${effectiveReviewCount.toLocaleString('fr-FR')} commentaires`
+                    : `بناءً على ${effectiveReviewCount.toLocaleString('en-US')} تعليق وتقييم`}
+                </span>
+                <span className="text-[10px] text-emerald-700 font-bold block">
+                  {isFr ? '100% achats livrés au Maroc ✓' : 'تجارب مؤكدة لزبناء المغرب ✓'}
                 </span>
               </div>
             </div>

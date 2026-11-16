@@ -16,10 +16,17 @@ const prefetchProductDetail = () => {
 };
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, priority = false }) => {
-  const { setActiveProductId, setCheckoutProduct, addToCart } = useStore();
+  const { setActiveProductId, setCheckoutProduct, addToCart, reviews } = useStore();
   const { lang, isFr } = useLanguage();
   const [selectedColorIndex, setSelectedColorIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+
+  const liveReviews = reviews.filter((r) => r.productId === product.id && r.isApproved);
+  const displayReviewCount = liveReviews.length > 0 ? liveReviews.length : Number(product.reviewCount || 0);
+  const displayRating =
+    liveReviews.length > 0
+      ? Number((liveReviews.reduce((s, r) => s + (Number(r.rating) || 5), 0) / liveReviews.length).toFixed(1))
+      : Number(product.rating || 5);
 
   const productColors = getProductColors(product);
   const activeColor = productColors[selectedColorIndex] || productColors[0];
@@ -119,8 +126,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, priority = fa
         <div className="flex items-center justify-between text-[11px] sm:text-xs text-gray-500">
           <div className="flex items-center gap-1 text-amber-500">
             <Star className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-amber-400 text-amber-400" />
-            <span className="font-bold text-gray-800">{product.rating}</span>
-            <span className="text-gray-400 text-[10px] sm:text-xs">({product.reviewCount})</span>
+            <span className="font-bold text-gray-800">{displayRating}</span>
+            <span className="text-gray-400 text-[10px] sm:text-xs">({displayReviewCount})</span>
           </div>
           <span className="hidden sm:inline font-mono text-[11px] text-gray-400">{product.sku}</span>
         </div>

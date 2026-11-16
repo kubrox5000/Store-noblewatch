@@ -37,8 +37,12 @@ const COLOR_AR_TO_FR: Record<string, string> = {
   'برونزي': 'Bronze',
   'أصفر ذهبي': 'Jaune',
   'شوكولاتة': 'Chocolat',
-  'أزرق سماوي': 'Bleu Marine',
+  'أزرق سماوي': 'Bleu ciel',
+  'ذهب أصفر': 'Or Jaune',
+  'ذهب أبيض': 'Or Blanc',
   'تركواز': 'Turquoise',
+  'وردي': 'Rose',
+  'ثنائي اللون': 'Bicolore',
   'افتراضي': 'Standard',
 };
 
@@ -47,8 +51,25 @@ const COLOR_FR_TO_AR: Record<string, string> = {
   'argent classique': 'فضي كلاسيكي',
   'or luxe': 'ذهبي فاخر',
   'or rose': 'روز غولد',
+  'or rose serti': 'ذهبي وردي مرصع',
+  'or jaune': 'ذهب أصفر',
+  'yellow gold': 'ذهب أصفر',
+  'white gold': 'ذهب أبيض',
+  'doré': 'ذهبي',
+  'bicolore': 'ثنائي اللون',
+  'argent / doré': 'فضي وذهبي',
+  'argenté': 'فضي',
+  'rose': 'وردي',
+  'pink': 'وردي',
   'bleu royal': 'أزرق ملكي',
   'bleu nuit': 'أزرق داكن',
+  'bleu ciel': 'أزرق سماوي',
+  'bleu & rouge': 'أزرق وأحمر (Pepsi)',
+  'bleu & noir': 'أزرق وأسود (Batman)',
+  'bleu & argent': 'أزرق وفضي',
+  'or & noir': 'ذهبي وأسود',
+  'noir & argent': 'أسود وفضي',
+  'or & blanc': 'ذهبي وأبيض',
   'bleu': 'أزرق',
   'blue': 'أزرق',
   'blanc': 'أبيض',
@@ -97,12 +118,18 @@ export const translateColorName = (name: string, lang: Language): string => {
     const lower = trimmed.toLowerCase();
     if (COLOR_FR_TO_AR[lower]) return COLOR_FR_TO_AR[lower];
 
-    // Translate simple multi-part colors separated by "/" or "et"
+    // Translate simple multi-part colors separated by "/", "&", or "et"
     if (trimmed.includes('/')) {
       return trimmed
         .split('/')
         .map((part) => translateColorName(part.trim(), 'ar'))
         .join(' / ');
+    }
+    if (trimmed.includes('&')) {
+      return trimmed
+        .split('&')
+        .map((part) => translateColorName(part.trim(), 'ar'))
+        .join(' و ');
     }
     if (/\set\s/i.test(trimmed)) {
       return trimmed
@@ -117,6 +144,10 @@ export const translateColorName = (name: string, lang: Language): string => {
   if (COLOR_AR_TO_FR[trimmed]) return COLOR_AR_TO_FR[trimmed];
   const lower = trimmed.toLowerCase();
   if (lower === 'blue') return 'Bleu';
+  if (lower === 'green') return 'Vert';
+  if (lower === 'grey' || lower === 'gray') return 'Gris';
+  if (lower === 'yellow gold') return 'Or Jaune';
+  if (lower === 'white gold') return 'Or Blanc';
   if (lower === 'black') return 'Noir';
   if (lower === 'silver') return 'Argent (Silver)';
   return trimmed;
