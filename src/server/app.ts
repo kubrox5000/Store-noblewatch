@@ -38,6 +38,7 @@ import {
   isAuthorizedAdminRequest,
   issueAdminSessionToken,
 } from './adminAuth.ts';
+import { resolvePublicOrigin } from './seoHtml.ts';
 
 function normalizeCityServer(city: unknown): string {
   const trimmed = String(city || '').trim();
@@ -139,7 +140,12 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
     const stripped = req.url.slice(fnPrefix.length) || '/';
     req.url = stripped.startsWith('/') ? stripped : `/${stripped}`;
   }
-  if (!req.url.startsWith('/api') && !req.url.startsWith('/uploads')) {
+  if (
+    !req.url.startsWith('/api') &&
+    !req.url.startsWith('/uploads') &&
+    req.url !== '/robots.txt' &&
+    req.url !== '/sitemap.xml'
+  ) {
     if (IS_SERVERLESS) {
       req.url = `/api${req.url.startsWith('/') ? '' : '/'}${req.url}`;
     }
@@ -514,6 +520,86 @@ async function sanitizeProductVideos(videos: any[]): Promise<any[]> {
     })
   );
 }
+
+// ----------------- SEO CRAWLER ENDPOINTS (/robots.txt & /sitemap.xml) ----------------- //
+
+function escapeXml(str: string): string {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+app.get('/robots.txt', (req: Request, res: Response) => {
+  const origin = resolvePublicOrigin(req);
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  return res.send(
+    [
+      'User-agent: *',
+      'Allow: /',
+      'Disallow: /api/',
+      'Disallow: /*?*admin*',
+      '',
+      `Sitemap: ${origin}/sitemap.xml`,
+    ].join('\n')
+  );
+});
+
+app.get('/sitemap.xml', async (req: Request, res: Response) => {
+  try {
+    const origin = resolvePublicOrigin(req);
+    const db = await getStoreSnapshot();
+    const publishedProducts = Array.isArray(db.products)
+      ? db.products.filter((p: any) => p && p.isPublished !== false)
+      : [];
+    const today = new Date().toISOString().split('T')[0];
+
+    const urlEntries: string[] = [
+      `  <url>
+    <loc>${escapeXml(origin)}/</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>`,
+    ];
+
+    for (const prod of publishedProducts) {
+      const prodUrl = `${origin}/?product=${encodeURIComponent(prod.id)}`;
+      const firstImg = Array.isArray(prod.images) ? prod.images[0] : '';
+      const validImg =
+        firstImg && typeof firstImg === 'string' && !firstImg.startsWith('data:')
+          ? /^https?:\/\//i.test(firstImg)
+            ? firstImg
+            : `${origin}${firstImg.startsWith('/') ? '' : '/'}${firstImg}`
+          : '';
+      const imageBlock = validImg
+        ? `\n    <image:image>\n      <image:loc>${escapeXml(validImg)}</image:loc>\n      <image:title>${escapeXml(prod.name)}</image:title>\n    </image:image>`
+        : '';
+
+      urlEntries.push(`  <url>
+    <loc>${escapeXml(prodUrl)}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>${imageBlock}
+  </url>`);
+    }
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+${urlEntries.join('\n')}
+</urlset>`;
+
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=1800');
+    return res.send(xml);
+  } catch (err) {
+    console.error('Sitemap generation error:', err);
+    return res.status(500).send('Failed to generate sitemap');
+  }
+});
 
 // ----------------- API ROUTES ----------------- //
 

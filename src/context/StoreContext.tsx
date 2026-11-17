@@ -184,7 +184,13 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
   const [isWarrantyCheckOpen, setIsWarrantyCheckOpen] = useState(false);
   const [activePolicyModal, setActivePolicyModal] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('q') || '';
+    } catch {
+      return '';
+    }
+  });
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [toast, setToast] = useState<ToastState | null>(null);
   const [isLoading, setIsLoading] = useState(() => initialSnapshot.products.length === 0);

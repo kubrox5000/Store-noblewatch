@@ -1,9 +1,11 @@
 import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import { createServer as createViteServer } from 'vite';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { app, processConfirmedToPreparingTransitions } from './src/server/app.ts';
+import { injectDynamicSeoIntoHtml, resolvePublicOrigin } from './src/server/seoHtml.ts';
 import { getStoreSnapshot } from './src/db/storeRepo.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -48,8 +50,14 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(__dirname, 'dist');
+    const distIndexPath = path.join(distPath, 'index.html');
+    const cachedDistIndexHtml = fs.existsSync(distIndexPath)
+      ? fs.readFileSync(distIndexPath, 'utf-8')
+      : '';
+
     app.use(
       express.static(distPath, {
+        index: false,
         maxAge: '1y',
         etag: true,
         setHeaders: (res, filePath) => {
@@ -61,9 +69,25 @@ async function startServer() {
         },
       })
     );
-    app.get('*', (_req, res) => {
+    app.get('*', async (req, res) => {
       res.setHeader('Cache-Control', 'no-cache');
-      res.sendFile(path.join(distPath, 'index.html'));
+      if (cachedDistIndexHtml) {
+        try {
+          const origin = resolvePublicOrigin(req);
+          const productId =
+            typeof req.query.product === 'string' ? req.query.product : null;
+          const html = await injectDynamicSeoIntoHtml(
+            cachedDistIndexHtml,
+            origin,
+            productId
+          );
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          return res.send(html);
+        } catch {
+          // Fallback to static file on error
+        }
+      }
+      return res.sendFile(distIndexPath);
     });
   }
 

@@ -9,6 +9,7 @@ import { CategoriesSection } from './components/CategoriesSection';
 import { ProductGrid } from './components/ProductGrid';
 import { Footer } from './components/Footer';
 import { initTrackingPixels, trackPixelPageView } from './utils/trackingPixels';
+import { applyDynamicSeo } from './utils/seo';
 import { buildWhatsAppUrl } from './utils/constants';
 import { CheckCircle, AlertCircle, Info, Sparkles, Compass, ShoppingBag, MessageCircle } from 'lucide-react';
 
@@ -67,11 +68,12 @@ const ProductDetailSkeleton: React.FC = () => {
 };
 
 const MainContent: React.FC = () => {
-  const { isFr } = useLanguage();
+  const { lang, isFr } = useLanguage();
   const {
     activeProductId,
     setActiveProductId,
     products,
+    reviews,
     toast,
     cartCount,
     isCartOpen,
@@ -136,21 +138,19 @@ const MainContent: React.FC = () => {
 
   const prevRouteProductIdRef = React.useRef<string | null | undefined>(undefined);
   useEffect(() => {
-    if (selectedProduct) {
-      document.title = isFr
-        ? `${selectedProduct.name} - Noblewatch Maroc | Paiement à la livraison`
-        : `${selectedProduct.name} - متجر Noblewatch الفاخر | الدفع عند الاستلام`;
-    } else {
-      document.title = isFr
-        ? 'Noblewatch | Montres & Accessoires de Luxe au Maroc - Paiement à la livraison'
-        : 'Noblewatch | متجر الساعات والإكسسوارات الفاخرة بالمغرب - الدفع عند الاستلام';
-    }
+    const resolvedTitle = applyDynamicSeo({
+      lang,
+      selectedProduct,
+      products,
+      reviews,
+      settings,
+    });
     const currentId = selectedProduct?.id || null;
     if (prevRouteProductIdRef.current !== undefined && prevRouteProductIdRef.current !== currentId) {
-      trackPixelPageView(document.title);
+      trackPixelPageView(resolvedTitle || document.title);
     }
     prevRouteProductIdRef.current = currentId;
-  }, [selectedProduct, isFr]);
+  }, [selectedProduct, lang, products, reviews, settings]);
 
   return (
     <div className="min-h-screen bg-[#f8f9fb] text-[#1e293b] flex flex-col font-sans selection:bg-[#c5a869] selection:text-black">
