@@ -14,6 +14,7 @@ import {
   Sparkles,
   Tag,
   Loader2,
+  Lock,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -395,35 +396,44 @@ export const CodCheckoutModal: React.FC = () => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
       <div
+        dir={isFr ? 'ltr' : 'rtl'}
         className={`relative w-full max-w-xl rounded-3xl bg-white border border-gray-200 shadow-2xl overflow-hidden my-auto max-h-[96vh] flex flex-col ${
           isFr ? 'text-left' : 'text-right'
         }`}
       >
         {/* Modal Header */}
-        <div className="bg-gradient-to-r from-gray-50 to-white p-4 sm:p-5 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl gold-gradient-bg flex items-center justify-center text-black font-black shadow-sm flex-shrink-0">
+        <div className="bg-gradient-to-r from-[#fefbf4] via-white to-gray-50/90 px-4 py-3.5 sm:px-5 sm:py-4 border-b border-gray-200 flex items-start justify-between gap-3 flex-shrink-0">
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl gold-gradient-bg flex items-center justify-center text-black shadow-sm ring-1 ring-[#c5a869]/30 flex-shrink-0 mt-0.5">
               <Truck className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="text-sm sm:text-lg font-bold text-gray-900 leading-snug">
-                {isFr
-                  ? 'Confirmer la commande - Paiement à la livraison'
-                  : 'تأكيد طلب الشراء - الدفع عند الاستلام'}
+            <div className="min-w-0 flex-1">
+              <h3 className="text-base sm:text-lg font-black text-gray-900 leading-tight">
+                {isFr ? 'Confirmer votre commande' : 'تأكيد طلب الشراء'}
               </h3>
-              <p className="text-[11px] sm:text-xs font-semibold text-[#996515]">
+              <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-[#fefaf0] text-[#8a5a00] border border-[#c5a869]/40 text-[10px] sm:text-[11px] font-bold whitespace-nowrap">
+                  {isFr ? 'Paiement à la livraison' : 'الدفع عند الاستلام'}
+                </span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] sm:text-[11px] font-bold whitespace-nowrap">
+                  {isFr ? 'Livraison gratuite 0 DH' : 'توصيل مجاني 0 درهم'}
+                </span>
+              </div>
+              <p className="text-[11px] font-medium text-gray-500 mt-1 leading-snug">
                 {isFr
-                  ? 'Livraison gratuite 0 DH & paiement après vérification du colis'
-                  : 'التوصيل مجاني 0 درهم والدفع بعد فحص ومعاينة المنتج'}
+                  ? 'Vérifiez votre montre avant de payer le livreur'
+                  : 'مع حق فحص ومعاينة المنتج قبل الدفع'}
               </p>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={handleClose}
-            className="p-2 rounded-xl text-gray-400 hover:text-black hover:bg-gray-100 transition flex-shrink-0"
+            aria-label={isFr ? 'Fermer' : 'إغلاق'}
+            className="p-2 rounded-xl bg-gray-100/80 hover:bg-gray-200 text-gray-500 hover:text-gray-900 transition flex-shrink-0 cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
 
@@ -1210,7 +1220,7 @@ export const CodCheckoutModal: React.FC = () => {
               </div>
               <div className="flex justify-between text-sm font-bold text-gray-900 pt-2 border-t border-gray-200">
                 <span>{isFr ? 'Total à payer à la livraison :' : 'المبلغ الإجمالي عند الاستلام:'}</span>
-                <span className="text-lg font-black text-gray-900">
+                <span className="text-lg font-black text-gray-900 whitespace-nowrap" dir="ltr">
                   {formatPrice(totalAmount, lang)}
                 </span>
               </div>
@@ -1225,28 +1235,43 @@ export const CodCheckoutModal: React.FC = () => {
             )}
 
             {/* Submit Button */}
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-4 rounded-xl gold-gradient-bg text-black font-black text-base shadow-lg hover:brightness-105 active:scale-[0.98] transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full px-5 py-3.5 rounded-2xl gold-gradient-bg text-black shadow-lg shadow-[#c5a869]/30 ring-1 ring-inset ring-white/40 hover:brightness-105 active:scale-[0.98] transition disabled:opacity-60 flex flex-col items-center justify-center gap-0.5 cursor-pointer"
               >
-                <ShieldCheck className="w-5 h-5 text-black" />
-                <span>
-                  {isSubmitting
-                    ? isFr
-                      ? 'Validation et enregistrement en cours...'
-                      : 'جاري التحقق وتسجيل الطلب...'
-                    : isFr
-                    ? 'Confirmer la commande (Paiement à la livraison)'
-                    : 'تأكيد الطلب الآن (الدفع عند الاستلام بعد المعاينة)'}
-                </span>
+                {isSubmitting ? (
+                  <span className="flex items-center justify-center gap-2 text-sm sm:text-base font-black py-1">
+                    <Loader2 className="w-5 h-5 animate-spin flex-shrink-0" />
+                    <span>
+                      {isFr
+                        ? 'Validation et enregistrement en cours...'
+                        : 'جاري التحقق وتسجيل الطلب...'}
+                    </span>
+                  </span>
+                ) : (
+                  <>
+                    <span className="flex items-center justify-center gap-2 text-base sm:text-lg font-black leading-snug">
+                      <ShieldCheck className="w-5 h-5 text-black flex-shrink-0" />
+                      <span>{isFr ? 'Confirmer la commande' : 'تأكيد الطلب الآن'}</span>
+                    </span>
+                    <span className="text-[11px] sm:text-xs font-extrabold text-black/80 tracking-tight">
+                      {isFr
+                        ? 'Paiement à la livraison après vérification'
+                        : 'الدفع عند الاستلام بعد المعاينة والفحص'}
+                    </span>
+                  </>
+                )}
               </button>
 
-              <p className="text-[11px] text-center text-gray-500">
-                {isFr
-                  ? '🔒 Aucune carte bancaire requise. Paiement 100% en espèces après réception et vérification.'
-                  : '🔒 لا نطلب أي معلومات بنكية. الدفع نقدًا 100% فقط عند استلام الطرد وفحصه.'}
+              <p className="text-[11px] text-center text-gray-500 flex items-center justify-center gap-1.5 leading-relaxed px-2">
+                <Lock className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                <span>
+                  {isFr
+                    ? 'Aucune carte bancaire requise • Paiement 100% en espèces après réception.'
+                    : 'لا نطلب أي معلومات بنكية • الدفع نقداً 100% فقط عند استلام الطرد وفحصه.'}
+                </span>
               </p>
             </div>
           </form>

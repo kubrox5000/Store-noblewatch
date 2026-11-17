@@ -56,6 +56,7 @@ import {
   ShieldAlert,
   Calendar,
   Activity,
+  ChevronDown,
 } from 'lucide-react';
 import { SocialLinks, StorePolicies, SecurityBlockLog, OrderSecuritySettings, TrackingPixelsSettings, PromoCode } from '../types';
 import {
@@ -144,6 +145,9 @@ export const AdminDashboard: React.FC = () => {
   const [passwordChangeFeedback, setPasswordChangeFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'stats' | 'product_stats' | 'orders' | 'new_orders' | 'preparing_orders' | 'shipped_orders' | 'cancelled_orders' | 'products' | 'reviews' | 'settings'>('stats');
   const [selectedAnalyticsProductId, setSelectedAnalyticsProductId] = useState<string>('');
+  const [analyticsProductSearch, setAnalyticsProductSearch] = useState<string>('');
+  const [isAnalyticsProductDropdownOpen, setIsAnalyticsProductDropdownOpen] = useState<boolean>(false);
+  const analyticsPickerRef = React.useRef<HTMLDivElement>(null);
   const [wholesalePriceInput, setWholesalePriceInput] = useState<string>('');
   const [shippingCostInput, setShippingCostInput] = useState<string>('');
   const [isSavingWholesalePrice, setIsSavingWholesalePrice] = useState<boolean>(false);
@@ -576,6 +580,55 @@ export const AdminDashboard: React.FC = () => {
     if (!products || products.length === 0) return null;
     return products.find((p) => p.id === selectedAnalyticsProductId) || products[0];
   }, [products, selectedAnalyticsProductId]);
+
+  const analyticsProductOrderCounts = useMemo(() => {
+    const countsById: Record<string, number> = {};
+    const countsByName: Record<string, number> = {};
+    (productStatsFilteredOrders || []).forEach((ord) => {
+      const seenIds = new Set<string>();
+      const seenNames = new Set<string>();
+      (ord.items || []).forEach((it) => {
+        if (it.productId && !seenIds.has(it.productId)) {
+          seenIds.add(it.productId);
+          countsById[it.productId] = (countsById[it.productId] || 0) + 1;
+        }
+        if (it.name && !seenNames.has(it.name)) {
+          seenNames.add(it.name);
+          countsByName[it.name] = (countsByName[it.name] || 0) + 1;
+        }
+      });
+    });
+    const map: Record<string, number> = {};
+    (products || []).forEach((p) => {
+      map[p.id] = countsById[p.id] || countsByName[p.name] || 0;
+    });
+    return map;
+  }, [products, productStatsFilteredOrders]);
+
+  const filteredAnalyticsProducts = useMemo(() => {
+    const q = analyticsProductSearch.trim().toLowerCase();
+    if (!q) return products || [];
+    return (products || []).filter((p) => {
+      const catLabel = p.category === 'men' ? 'رجالي men' : p.category === 'women' ? 'نسائي women' : 'إكسسوارات accessories';
+      return (
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.sku || '').toLowerCase().includes(q) ||
+        (p.colors || []).some((c) => (c.name || '').toLowerCase().includes(q)) ||
+        catLabel.includes(q)
+      );
+    });
+  }, [products, analyticsProductSearch]);
+
+  React.useEffect(() => {
+    if (!isAnalyticsProductDropdownOpen) return;
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (analyticsPickerRef.current && !analyticsPickerRef.current.contains(event.target as Node)) {
+        setIsAnalyticsProductDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [isAnalyticsProductDropdownOpen]);
 
   React.useEffect(() => {
     if (!selectedAnalyticsProduct) {
@@ -2005,26 +2058,135 @@ export const AdminDashboard: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="w-full lg:w-80">
-                        <label className="block text-[11px] font-bold text-[#c5a869] mb-1.5">
-                          اختر المنتج المراد تحليله:
-                        </label>
-                        <select
-                          value={selectedProductStats.product.id}
-                          onChange={(e) => setSelectedAnalyticsProductId(e.target.value)}
-                          className="w-full bg-[#10131c] border border-[#c5a869]/40 rounded-xl px-3.5 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-[#c5a869] cursor-pointer"
-                        >
-                          {products.map((p) => {
-                            const count = productStatsFilteredOrders.filter((o) =>
-                              (o.items || []).some((it) => it.productId === p.id || it.name === p.name)
-                            ).length;
-                            return (
-                              <option key={p.id} value={p.id}>
-                                {p.name} ({count} طلب)
-                              </option>
-                            );
-                          })}
-                        </select>
+                      <div ref={analyticsPickerRef} className="w-full lg:w-96 relative z-30">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="block text-[11px] font-bold text-[#c5a869]">
+                            اختر المنتج المراد تحليله:
+                          </label>
+                          <span className="text-[10px] text-gray-400 font-semibold">
+                            ({filteredAnalyticsProducts.length} / {products.length} ساعة)
+                          </span>
+                        </div>
+
+                        {/* Search input + Dropdown Toggle */}
+                        <div className="flex items-center gap-1.5">
+                          <div className="relative flex-1">
+                            <Search className="w-3.5 h-3.5 text-[#c5a869] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            <input
+                              type="text"
+                              value={analyticsProductSearch}
+                              onFocus={() => setIsAnalyticsProductDropdownOpen(true)}
+                              onChange={(e) => {
+                                setAnalyticsProductSearch(e.target.value);
+                                setIsAnalyticsProductDropdownOpen(true);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Escape') {
+                                  setIsAnalyticsProductDropdownOpen(false);
+                                } else if (e.key === 'Enter' && filteredAnalyticsProducts.length > 0) {
+                                  e.preventDefault();
+                                  setSelectedAnalyticsProductId(filteredAnalyticsProducts[0].id);
+                                  setIsAnalyticsProductDropdownOpen(false);
+                                }
+                              }}
+                              placeholder="ابحث باسم الساعة أو الرمز (SKU)..."
+                              className="w-full bg-[#10131c] border border-[#c5a869]/40 rounded-xl pr-9 pl-8 py-2.5 text-xs font-bold text-white placeholder-gray-400 focus:outline-none focus:border-[#c5a869]"
+                            />
+                            {analyticsProductSearch && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAnalyticsProductSearch('');
+                                  setIsAnalyticsProductDropdownOpen(true);
+                                }}
+                                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white cursor-pointer"
+                                title="مسح البحث"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => setIsAnalyticsProductDropdownOpen((prev) => !prev)}
+                            className="px-3 py-2.5 rounded-xl bg-[#10131c] border border-[#c5a869]/40 hover:border-[#c5a869] text-[#c5a869] flex items-center gap-1 text-xs font-bold transition cursor-pointer flex-shrink-0"
+                            title="عرض قائمة الساعات"
+                          >
+                            <ChevronDown
+                              className={`w-4 h-4 transition-transform duration-150 ${
+                                isAnalyticsProductDropdownOpen ? 'rotate-180' : ''
+                              }`}
+                            />
+                          </button>
+                        </div>
+
+                        {/* Searchable Dropdown List */}
+                        {isAnalyticsProductDropdownOpen && (
+                          <div className="absolute right-0 left-0 mt-1.5 rounded-2xl bg-[#10131c] border border-[#c5a869]/50 shadow-2xl overflow-hidden max-h-72 overflow-y-auto divide-y divide-white/5">
+                            {filteredAnalyticsProducts.length === 0 ? (
+                              <div className="p-4 text-center text-xs text-gray-400">
+                                لا توجد أي ساعة مطابقة للبحث «{analyticsProductSearch}»
+                              </div>
+                            ) : (
+                              filteredAnalyticsProducts.map((p) => {
+                                const count = analyticsProductOrderCounts[p.id] || 0;
+                                const isSelected = p.id === selectedProductStats.product.id;
+                                return (
+                                  <button
+                                    key={p.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedAnalyticsProductId(p.id);
+                                      setIsAnalyticsProductDropdownOpen(false);
+                                    }}
+                                    className={`w-full flex items-center justify-between gap-2.5 px-3 py-2.5 text-right transition cursor-pointer ${
+                                      isSelected
+                                        ? 'bg-[#c5a869]/20 text-white'
+                                        : 'hover:bg-white/5 text-gray-200'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                      <img
+                                        src={p.images?.[0] || '/assets/luxury_watch_hero.jpg'}
+                                        alt={p.name}
+                                        loading="lazy"
+                                        onError={(e) => {
+                                          (e.currentTarget as HTMLImageElement).src =
+                                            '/assets/luxury_watch_hero.jpg';
+                                        }}
+                                        className="w-9 h-9 rounded-lg object-cover border border-white/10 flex-shrink-0"
+                                      />
+                                      <div className="min-w-0">
+                                        <div className="text-xs font-bold truncate">{p.name}</div>
+                                        <div className="flex items-center gap-2 text-[10px] text-gray-400">
+                                          <span className="font-mono">{p.sku}</span>
+                                          <span>•</span>
+                                          <span className="text-[#c5a869] font-bold">
+                                            {formatPrice(p.price)}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                                      <span
+                                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                          count > 0
+                                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                            : 'bg-white/5 text-gray-400 border border-white/10'
+                                        }`}
+                                      >
+                                        {count} طلب
+                                      </span>
+                                      {isSelected && <Check className="w-3.5 h-3.5 text-[#c5a869]" />}
+                                    </div>
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 

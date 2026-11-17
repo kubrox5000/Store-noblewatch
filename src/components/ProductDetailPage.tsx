@@ -71,7 +71,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
   const [isSavingFeature, setIsSavingFeature] = useState(false);
   const [deletingFeatureIdx, setDeletingFeatureIdx] = useState<number | null>(null);
 
-  const productColors = getProductColors(product);
+  const productColors = useMemo(() => getProductColors(product), [product]);
   const activeColor = productColors[selectedColorIndex] || productColors[0];
 
   useEffect(() => {
@@ -372,29 +372,29 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
 
             {/* Moroccan Price Display */}
             <div className="p-4 rounded-2xl bg-[#fefaf0] border border-[#c5a869]/40 shadow-sm">
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <span className="text-xs text-gray-600 block mb-1">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <span className="text-xs font-medium text-gray-600">
                     {isFr
                       ? 'Prix spécial Paiement à la livraison :'
                       : 'السعر الخاص بالدفع عند الاستلام:'}
                   </span>
-                  <div className="flex items-baseline gap-3">
-                    <span className="text-3xl sm:text-4xl font-black text-gray-900">
-                      {formatPrice(product.price, lang)}
-                    </span>
-                    {product.originalPrice > product.price && (
-                      <span className="text-base text-gray-400 line-through">
-                        {formatPrice(product.originalPrice, lang)}
-                      </span>
-                    )}
-                  </div>
+
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/10 text-emerald-800 border border-emerald-500/30 text-xs font-bold whitespace-nowrap shadow-2xs">
+                    <Truck className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                    <span>{isFr ? 'Livraison gratuite 0 DH' : 'توصيل مجاني 0 درهم'}</span>
+                  </span>
                 </div>
 
-                <div className={isFr ? 'text-right' : 'text-left'}>
-                  <span className="inline-block px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold">
-                    {isFr ? 'Livraison gratuite 0 DH' : 'توصيل مجاني 0 درهم'}
+                <div className="flex items-baseline flex-wrap gap-x-3 gap-y-1">
+                  <span className="text-3xl sm:text-4xl font-black text-gray-900 whitespace-nowrap" dir="ltr">
+                    {formatPrice(product.price, lang)}
                   </span>
+                  {product.originalPrice > product.price && (
+                    <span className="text-base text-gray-400 line-through whitespace-nowrap" dir="ltr">
+                      {formatPrice(product.originalPrice, lang)}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -661,13 +661,16 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
             <div className="space-y-3 pt-2">
               <button
                 onClick={handleInstantBuy}
-                className="w-full flex items-center justify-center gap-2.5 py-4 rounded-xl gold-gradient-bg text-black font-black text-base shadow-lg shadow-[#c5a869]/25 hover:brightness-105 active:scale-[0.98] transition cursor-pointer"
+                className="w-full flex flex-col items-center justify-center gap-0.5 px-5 py-3.5 rounded-2xl gold-gradient-bg text-black shadow-lg shadow-[#c5a869]/30 ring-1 ring-inset ring-white/40 hover:brightness-105 active:scale-[0.98] transition cursor-pointer"
               >
-                <Zap className="w-5 h-5 fill-black" />
-                <span>
+                <span className="flex items-center justify-center gap-2 text-base sm:text-lg font-black leading-snug">
+                  <Zap className="w-5 h-5 fill-black flex-shrink-0" />
+                  <span>{isFr ? 'Commander maintenant' : 'اطلب الآن'}</span>
+                </span>
+                <span className="text-[11px] sm:text-xs font-extrabold text-black/80 tracking-tight">
                   {isFr
-                    ? 'Commander maintenant - Paiement à la livraison'
-                    : 'اطلب الآن - الدفع عند الاستلام (خلص ملي توصلك)'}
+                    ? 'Paiement à la livraison après vérification'
+                    : 'الدفع عند الاستلام • خلص ملي توصلك'}
                 </span>
               </button>
 
@@ -852,27 +855,42 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
         {/* ================= SECTION 4 & 5: SPECS & RICH DESCRIPTION TABS ================= */}
         <div className="rounded-3xl bg-white border border-gray-200 overflow-hidden shadow-sm">
           {/* Tabs Navigation */}
-          <div className="flex items-center overflow-x-auto border-b border-gray-200 bg-gray-50/80 px-4">
-            <button
-              onClick={() => setActiveTab('desc')}
-              className={`py-4 px-5 text-sm font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'desc'
-                  ? 'border-[#c5a869] text-[#996515]'
-                  : 'border-transparent text-gray-600 hover:text-black'
-              }`}
-            >
-              {isFr ? 'Description & Caractéristiques' : 'وصف الساعة ومميزاتها'}
-            </button>
-            <button
-              onClick={() => setActiveTab('care')}
-              className={`py-4 px-5 text-sm font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'care'
-                  ? 'border-[#c5a869] text-[#996515]'
-                  : 'border-transparent text-gray-600 hover:text-black'
-              }`}
-            >
-              {isFr ? 'Utilisation & Garantie 🛡️' : 'إرشادات الاستخدام والضمان 🛡️'}
-            </button>
+          <div className="p-2.5 sm:px-6 sm:py-3 border-b border-gray-200 bg-gray-50/90">
+            <div className="grid grid-cols-2 sm:inline-flex items-stretch gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab('desc')}
+                className={`flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-3 sm:px-5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer text-center leading-snug border ${
+                  activeTab === 'desc'
+                    ? 'bg-white text-[#8a5a00] border-[#c5a869]/50 shadow-sm'
+                    : 'bg-transparent border-transparent text-gray-600 hover:text-gray-900 hover:bg-white/60'
+                }`}
+              >
+                <Sparkles
+                  className={`w-4 h-4 flex-shrink-0 ${
+                    activeTab === 'desc' ? 'text-[#b8860b]' : 'text-gray-400'
+                  }`}
+                />
+                <span>{isFr ? 'Description & Détails' : 'وصف الساعة ومميزاتها'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('care')}
+                className={`flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-3 sm:px-5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer text-center leading-snug border ${
+                  activeTab === 'care'
+                    ? 'bg-white text-[#8a5a00] border-[#c5a869]/50 shadow-sm'
+                    : 'bg-transparent border-transparent text-gray-600 hover:text-gray-900 hover:bg-white/60'
+                }`}
+              >
+                <ShieldCheck
+                  className={`w-4 h-4 flex-shrink-0 ${
+                    activeTab === 'care' ? 'text-emerald-600' : 'text-gray-400'
+                  }`}
+                />
+                <span>{isFr ? 'Utilisation & Garantie' : 'إرشادات الاستخدام والضمان'}</span>
+              </button>
+            </div>
           </div>
 
           {/* Tab Content */}
@@ -1393,16 +1411,16 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
             }}
             className="w-10 h-10 rounded-lg object-cover border border-gray-200 flex-shrink-0 shadow-xs"
           />
-          <div className={`truncate ${isFr ? 'text-left' : 'text-right'}`}>
+          <div className={`min-w-0 ${isFr ? 'text-left' : 'text-right'}`}>
             <span className="text-[10px] text-gray-500 block truncate leading-none mb-1">
               {product.name}
             </span>
-            <div className="flex items-baseline gap-1">
-              <span className="text-sm font-black text-gray-900 leading-none">
+            <div className="flex items-center flex-wrap gap-1.5">
+              <span className="text-sm font-black text-gray-900 leading-none whitespace-nowrap" dir="ltr">
                 {formatPrice(getBundlePriceForQuantity(product, quantity, lang).totalPrice, lang)}
               </span>
-              <span className="text-[9px] text-emerald-700 font-bold bg-emerald-50 px-1 rounded">
-                {isFr ? 'Livraison 0 DH' : 'توصيل 0DH'}
+              <span className="text-[9px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded whitespace-nowrap">
+                {isFr ? 'Livraison 0 DH' : 'توصيل مجاني'}
               </span>
             </div>
           </div>

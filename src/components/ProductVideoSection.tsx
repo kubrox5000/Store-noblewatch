@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   Play,
   Pause,
@@ -27,6 +27,7 @@ import {
   Compass,
   Activity,
   Award,
+  ChevronDown,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -72,10 +73,71 @@ const CATEGORY_FILTERS: CategoryFilterDef[] = [
   { id: 'women-accessories', label: 'إكسسوارات نساء', labelFr: 'Accessoires Femme', icon: Sparkle, group: 'accessories' },
 ];
 
+const VERIFIED_WATCH_VIDEOS = [
+  '/videos/video_prod-1.mp4',
+  '/videos/video_prod-2.mp4',
+  '/videos/video_prod-3.mp4',
+  '/videos/video_prod-4.mp4',
+  '/videos/video_prod-5.mp4',
+  '/videos/video_prod-6.mp4',
+];
+
+const VERIFIED_MEN_ACC_VIDEOS = [
+  '/videos/video_prod-acc-men-1.mp4',
+  '/videos/video_prod-acc-men-2.mp4',
+  '/videos/video_prod-acc-men-3.mp4',
+  '/videos/video_prod-acc-men-4.mp4',
+];
+
+const VERIFIED_WOMEN_ACC_VIDEOS = [
+  '/videos/video_prod-acc-women-1.mp4',
+  '/videos/video_prod-acc-women-2.mp4',
+  '/videos/video_prod-acc-women-3.mp4',
+  '/videos/video_prod-acc-women-4.mp4',
+];
+
+const INITIAL_VIDEO_LIMIT = 6;
+const VIDEO_LIMIT_STEP = 9;
+
+const isAccessoryProduct = (p: Product) =>
+  p.category === 'accessories' ||
+  p.category === 'men-accessories' ||
+  p.category === 'women-accessories' ||
+  Boolean(p.categories?.some((c: string) => c.includes('accessories')));
+
+const matchesVideoFilter = (p: Product, filterId: VideoCategoryFilterId): boolean => {
+  const isAcc = isAccessoryProduct(p);
+  switch (filterId) {
+    case 'all':
+      return true;
+    case 'men-watches':
+      return !isAcc && (p.category === 'men' || Boolean(p.categories?.includes('men')));
+    case 'women-watches':
+      return !isAcc && (p.category === 'women' || Boolean(p.categories?.includes('women')));
+    case 'men-accessories':
+      return isAcc && (p.category === 'men-accessories' || Boolean(p.categories?.includes('men-accessories')));
+    case 'women-accessories':
+      return isAcc && (p.category === 'women-accessories' || Boolean(p.categories?.includes('women-accessories')));
+    default:
+      return true;
+  }
+};
+
+const resolveFallbackVideoUrl = (prod: Product, index: number): string => {
+  if (prod.category === 'men-accessories' || prod.categories?.includes('men-accessories')) {
+    return VERIFIED_MEN_ACC_VIDEOS[index % VERIFIED_MEN_ACC_VIDEOS.length];
+  }
+  if (prod.category === 'women-accessories' || prod.categories?.includes('women-accessories')) {
+    return VERIFIED_WOMEN_ACC_VIDEOS[index % VERIFIED_WOMEN_ACC_VIDEOS.length];
+  }
+  return VERIFIED_WATCH_VIDEOS[index % VERIFIED_WATCH_VIDEOS.length];
+};
+
 export const ProductVideoSection: React.FC = () => {
   const { products, setActiveProductId, setCheckoutProduct } = useStore();
   const { lang, isFr } = useLanguage();
   const [selectedFilterId, setSelectedFilterId] = useState<VideoCategoryFilterId>('all');
+  const [visibleVideosCount, setVisibleVideosCount] = useState(INITIAL_VIDEO_LIMIT);
   const [activePlayingVideo, setActivePlayingVideo] = useState<VideoItem | null>(null);
 
   // Modal video player states
@@ -107,56 +169,60 @@ export const ProductVideoSection: React.FC = () => {
     }
   }, [activePlayingVideo]);
 
-  // Collect all videos from products with safety fallback
-  const allVideos: VideoItem[] = [];
-  products.forEach((prod) => {
-    if (prod.videos && Array.isArray(prod.videos) && prod.videos.length > 0) {
-      prod.videos.forEach((vid) => {
-        allVideos.push({
-          product: prod,
-          video: vid,
+  const allVideos = useMemo<VideoItem[]>(() => {
+    const items: VideoItem[] = [];
+    products.forEach((prod, index) => {
+      if (prod.videos && Array.isArray(prod.videos) && prod.videos.length > 0) {
+        prod.videos.forEach((vid) => {
+          items.push({
+            product: prod,
+            video: vid,
+          });
         });
-      });
-    } else {
-      allVideos.push({
-        product: prod,
-        video: {
-          title: `معاينة حقيقية 360° وتفاصيل ${prod.name}`,
-          url: `/videos/video_${prod.id}.mp4`,
-          poster: prod.images[0] || '/assets/watches_and_accessories_hero.jpg',
-          aspect: '16:9',
-          duration: '0:45',
-        },
-      });
+      } else {
+        items.push({
+          product: prod,
+          video: {
+            title: `معاينة حقيقية 360° وتفاصيل ${prod.name}`,
+            url: resolveFallbackVideoUrl(prod, index),
+            poster: prod.images[0] || '/assets/watches_and_accessories_hero.jpg',
+            aspect: '16:9',
+            duration: '0:45',
+          },
+        });
+      }
+    });
+    return items;
+  }, [products]);
+
+  const filterCounts = useMemo(() => {
+    const counts: Record<VideoCategoryFilterId, number> = {
+      all: allVideos.length,
+      'men-watches': 0,
+      'women-watches': 0,
+      'men-accessories': 0,
+      'women-accessories': 0,
+    };
+    for (const item of allVideos) {
+      if (matchesVideoFilter(item.product, 'men-watches')) counts['men-watches'] += 1;
+      if (matchesVideoFilter(item.product, 'women-watches')) counts['women-watches'] += 1;
+      if (matchesVideoFilter(item.product, 'men-accessories')) counts['men-accessories'] += 1;
+      if (matchesVideoFilter(item.product, 'women-accessories')) counts['women-accessories'] += 1;
     }
-  });
+    return counts;
+  }, [allVideos]);
 
-  const isAccessory = (p: Product) =>
-    p.category === 'accessories' ||
-    p.category === 'men-accessories' ||
-    p.category === 'women-accessories' ||
-    p.categories?.some((c: string) => c.includes('accessories'));
+  const displayedVideos = useMemo(
+    () => allVideos.filter((item) => matchesVideoFilter(item.product, selectedFilterId)),
+    [allVideos, selectedFilterId]
+  );
 
-  // Filter logic helper
-  const matchesFilter = (p: Product, filterId: VideoCategoryFilterId): boolean => {
-    switch (filterId) {
-      case 'all':
-        return true;
-      case 'men-watches':
-        return !isAccessory(p) && (p.category === 'men' || p.categories?.includes('men'));
-      case 'women-watches':
-        return !isAccessory(p) && (p.category === 'women' || p.categories?.includes('women'));
-      case 'men-accessories':
-        return isAccessory(p) && (p.category === 'men-accessories' || p.categories?.includes('men-accessories'));
-      case 'women-accessories':
-        return isAccessory(p) && (p.category === 'women-accessories' || p.categories?.includes('women-accessories'));
-      default:
-        return true;
-    }
-  };
+  const visibleVideos = useMemo(
+    () => displayedVideos.slice(0, visibleVideosCount),
+    [displayedVideos, visibleVideosCount]
+  );
 
-  // Filtered videos
-  const displayedVideos = allVideos.filter((item) => matchesFilter(item.product, selectedFilterId));
+  const isAccessory = isAccessoryProduct;
 
   const handleOpenVideo = (item: VideoItem) => {
     setActivePlayingVideo(item);
@@ -269,14 +335,17 @@ export const ProductVideoSection: React.FC = () => {
 
           <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
             {CATEGORY_FILTERS.map((cat) => {
-              const count = allVideos.filter((v) => matchesFilter(v.product, cat.id)).length;
+              const count = filterCounts[cat.id];
               const isSelected = selectedFilterId === cat.id;
               const IconComp = cat.icon || Sparkles;
 
               return (
                 <button
                   key={cat.id}
-                  onClick={() => setSelectedFilterId(cat.id)}
+                  onClick={() => {
+                    setSelectedFilterId(cat.id);
+                    setVisibleVideosCount(INITIAL_VIDEO_LIMIT);
+                  }}
                   className={`px-3.5 sm:px-4 py-2.5 rounded-2xl text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-2 shadow-xs ${
                     isSelected
                       ? 'gold-gradient-bg text-black font-black shadow-md ring-2 ring-[#c5a869]/60 scale-102'
@@ -300,7 +369,7 @@ export const ProductVideoSection: React.FC = () => {
 
         {/* ================= 3. VIDEOS GRID ================= */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {displayedVideos.map((item, idx) => {
+          {visibleVideos.map((item, idx) => {
             const isAcc = isAccessory(item.product);
 
             let badgeText = isFr ? 'Montre de luxe' : 'ساعة يد فاخرة';
@@ -324,6 +393,8 @@ export const ProductVideoSection: React.FC = () => {
                   <img
                     src={item.video.poster || item.product.images[0] || '/assets/luxury_watch_hero.jpg'}
                     alt={item.video.title}
+                    loading="lazy"
+                    decoding="async"
                     onError={(e) => {
                       (e.currentTarget as HTMLImageElement).src = '/assets/luxury_watch_hero.jpg';
                     }}
@@ -407,23 +478,25 @@ export const ProductVideoSection: React.FC = () => {
                   </div>
 
                   {/* Product Price & Actions Bar */}
-                  <div className="p-3 rounded-2xl bg-gray-50 border border-gray-200/80 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="p-3 rounded-2xl bg-gray-50 border border-gray-200/80 space-y-2.5">
+                    <div className="flex items-center gap-3">
                       <img
                         src={item.product.images[0]}
                         alt={item.product.name}
+                        loading="lazy"
+                        decoding="async"
                         className="w-11 h-11 rounded-xl object-cover border border-gray-200 flex-shrink-0 shadow-xs"
                       />
-                      <div className={`truncate ${isFr ? 'text-left' : 'text-right'}`}>
-                        <span className="text-[11px] text-gray-500 block leading-tight">
+                      <div className={`flex-1 min-w-0 ${isFr ? 'text-left' : 'text-right'}`}>
+                        <span className="text-[11px] font-medium text-gray-500 block leading-tight mb-0.5">
                           {isFr ? 'Prix total :' : 'السعر الإجمالي:'}
                         </span>
-                        <div className="flex items-baseline gap-1.5">
-                          <span className="text-sm font-black text-gray-900">
+                        <div className="flex items-baseline flex-wrap gap-x-2 gap-y-0.5">
+                          <span className="text-base font-black text-gray-900 whitespace-nowrap" dir="ltr">
                             {formatPrice(item.product.price, lang)}
                           </span>
                           {item.product.originalPrice > item.product.price && (
-                            <span className="text-[10px] text-gray-400 line-through">
+                            <span className="text-xs text-gray-400 line-through whitespace-nowrap" dir="ltr">
                               {formatPrice(item.product.originalPrice, lang)}
                             </span>
                           )}
@@ -431,22 +504,22 @@ export const ProductVideoSection: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <div className="grid grid-cols-2 gap-2">
                       <button
                         onClick={() => handleOpenVideo(item)}
-                        className="px-3 py-2 rounded-xl bg-white border border-gray-300 hover:border-[#c5a869] text-gray-800 text-[11px] font-bold shadow-xs hover:bg-gray-50 transition cursor-pointer flex items-center gap-1"
+                        className="w-full px-3 py-2.5 rounded-xl bg-white border border-gray-300 hover:border-[#c5a869] text-gray-800 text-xs font-bold shadow-xs hover:bg-gray-50 transition cursor-pointer flex items-center justify-center gap-1.5"
                       >
-                        <Play className="w-3 h-3 fill-gray-800" />
-                        <span>{isFr ? 'Lire' : 'تشغيل'}</span>
+                        <Play className="w-3.5 h-3.5 fill-gray-800" />
+                        <span>{isFr ? 'Lire la vidéo' : 'تشغيل الفيديو'}</span>
                       </button>
                       <button
                         onClick={() => {
                           const itemColors = getProductColors(item.product);
                           handleQuickOrder(item.product, itemColors[0]?.name);
                         }}
-                        className="px-3.5 py-2 rounded-xl gold-gradient-bg text-black text-[11px] font-black shadow hover:brightness-105 active:scale-95 transition cursor-pointer flex items-center gap-1"
+                        className="w-full px-3 py-2.5 rounded-xl gold-gradient-bg text-black text-xs font-black shadow hover:brightness-105 active:scale-95 transition cursor-pointer flex items-center justify-center gap-1.5"
                       >
-                        <ShoppingBag className="w-3 h-3" />
+                        <ShoppingBag className="w-3.5 h-3.5" />
                         <span>{isFr ? 'Commander' : 'اطلب الآن'}</span>
                       </button>
                     </div>
@@ -456,6 +529,24 @@ export const ProductVideoSection: React.FC = () => {
             );
           })}
         </div>
+
+        {/* Load more videos button */}
+        {visibleVideos.length < displayedVideos.length && (
+          <div className="mt-8 flex justify-center">
+            <button
+              type="button"
+              onClick={() => setVisibleVideosCount((prev) => prev + VIDEO_LIMIT_STEP)}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-white hover:bg-[#fefaf0] border border-gray-300 hover:border-[#c5a869] text-gray-800 font-bold text-xs shadow-xs transition cursor-pointer"
+            >
+              <span>
+                {isFr
+                  ? `Voir plus de vidéos (${displayedVideos.length - visibleVideos.length} restantes)`
+                  : `عرض المزيد من الفيديوهات (${displayedVideos.length - visibleVideos.length} فيديو إضافي)`}
+              </span>
+              <ChevronDown className="w-4 h-4 text-[#996515]" />
+            </button>
+          </div>
+        )}
 
         {/* Empty State Fallback */}
         {displayedVideos.length === 0 && (
@@ -596,7 +687,7 @@ export const ProductVideoSection: React.FC = () => {
                       }`}
                       title={isFr ? `Angle ${i + 1}` : `زاوية ${i + 1}`}
                     >
-                      <img src={img} alt="" className="w-full h-full object-cover" />
+                      <img src={img} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                     </button>
                   ))}
                   {videoError && (
@@ -811,17 +902,17 @@ export const ProductVideoSection: React.FC = () => {
                         <h4 className="text-sm font-bold text-white line-clamp-1">
                           {activePlayingVideo.product.name}
                         </h4>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-lg font-black text-amber-400">
+                        <div className="flex items-center flex-wrap gap-2 mt-1">
+                          <span className="text-lg font-black text-amber-400 whitespace-nowrap" dir="ltr">
                             {formatPrice(currentBundle.totalPrice, lang)}
                           </span>
                           {currentBundle.savingsMAD > 0 ? (
-                            <span className="text-xs text-gray-400 line-through">
+                            <span className="text-xs text-gray-400 line-through whitespace-nowrap" dir="ltr">
                               {formatPrice(tierOffers[0].totalPrice * selectedQuantity, lang)}
                             </span>
                           ) : (
                             activePlayingVideo.product.originalPrice > activePlayingVideo.product.price && (
-                              <span className="text-xs text-gray-400 line-through">
+                              <span className="text-xs text-gray-400 line-through whitespace-nowrap" dir="ltr">
                                 {formatPrice(activePlayingVideo.product.originalPrice * selectedQuantity, lang)}
                               </span>
                             )

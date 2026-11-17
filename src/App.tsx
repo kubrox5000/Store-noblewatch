@@ -7,15 +7,21 @@ import { HeroSection } from './components/HeroSection';
 import { TrustGuarantees } from './components/TrustGuarantees';
 import { CategoriesSection } from './components/CategoriesSection';
 import { ProductGrid } from './components/ProductGrid';
-import { ProductVideoSection } from './components/ProductVideoSection';
-import { WhyChooseUs } from './components/WhyChooseUs';
-import { CustomerReviews } from './components/CustomerReviews';
 import { Footer } from './components/Footer';
 import { initTrackingPixels, trackPixelPageView } from './utils/trackingPixels';
 import { buildWhatsAppUrl } from './utils/constants';
 import { CheckCircle, AlertCircle, Info, Sparkles, Compass, ShoppingBag, MessageCircle } from 'lucide-react';
 
-// Code-split heavy views and modals to shrink initial First Load JS
+// Code-split below-the-fold sections and heavy modals to shrink initial First Load JS
+const ProductVideoSection = lazy(() =>
+  import('./components/ProductVideoSection').then((m) => ({ default: m.ProductVideoSection }))
+);
+const WhyChooseUs = lazy(() =>
+  import('./components/WhyChooseUs').then((m) => ({ default: m.WhyChooseUs }))
+);
+const CustomerReviews = lazy(() =>
+  import('./components/CustomerReviews').then((m) => ({ default: m.CustomerReviews }))
+);
 const ProductDetailPage = lazy(() =>
   import('./components/ProductDetailPage').then((m) => ({ default: m.ProductDetailPage }))
 );
@@ -189,9 +195,11 @@ const MainContent: React.FC = () => {
             <TrustGuarantees />
             <CategoriesSection />
             <ProductGrid />
-            <ProductVideoSection />
-            <WhyChooseUs />
-            <CustomerReviews />
+            <Suspense fallback={<div className="min-h-[320px] bg-[#f8f9fb]" aria-hidden="true" />}>
+              <ProductVideoSection />
+              <WhyChooseUs />
+              <CustomerReviews />
+            </Suspense>
           </>
         )}
       </main>

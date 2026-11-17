@@ -1,35 +1,29 @@
-import React, { useMemo, useDeferredValue, useTransition } from 'react';
-import { Sparkles, Filter } from 'lucide-react';
+import React, { useMemo, useDeferredValue, useTransition, useState, useEffect, useRef } from 'react';
+import { Sparkles, Filter, ChevronDown } from 'lucide-react';
 import { ProductCard } from './ProductCard';
 import { useStore } from '../context/StoreContext';
 import { useLanguage } from '../context/LanguageContext';
 import { translateProductDescription, translateProductSubtitle } from '../i18n/storefront';
+
+const INITIAL_GRID_COUNT = 16;
+const GRID_STEP = 16;
 
 export const ProductGrid: React.FC = () => {
   const { products, selectedCategory, setSelectedCategory, searchQuery, isLoading } = useStore();
   const { isFr } = useLanguage();
   const deferredSearch = useDeferredValue(searchQuery);
   const [, startTransition] = useTransition();
+  const [visibleCount, setVisibleCount] = useState(INITIAL_GRID_COUNT);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setVisibleCount(INITIAL_GRID_COUNT);
+  }, [selectedCategory, deferredSearch]);
 
   const filteredProducts = useMemo(() => {
     const q = deferredSearch.toLowerCase().trim();
     return products.filter((product) => {
       if (!product.isPublished) return false;
-
-      if (q) {
-        const matchName = product.name.toLowerCase().includes(q);
-        const matchSku = product.sku.toLowerCase().includes(q);
-        const matchDesc =
-          product.description.toLowerCase().includes(q) ||
-          translateProductDescription(product.description, 'ar').toLowerCase().includes(q) ||
-          translateProductDescription(product.description, 'fr').toLowerCase().includes(q);
-        const matchSubtitle =
-          (product.subtitle || '').toLowerCase().includes(q) ||
-          translateProductSubtitle(product.subtitle || '', 'ar').toLowerCase().includes(q) ||
-          translateProductSubtitle(product.subtitle || '', 'fr').toLowerCase().includes(q);
-        const matchModel = product.specs?.model?.toLowerCase().includes(q);
-        if (!matchName && !matchSku && !matchDesc && !matchSubtitle && !matchModel) return false;
-      }
 
       if (selectedCategory && selectedCategory !== 'all') {
         const inPrimary = product.category === selectedCategory;
@@ -37,9 +31,44 @@ export const ProductGrid: React.FC = () => {
         if (!inPrimary && !inArray) return false;
       }
 
+      if (q) {
+        if (product.name.toLowerCase().includes(q)) return true;
+        if (product.sku.toLowerCase().includes(q)) return true;
+        if (product.specs?.model?.toLowerCase().includes(q)) return true;
+        if (product.description.toLowerCase().includes(q)) return true;
+        if ((product.subtitle || '').toLowerCase().includes(q)) return true;
+        if (translateProductDescription(product.description, 'ar').toLowerCase().includes(q)) return true;
+        if (translateProductDescription(product.description, 'fr').toLowerCase().includes(q)) return true;
+        if (translateProductSubtitle(product.subtitle || '', 'ar').toLowerCase().includes(q)) return true;
+        if (translateProductSubtitle(product.subtitle || '', 'fr').toLowerCase().includes(q)) return true;
+        return false;
+      }
+
       return true;
     });
   }, [products, selectedCategory, deferredSearch]);
+
+  // Progressive reveal on scroll so initial DOM stays compact & fast
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el || visibleCount >= filteredProducts.length) return;
+    if (typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisibleCount((prev) => Math.min(filteredProducts.length, prev + GRID_STEP));
+        }
+      },
+      { rootMargin: '300px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [visibleCount, filteredProducts.length]);
+
+  const displayedProducts = useMemo(
+    () => (deferredSearch.trim() ? filteredProducts : filteredProducts.slice(0, visibleCount)),
+    [filteredProducts, visibleCount, deferredSearch]
+  );
 
   return (
     <section id="products-section" className="py-12 bg-white border-b border-gray-200/80 scroll-mt-20">
@@ -110,12 +139,30 @@ export const ProductGrid: React.FC = () => {
               </div>
             ))}
           </div>
-        ) : filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
-            {filteredProducts.map((product, idx) => (
-              <ProductCard key={product.id} product={product} priority={idx < 4} />
-            ))}
-          </div>
+        ) : displayedProducts.length > 0 ? (
+          <>
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
+              {displayedProducts.map((product, idx) => (
+                <ProductCard key={product.id} product={product} priority={idx < 4} />
+              ))}
+            </div>
+            {displayedProducts.length < filteredProducts.length && (
+              <div ref={loadMoreRef} className="mt-8 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount(filteredProducts.length)}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gray-50 hover:bg-[#fefaf0] border border-gray-300 hover:border-[#c5a869] text-gray-800 font-bold text-xs shadow-xs transition cursor-pointer"
+                >
+                  <span>
+                    {isFr
+                      ? `Afficher tous les modèles (${filteredProducts.length - displayedProducts.length} restants)`
+                      : `عرض جميع الموديلات (${filteredProducts.length - displayedProducts.length} منتج إضافي)`}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-[#996515]" />
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           <div className="text-center py-16 px-4 rounded-2xl bg-gray-50 border border-gray-200">
             <div className="w-16 h-16 rounded-full bg-white mx-auto flex items-center justify-center text-gray-400 mb-4 shadow-sm">

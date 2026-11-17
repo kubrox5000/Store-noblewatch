@@ -8,7 +8,7 @@ export default defineConfig(() => {
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(import.meta.dirname, '.'),
       },
     },
     build: {
@@ -18,11 +18,17 @@ export default defineConfig(() => {
             if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/scheduler/')) {
               return 'react-vendor';
             }
+            if (id.includes('node_modules/firebase') || id.includes('node_modules/@firebase')) {
+              return 'firebase-vendor';
+            }
             if (id.includes('node_modules/lucide-react/')) {
               return 'icons-vendor';
             }
             if (id.includes('node_modules/motion/')) {
               return 'motion-vendor';
+            }
+            if (id.includes('src/i18n/catalogTranslations')) {
+              return 'i18n-catalog';
             }
           },
         },

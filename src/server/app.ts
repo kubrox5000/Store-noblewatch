@@ -2202,6 +2202,57 @@ app.get('/api/uploads', async (req: Request, res: Response) => {
   }
 });
 
+// In-memory LRU media cache (avoids repeated PostgreSQL reads & speeds up video scrubbing)
+const MAX_MEDIA_CACHE_BYTES = 24 * 1024 * 1024;
+const mediaMemoryCache = new Map<string, { mimeType: string; buffer: Buffer }>();
+let mediaMemoryCacheBytes = 0;
+
+function setMediaCacheEntry(filename: string, mimeType: string, buffer: Buffer) {
+  if (buffer.length > 8 * 1024 * 1024) return; // avoid letting a single huge file evict everything
+  if (mediaMemoryCache.has(filename)) {
+    const prev = mediaMemoryCache.get(filename)!;
+    mediaMemoryCacheBytes -= prev.buffer.length;
+    mediaMemoryCache.delete(filename);
+  }
+  while (mediaMemoryCacheBytes + buffer.length > MAX_MEDIA_CACHE_BYTES && mediaMemoryCache.size > 0) {
+    const oldestKey = mediaMemoryCache.keys().next().value;
+    if (!oldestKey) break;
+    const oldest = mediaMemoryCache.get(oldestKey)!;
+    mediaMemoryCacheBytes -= oldest.buffer.length;
+    mediaMemoryCache.delete(oldestKey);
+  }
+  mediaMemoryCache.set(filename, { mimeType, buffer });
+  mediaMemoryCacheBytes += buffer.length;
+}
+
+function sendBufferWithRange(req: Request, res: Response, buffer: Buffer, mimeType: string) {
+  const total = buffer.length;
+  res.setHeader('Content-Type', mimeType);
+  res.setHeader('Accept-Ranges', 'bytes');
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+
+  const range = req.headers.range;
+  if (range && range.startsWith('bytes=')) {
+    const parts = range.replace(/bytes=/, '').split('-');
+    const start = parts[0] ? parseInt(parts[0], 10) : 0;
+    const end = parts[1] ? Math.min(total - 1, parseInt(parts[1], 10)) : total - 1;
+    if (Number.isNaN(start) || Number.isNaN(end) || start > end || start >= total) {
+      res.setHeader('Content-Range', `bytes */${total}`);
+      return res.status(416).end();
+    }
+    const chunk = buffer.subarray(start, end + 1);
+    res.status(206);
+    res.setHeader('Content-Range', `bytes ${start}-${end}/${total}`);
+    res.setHeader('Content-Length', chunk.length);
+    if (req.method === 'HEAD') return res.end();
+    return res.send(chunk);
+  }
+
+  res.setHeader('Content-Length', total);
+  if (req.method === 'HEAD') return res.end();
+  return res.send(buffer);
+}
+
 // Delete uploaded file (Admin only)
 app.delete('/api/uploads/:filename', async (req: Request, res: Response) => {
   try {
@@ -2210,6 +2261,12 @@ app.delete('/api/uploads/:filename', async (req: Request, res: Response) => {
 
     const { filename } = req.params;
     const safeName = path.basename(filename);
+
+    if (mediaMemoryCache.has(safeName)) {
+      const prev = mediaMemoryCache.get(safeName)!;
+      mediaMemoryCacheBytes -= prev.buffer.length;
+      mediaMemoryCache.delete(safeName);
+    }
 
     const deletedDb = await deleteMediaAssetDb(safeName);
     let deletedDisk = false;
@@ -2243,12 +2300,23 @@ app.use('/uploads', async (req: Request, res: Response) => {
     }
   }
 
+  const memCached = mediaMemoryCache.get(safeName);
+  if (memCached) {
+    // Refresh LRU order
+    mediaMemoryCache.delete(safeName);
+    mediaMemoryCache.set(safeName, memCached);
+    return sendBufferWithRange(req, res, memCached.buffer, memCached.mimeType);
+  }
+
   try {
     const asset = await getMediaAssetDb(safeName);
     if (asset) {
-      res.setHeader('Content-Type', asset.mimeType);
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-      return res.send(asset.buffer);
+      setMediaCacheEntry(safeName, asset.mimeType, asset.buffer);
+      if (!IS_SERVERLESS) {
+        ensureLocalDirs();
+        fs.promises.writeFile(path.join(UPLOADS_DIR, safeName), asset.buffer).catch(() => {});
+      }
+      return sendBufferWithRange(req, res, asset.buffer, asset.mimeType);
     }
   } catch (err) {
     console.error('Error serving media asset from DB:', err);

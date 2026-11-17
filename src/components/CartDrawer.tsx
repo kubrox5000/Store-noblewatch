@@ -124,6 +124,8 @@ export const CartDrawer: React.FC = () => {
                   <img
                     src={item.product.images[0] || '/assets/luxury_watch_hero.jpg'}
                     alt={item.product.name}
+                    loading="lazy"
+                    decoding="async"
                     onError={(e) => {
                       (e.currentTarget as HTMLImageElement).src = '/assets/luxury_watch_hero.jpg';
                     }}

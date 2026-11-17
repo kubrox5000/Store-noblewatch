@@ -18,6 +18,9 @@ import {
   Facebook,
   Youtube,
   Package,
+  Banknote,
+  Lock,
+  Zap,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -674,44 +677,55 @@ export const Footer: React.FC = () => {
 
       {/* 6. Moroccan Logistics & Trust Payment Badges */}
       <div className="border-t border-white/5 py-6 px-4 bg-[#06070a]">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-gray-400">
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500">
-              {isFr ? 'Mode de paiement et livraison agréé :' : 'طريقة الدفع والشحن المعتمدة:'}
+        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-4 text-xs text-gray-400">
+          {/* Certified Payment Method Card */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 w-full lg:w-auto">
+            <span className="text-gray-400 font-medium whitespace-nowrap flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#c5a869] flex-shrink-0" />
+              <span>{isFr ? 'Paiement & livraison agréés :' : 'طريقة الدفع والشحن المعتمدة:'}</span>
             </span>
-            <span className="px-3 py-1 rounded-lg bg-white/[0.05] border border-white/10 text-white font-bold flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#c5a869]" />
-              <span>{isFr ? 'Paiement en espèces à la livraison (COD)' : 'الدفع نقداً عند الاستلام (COD)'}</span>
-            </span>
+
+            <div className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#141720] via-[#191c28] to-[#141720] border border-[#c5a869]/35 shadow-sm max-w-full">
+              <span className="w-6 h-6 rounded-lg bg-[#c5a869]/15 border border-[#c5a869]/30 text-[#c5a869] flex items-center justify-center flex-shrink-0">
+                <Banknote className="w-3.5 h-3.5" />
+              </span>
+              <span className="text-white font-bold text-xs whitespace-nowrap">
+                {isFr ? 'Paiement en espèces à la livraison' : 'الدفع نقداً عند الاستلام'}
+              </span>
+              <span className="px-1.5 py-0.5 rounded bg-[#c5a869]/15 border border-[#c5a869]/30 text-[#f3d89b] font-mono font-extrabold text-[10px] tracking-wider flex-shrink-0">
+                COD
+              </span>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-2.5 text-[11px]">
-            <span className="px-2.5 py-1 rounded-md bg-[#c5a869]/10 border border-[#c5a869]/30 text-[#f7dfa5] font-semibold flex items-center gap-1">
-              <span>⚡</span>
+          {/* Logistics Partners & Guarantees */}
+          <div className="flex flex-wrap items-center justify-center gap-2 text-[11px]">
+            <span className="px-2.5 py-1.5 rounded-lg bg-[#c5a869]/10 border border-[#c5a869]/30 text-[#f7dfa5] font-semibold inline-flex items-center gap-1.5 whitespace-nowrap">
+              <Zap className="w-3 h-3 text-[#c5a869]" />
               <span>Noblewatch Express</span>
             </span>
-            <span className="px-2.5 py-1 rounded-md bg-white/[0.03] border border-white/5 text-gray-300 flex items-center gap-1">
-              <span>📦</span>
+            <span className="px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/10 text-gray-300 inline-flex items-center gap-1.5 whitespace-nowrap">
+              <Package className="w-3 h-3 text-gray-400" />
               <span>Ozon Express</span>
             </span>
-            <span className="px-2.5 py-1 rounded-md bg-white/[0.03] border border-white/5 text-gray-300 flex items-center gap-1">
-              <span>🚚</span>
+            <span className="px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/10 text-gray-300 inline-flex items-center gap-1.5 whitespace-nowrap">
+              <Truck className="w-3 h-3 text-gray-400" />
               <span>Ameex.ma</span>
             </span>
-            <span className="px-2.5 py-1 rounded-md bg-white/[0.03] border border-white/5 text-gray-300 flex items-center gap-1">
-              <span>🇲🇦</span>
+            <span className="px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/10 text-gray-300 inline-flex items-center gap-1.5 whitespace-nowrap">
+              <Truck className="w-3 h-3 text-gray-400" />
               <span>Amana Express</span>
             </span>
-            <span className="px-2.5 py-1 rounded-md bg-white/[0.03] border border-white/5 text-gray-300 flex items-center gap-1">
-              <span>📦</span>
+            <span className="px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/10 text-gray-300 inline-flex items-center gap-1.5 whitespace-nowrap">
+              <Package className="w-3 h-3 text-gray-400" />
               <span>CTM Messagerie</span>
             </span>
-            <span className="px-2.5 py-1 rounded-md bg-white/[0.03] border border-white/5 text-gray-300 flex items-center gap-1">
-              <span>🛡️</span>
+            <span className="px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 font-medium inline-flex items-center gap-1.5 whitespace-nowrap">
+              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
               <span>{isFr ? 'Échange gratuit garanti' : 'ضمان استبدال مجاني'}</span>
             </span>
-            <span className="px-2.5 py-1 rounded-md bg-white/[0.03] border border-white/5 text-gray-300 flex items-center gap-1">
-              <span>🔒</span>
+            <span className="px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/10 text-gray-300 inline-flex items-center gap-1.5 whitespace-nowrap">
+              <Lock className="w-3 h-3 text-[#c5a869]" />
               <span>{isFr ? 'Données 100% protégées' : '100% حماية البيانات'}</span>
             </span>
           </div>

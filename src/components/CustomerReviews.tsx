@@ -47,40 +47,60 @@ export const CustomerReviews: React.FC = () => {
   const [selectedProductFilter, setSelectedProductFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Fast O(1) product lookup Map
+  const productById = useMemo(
+    () => new Map(products.map((p) => [p.id, p])),
+    [products]
+  );
+
   // Filter approved reviews only
   const approvedReviews = useMemo(() => {
     return reviews.filter((r) => r.isApproved);
   }, [reviews]);
 
+  const { totalCount, fiveStarsCount, fourStarsCount, fiveStarPercent, fourStarPercent } = useMemo(() => {
+    const total = approvedReviews.length;
+    let five = 0;
+    let four = 0;
+    for (let i = 0; i < approvedReviews.length; i++) {
+      const r = approvedReviews[i];
+      if (r.rating === 5) five += 1;
+      else if (r.rating === 4) four += 1;
+    }
+    return {
+      totalCount: total,
+      fiveStarsCount: five,
+      fourStarsCount: four,
+      fiveStarPercent: total > 0 ? Math.round((five / total) * 100) : 90,
+      fourStarPercent: total > 0 ? Math.round((four / total) * 100) : 10,
+    };
+  }, [approvedReviews]);
+
   // Filtered reviews based on user selections
   const filteredReviews = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    const cityFilterLower = selectedCityFilter !== 'all' ? selectedCityFilter.toLowerCase() : '';
+
     return approvedReviews.filter((r) => {
-      // Rating filter
       if (selectedRatingFilter !== 'all' && r.rating !== selectedRatingFilter) {
         return false;
       }
-      // City filter
-      if (selectedCityFilter !== 'all') {
-        const filterLower = selectedCityFilter.toLowerCase();
-        const rawMatch = r.city.toLowerCase().includes(filterLower);
-        const frMatch = translateCityName(r.city, 'fr').toLowerCase().includes(filterLower);
-        if (!rawMatch && !frMatch) return false;
+      if (cityFilterLower) {
+        const rawMatch = r.city.toLowerCase().includes(cityFilterLower);
+        if (!rawMatch && !translateCityName(r.city, 'fr').toLowerCase().includes(cityFilterLower)) {
+          return false;
+        }
       }
-      // Product filter
       if (selectedProductFilter !== 'all' && r.productId !== selectedProductFilter) {
         return false;
       }
-      // Search query in comment, author, or city (both AR and FR)
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const inComment =
-          r.comment.toLowerCase().includes(q) ||
-          translateReviewComment(r.comment, 'fr').toLowerCase().includes(q);
-        const inAuthor = r.author.toLowerCase().includes(q);
-        const inCity =
-          r.city.toLowerCase().includes(q) ||
-          translateCityName(r.city, 'fr').toLowerCase().includes(q);
-        if (!inComment && !inAuthor && !inCity) return false;
+      if (q) {
+        if (r.comment.toLowerCase().includes(q)) return true;
+        if (r.author.toLowerCase().includes(q)) return true;
+        if (r.city.toLowerCase().includes(q)) return true;
+        if (translateCityName(r.city, 'fr').toLowerCase().includes(q)) return true;
+        if (translateReviewComment(r.comment, 'fr').toLowerCase().includes(q)) return true;
+        return false;
       }
       return true;
     });
@@ -130,13 +150,6 @@ export const CustomerReviews: React.FC = () => {
     setComment('');
     setCustomerPhoto('');
   };
-
-  // Stats calculations
-  const totalCount = approvedReviews.length;
-  const fiveStarsCount = approvedReviews.filter((r) => r.rating === 5).length;
-  const fourStarsCount = approvedReviews.filter((r) => r.rating === 4).length;
-  const fiveStarPercent = totalCount > 0 ? Math.round((fiveStarsCount / totalCount) * 100) : 90;
-  const fourStarPercent = totalCount > 0 ? Math.round((fourStarsCount / totalCount) * 100) : 10;
 
   return (
     <section id="reviews-section" className="py-16 bg-white border-b border-gray-200/80 scroll-mt-20">
@@ -400,7 +413,7 @@ export const CustomerReviews: React.FC = () => {
               const usedOnPage = new Set<string>();
 
               return currentReviews.map((rev, cardIndex) => {
-                const matchedProduct = products.find((p) => p.id === rev.productId);
+                const matchedProduct = rev.productId ? productById.get(rev.productId) : undefined;
                 const isFemale = isFemaleName(rev.author);
                 const pool = isFemale ? FEMALE_AVATARS : MALE_AVATARS;
 
@@ -459,6 +472,8 @@ export const CustomerReviews: React.FC = () => {
                       <img
                         src={avatarUrl}
                         alt={rev.author}
+                        loading="lazy"
+                        decoding="async"
                         className="w-10 h-10 rounded-full object-cover border border-[#c5a869]/40 shadow-sm flex-shrink-0"
                       />
                       <div className="truncate">
