@@ -4,6 +4,7 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { app, processConfirmedToPreparingTransitions } from './src/server/app.ts';
+import { getStoreSnapshot } from './src/db/storeRepo.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -68,9 +69,16 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Noblewatch luxury store server running at http://0.0.0.0:${PORT}`);
+    // Pre-warm DB snapshot & RAM cache immediately on boot so first request is instant
+    getStoreSnapshot().catch((err) => {
+      console.error('Warmup error:', err);
+    });
     setInterval(async () => {
       try {
-        await processConfirmedToPreparingTransitions();
+        const snap = await getStoreSnapshot();
+        if (Array.isArray(snap.orders) && snap.orders.some((o: any) => o.status === 'تم التأكيد')) {
+          await processConfirmedToPreparingTransitions(snap);
+        }
       } catch (err) {
         console.error('Error in auto-transition scheduler:', err);
       }

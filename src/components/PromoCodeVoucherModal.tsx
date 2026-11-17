@@ -154,29 +154,29 @@ export const PromoCodeVoucherModal: React.FC<PromoCodeVoucherModalProps> = ({
   const promoShareMessage = useMemo(() => {
     if (isFr) {
       return (
-        `🎁 *Offre Exclusive ${storeName}*\n\n` +
+        `⭐ *Offre Exclusive ${storeName}* ✨\n\n` +
         `Profitez d'une réduction immédiate de *${discountDisplay}* sur votre commande !\n` +
-        `🏷️ *Code Promo :* *${promo.code}*\n` +
+        `✦ *Code Promo :* *${promo.code}*\n` +
         (minOrder > 0
-          ? `📌 *Condition :* Valable dès ${minOrder} MAD d'achat.\n\n`
-          : `📌 *Condition :* Valable sur toute la boutique sans minimum d'achat.\n\n`) +
-        `📝 *Comment l'utiliser :*\n` +
-        `1️⃣ Choisissez votre montre sur ${storeUrl}\n` +
-        `2️⃣ Dans la fenêtre de commande, saisissez *${promo.code}* et cliquez sur Appliquer\n` +
-        `3️⃣ Profitez de la réduction + Livraison gratuite 0 DH + Cadeau offert + Garantie 1 an ✨`
+          ? `✅ *Condition :* Valable dès ${minOrder} MAD d'achat.\n\n`
+          : `✅ *Condition :* Valable sur toute la boutique sans minimum d'achat.\n\n`) +
+        `✍ *Comment l'utiliser :*\n` +
+        `1. Choisissez votre montre sur ${storeUrl}\n` +
+        `2. Dans la fenêtre de commande, saisissez *${promo.code}* et cliquez sur Appliquer\n` +
+        `3. Profitez de la réduction + Livraison gratuite 0 DH + Cadeau offert + Garantie 1 an ⌚`
       );
     }
     return (
-      `🎁 *قسيمة تخفيض حصرية من متجر ${storeName}* ✨\n\n` +
+      `⭐ *قسيمة تخفيض حصرية من متجر ${storeName}* ✨\n\n` +
       `استفد الآن من خصم فوري بقيمة *${discountDisplay}* على طلبيتك!\n` +
-      `🏷️ *رمز التخفيض:* *${promo.code}*\n` +
+      `✦ *رمز التخفيض:* *${promo.code}*\n` +
       (minOrder > 0
-        ? `📌 *الشرط:* صالح للطلبيات ابتداءً من ${minOrder} درهم.\n\n`
-        : `📌 *الشرط:* صالح على جميع منتجات المتجر بدون حد أدنى للطلب.\n\n`) +
-      `📝 *كيفية الاستعمال:*\n` +
-      `1️⃣ اختر ساعتك المفضلة من الموقع: ${storeUrl}\n` +
-      `2️⃣ في صفحة تأكيد الطلب، أدخل الرمز *${promo.code}* في خانة «رمز التخفيض» واضغط «تطبيق»\n` +
-      `3️⃣ سيُخصم المبلغ فوراً مع توصيل مجاني 0 درهم + هدية مجانية + شهادة ضمان لمدة سنة ⌚`
+        ? `✅ *الشرط:* صالح للطلبيات ابتداءً من ${minOrder} درهم.\n\n`
+        : `✅ *الشرط:* صالح على جميع منتجات المتجر بدون حد أدنى للطلب.\n\n`) +
+      `✍ *كيفية الاستعمال:*\n` +
+      `1. اختر ساعتك المفضلة من الموقع: ${storeUrl}\n` +
+      `2. في صفحة تأكيد الطلب، أدخل الرمز *${promo.code}* في خانة «رمز التخفيض» واضغط «تطبيق»\n` +
+      `3. سيُخصم المبلغ فوراً مع توصيل مجاني 0 درهم + هدية مجانية + شهادة ضمان لمدة سنة ⌚`
     );
   }, [discountDisplay, isFr, minOrder, promo.code, storeName, storeUrl]);
 
@@ -978,7 +978,7 @@ export const PromoCodeVoucherModal: React.FC<PromoCodeVoucherModalProps> = ({
           </button>
 
           <a
-            href={`https://wa.me/?text=${encodeURIComponent(promoShareMessage)}`}
+            href={`https://api.whatsapp.com/send?text=${encodeURIComponent(promoShareMessage)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow transition"

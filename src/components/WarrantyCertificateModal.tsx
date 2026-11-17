@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import type { Order, StoreSettings } from '../types';
 import { useStore } from '../context/StoreContext';
-import { normalizeMoroccanCityName } from '../utils/constants';
+import { buildWhatsAppUrl, normalizeMoroccanCityName } from '../utils/constants';
 
 interface WarrantyCertificateModalProps {
   order: Order;
@@ -104,21 +104,16 @@ export const WarrantyCertificateModal: React.FC<WarrantyCertificateModalProps> =
   };
 
   const handleSendWhatsAppWarranty = () => {
-    const cleanedPhone = String(order.phone || '').replace(/[^\d+]/g, '');
-    const digits = cleanedPhone.startsWith('0')
-      ? `212${cleanedPhone.slice(1)}`
-      : cleanedPhone.replace(/^\+/, '');
-
     const msg =
-      `مرحباً ${order.customerName}،\n` +
-      `شكراً لثقتكم في متجر *${storeName}* ✨\n\n` +
-      `نرسل لكم رابط *شهادة الضمان الرسمية لمدة سنة كاملة (12 شهراً)* ضد أي عطب مصنعي لطلبيتكم رقم *${order.orderNumber}*:\n` +
-      `${warrantyUrl}\n\n` +
-      `• رقم الشهادة: ${certificateSerial}\n` +
-      `• صالحة إلى غاية: ${expiryDateFormatted}\n` +
-      `نتمنى لكم تجربة استخدام فاخرة ⌚`;
+      `✨ مرحباً ${order.customerName}،\n` +
+      `شكراً لثقتكم في متجر *${storeName}* ⌚\n\n` +
+      `✅ نرسل لكم رابط *شهادة الضمان الرسمية لمدة سنة كاملة (12 شهراً)* ضد أي عطب مصنعي لطلبيتكم رقم *#${order.orderNumber}*:\n` +
+      `➡ ${warrantyUrl}\n\n` +
+      `▪ رقم الشهادة: ${certificateSerial}\n` +
+      `▪ صالحة إلى غاية: ${expiryDateFormatted}\n` +
+      `نتمنى لكم تجربة استخدام فاخرة ✨`;
 
-    const waUrl = `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`;
+    const waUrl = buildWhatsAppUrl(order.phone, msg);
     window.open(waUrl, '_blank', 'noopener,noreferrer');
   };
 

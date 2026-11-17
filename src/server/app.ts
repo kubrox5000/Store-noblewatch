@@ -19,9 +19,9 @@ import {
   deleteReviewDb,
   ensureDatabaseSchema,
   getMediaAssetDb,
+  getStoreCacheVersion,
   getStoreSnapshot,
   insertSecurityLogDb,
-  invalidateStoreCache,
   listMediaAssetsDb,
   saveMediaAssetDb,
   saveMediaChunkDb,
@@ -552,49 +552,99 @@ app.get('/api/auth/me', requireAuth, async (req: AuthRequest, res: Response) => 
   }
 });
 
+// Pre-serialized + pre-gzipped /api/store-data payload cache keyed by storeCacheVersion
+interface CachedStorePayload {
+  version: number;
+  etag: string;
+  plainBuffer: Buffer;
+  gzipBuffer: Buffer;
+}
+const cachedStorePayloads: {
+  public?: CachedStorePayload;
+  admin?: CachedStorePayload;
+} = {};
+
+function getOrBuildStorePayload(db: any, isAdminAuthenticated: boolean): CachedStorePayload {
+  const version = getStoreCacheVersion();
+  const key = isAdminAuthenticated ? 'admin' : 'public';
+  const existing = cachedStorePayloads[key];
+  if (existing && existing.version === version) {
+    return existing;
+  }
+
+  const deletedSet = new Set(db.deletedOrderIds || []);
+  const cleanOrders = isAdminAuthenticated
+    ? (db.orders || []).filter(
+        (o: any) => !deletedSet.has(o.id) && !deletedSet.has(o.orderNumber)
+      )
+    : [];
+
+  const { adminPasswordHash: _pw, ...publicSettings } = db.settings || ({} as any);
+  const mergedOrderSecurity = {
+    ...DEFAULT_ORDER_SECURITY,
+    ...(publicSettings.orderSecurity || {}),
+  };
+  if (!isAdminAuthenticated) {
+    delete (mergedOrderSecurity as any).promoCodes;
+    delete publicSettings.promoCodes;
+  }
+  const mergedSettings = {
+    ...publicSettings,
+    orderSecurity: mergedOrderSecurity,
+  };
+
+  const jsonStr = JSON.stringify({
+    success: true,
+    isAdminAuthenticated,
+    data: {
+      settings: mergedSettings,
+      categories: db.categories,
+      products: db.products,
+      orders: cleanOrders,
+      reviews: db.reviews,
+    },
+  });
+  const plainBuffer = Buffer.from(jsonStr, 'utf-8');
+  const gzipBuffer = IS_SERVERLESS ? plainBuffer : zlib.gzipSync(plainBuffer);
+  const built: CachedStorePayload = {
+    version,
+    etag: `"nw-${version}-${key}"`,
+    plainBuffer,
+    gzipBuffer,
+  };
+  cachedStorePayloads[key] = built;
+  return built;
+}
+
 // 1. Get entire store initial state (orders returned ONLY for verified admin session)
 app.get('/api/store-data', async (req: Request, res: Response) => {
   try {
     const db = await getStoreSnapshot();
-    await processConfirmedToPreparingTransitions(db);
+    if (Array.isArray(db.orders) && db.orders.some((o: any) => o.status === 'تم التأكيد')) {
+      await processConfirmedToPreparingTransitions(db);
+    }
 
     const isAdminAuthenticated = isAuthorizedAdminRequest(
       req,
       db.settings.adminPasswordHash || 'admin123'
     );
 
-    const deletedSet = new Set(db.deletedOrderIds || []);
-    const cleanOrders = isAdminAuthenticated
-      ? (db.orders || []).filter(
-          (o: any) => !deletedSet.has(o.id) && !deletedSet.has(o.orderNumber)
-        )
-      : [];
+    const payload = getOrBuildStorePayload(db, isAdminAuthenticated);
+    res.setHeader('ETag', payload.etag);
+    res.setHeader('Cache-Control', 'no-cache');
 
-    const { adminPasswordHash: _pw, ...publicSettings } = db.settings || ({} as any);
-    const mergedOrderSecurity = {
-      ...DEFAULT_ORDER_SECURITY,
-      ...(publicSettings.orderSecurity || {}),
-    };
-    if (!isAdminAuthenticated) {
-      delete (mergedOrderSecurity as any).promoCodes;
-      delete publicSettings.promoCodes;
+    if (req.headers['if-none-match'] === payload.etag) {
+      return res.status(304).end();
     }
-    const mergedSettings = {
-      ...publicSettings,
-      orderSecurity: mergedOrderSecurity,
-    };
 
-    return res.json({
-      success: true,
-      isAdminAuthenticated,
-      data: {
-        settings: mergedSettings,
-        categories: db.categories,
-        products: db.products,
-        orders: cleanOrders,
-        reviews: db.reviews,
-      },
-    });
+    const acceptEncoding = String(req.headers['accept-encoding'] || '');
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    if (acceptEncoding.includes('gzip') && !IS_SERVERLESS) {
+      res.setHeader('Content-Encoding', 'gzip');
+      res.setHeader('Vary', 'Accept-Encoding');
+      return res.send(payload.gzipBuffer);
+    }
+    return res.send(payload.plainBuffer);
   } catch (error) {
     console.error('Error fetching store-data:', error);
     return res.status(500).json({ success: false, message: 'تعذر تحميل بيانات المتجر من قاعدة البيانات' });
@@ -1463,60 +1513,85 @@ app.post('/api/products', async (req: Request, res: Response) => {
     const db = await requireAdminSession(req, res);
     if (!db) return;
 
-    const productData = req.body;
+    const productData = req.body || {};
     const safeVideos = await sanitizeProductVideos(productData.videos);
     const safeImages = await sanitizeProductImages(productData.images);
 
+    const parsedPrice = Math.max(0, Number(productData.price) || 299);
+    const parsedOriginalPrice =
+      productData.originalPrice !== undefined && productData.originalPrice !== '' && Number(productData.originalPrice) > 0
+        ? Number(productData.originalPrice)
+        : Math.round(parsedPrice * 1.3);
+    const parsedStock =
+      productData.stock !== undefined && productData.stock !== '' && Number.isFinite(Number(productData.stock))
+        ? Math.max(0, Math.floor(Number(productData.stock)))
+        : 10;
+    const primaryCategory = String(productData.category || 'luxury').trim() || 'luxury';
+    const categoriesList =
+      Array.isArray(productData.categories) && productData.categories.length > 0
+        ? productData.categories.map((c: any) => String(c || '').trim()).filter(Boolean)
+        : [primaryCategory];
+
     const newProduct: any = {
       id: `prod-${Date.now()}`,
-      sku: productData.sku || `NW-${Math.floor(100 + Math.random() * 900)}`,
-      name: productData.name || 'ساعة يد جديدة',
-      subtitle: productData.subtitle || '',
-      category: productData.category || 'luxury',
-      categories: productData.categories || [productData.category || 'luxury'],
-      price: Number(productData.price) || 299,
-      wholesalePrice: Number(productData.wholesalePrice) || 0,
-      shippingCostPerOrder: Number(productData.shippingCostPerOrder) || 0,
-      originalPrice: Number(productData.originalPrice) || Number(productData.price) * 1.3,
-      discountPercent: productData.originalPrice && productData.price
-        ? Math.round(((productData.originalPrice - productData.price) / productData.originalPrice) * 100)
-        : 0,
+      sku: String(productData.sku || '').trim() || `NW-${Math.floor(100 + Math.random() * 900)}`,
+      name: String(productData.name || '').trim() || 'ساعة يد جديدة',
+      subtitle: String(productData.subtitle || ''),
+      category: primaryCategory,
+      categories: categoriesList.length > 0 ? categoriesList : [primaryCategory],
+      price: parsedPrice,
+      wholesalePrice: Math.max(0, Number(productData.wholesalePrice) || 0),
+      shippingCostPerOrder: Math.max(0, Number(productData.shippingCostPerOrder) || 0),
+      originalPrice: parsedOriginalPrice,
+      discountPercent:
+        parsedOriginalPrice > parsedPrice
+          ? Math.round(((parsedOriginalPrice - parsedPrice) / parsedOriginalPrice) * 100)
+          : 0,
       rating: Number(productData.rating) || 5.0,
       reviewCount: Number(productData.reviewCount) || 0,
-      stock: Number(productData.stock) || 10,
+      stock: parsedStock,
       isNew: Boolean(productData.isNew),
       isSpecialOffer: Boolean(productData.isSpecialOffer),
       isPublished: productData.isPublished !== undefined ? Boolean(productData.isPublished) : true,
       colors: Array.isArray(productData.colors) ? productData.colors : [],
-      images: safeImages,
+      images: safeImages.length > 0 ? safeImages : ['/assets/luxury_watch_hero.jpg'],
       videos: safeVideos,
-      specs: productData.specs || {
-        brand: 'Noblewatch',
-        model: productData.name,
-        movement: 'كوارتز ياباني فائق الدقة',
-        caseMaterial: 'فولاذ مقاوم للصدأ 316L',
-        strapMaterial: 'جلد طبيعي فاخر',
-        dialColor: 'أسود مع لمسات ذهبية',
-        caseDiameter: '42 ملم',
-        caseThickness: '11 ملم',
-        glass: 'زجاج ياقوتي مقاوم للخدش',
-        clasp: 'مشبك أمان كلاسيكي',
-        waterResistance: '5ATM مقاوم للماء',
-        warranty: 'ضمان رسمي لمدة سنة كاملة',
-      },
-      boxContents: productData.boxContents || [
-        'ساعة Noblewatch الأصلية',
-        'علبة هدايا جلدية فاخرة',
-        'بطاقة الضمان الدولي المعتمدة',
-        'كتيب التعليمات ودليل العناية بالساعة',
-      ],
-      description: productData.description || 'ساعة فاخرة مصممة بأعلى معايير الدقة والأناقة لتناسب جميع المناسبات الرسمية واليومية.',
-      features: productData.features || [
-        'محرك ياباني فائق الدقة وطويل العمر',
-        'زجاج مقوى مقاوم للصدمات والخدش اليومي',
-        'مقاومة للماء والرذاذ وغسيل اليدين',
-        'سوار مريح وعالي الجودة لا يسبب أي حساسية',
-      ],
+      specs:
+        productData.specs && typeof productData.specs === 'object'
+          ? productData.specs
+          : {
+              brand: 'Noblewatch',
+              model: productData.name || 'ساعة يد جديدة',
+              movement: 'كوارتز ياباني فائق الدقة',
+              caseMaterial: 'فولاذ مقاوم للصدأ 316L',
+              strapMaterial: 'جلد طبيعي فاخر',
+              dialColor: 'أسود مع لمسات ذهبية',
+              caseDiameter: '42 ملم',
+              caseThickness: '11 ملم',
+              glass: 'زجاج ياقوتي مقاوم للخدش',
+              clasp: 'مشبك أمان كلاسيكي',
+              waterResistance: '5ATM مقاوم للماء',
+              warranty: 'ضمان رسمي لمدة سنة كاملة',
+            },
+      boxContents: Array.isArray(productData.boxContents)
+        ? productData.boxContents
+        : [
+            'ساعة Noblewatch الأصلية',
+            'علبة هدايا جلدية فاخرة',
+            'بطاقة الضمان الدولي المعتمدة',
+            'كتيب التعليمات ودليل العناية بالساعة',
+          ],
+      description:
+        productData.description ||
+        'ساعة فاخرة مصممة بأعلى معايير الدقة والأناقة لتناسب جميع المناسبات الرسمية واليومية.',
+      features: Array.isArray(productData.features)
+        ? productData.features
+        : [
+            'محرك ياباني فائق الدقة وطويل العمر',
+            'زجاج مقوى مقاوم للصدمات والخدش اليومي',
+            'مقاومة للماء والرذاذ وغسيل اليدين',
+            'سوار مريح وعالي الجودة لا يسبب أي حساسية',
+          ],
       tieredPricing: productData.tieredPricing || undefined,
     };
 
@@ -1540,32 +1615,70 @@ app.put('/api/products/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'المنتج غير موجود' });
     }
 
-    const payload = { ...req.body };
-    if (payload.images) {
+    const payload = { ...(req.body || {}) };
+    if (Array.isArray(payload.images)) {
       payload.images = await sanitizeProductImages(payload.images);
+    } else {
+      delete payload.images;
     }
-    if (payload.videos) {
+    if (Array.isArray(payload.videos)) {
       payload.videos = await sanitizeProductVideos(payload.videos);
+    } else {
+      delete payload.videos;
+    }
+
+    if (payload.name !== undefined) {
+      const trimmedName = String(payload.name || '').trim();
+      if (!trimmedName) {
+        return res.status(400).json({ success: false, message: 'يرجى إدخال اسم الساعة قبل الحفظ' });
+      }
+      payload.name = trimmedName;
     }
 
     const updatedProduct = { ...existing, ...payload };
+
+    if (payload.price !== undefined) {
+      const parsedPrice = Number(payload.price);
+      if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+        return res.status(400).json({ success: false, message: 'يرجى إدخال سعر صحيح' });
+      }
+      updatedProduct.price = parsedPrice;
+    }
+    if (payload.originalPrice !== undefined) {
+      const parsedOrig = Number(payload.originalPrice);
+      updatedProduct.originalPrice = Number.isFinite(parsedOrig) && parsedOrig >= 0 ? parsedOrig : updatedProduct.price;
+    }
+    if (payload.stock !== undefined) {
+      const parsedStock = Number(payload.stock);
+      updatedProduct.stock = Number.isFinite(parsedStock) && parsedStock >= 0 ? Math.floor(parsedStock) : existing.stock;
+    }
     if (payload.wholesalePrice !== undefined) {
       updatedProduct.wholesalePrice = Math.max(0, Number(payload.wholesalePrice) || 0);
     }
     if (payload.shippingCostPerOrder !== undefined) {
       updatedProduct.shippingCostPerOrder = Math.max(0, Number(payload.shippingCostPerOrder) || 0);
     }
-    if (updatedProduct.originalPrice && updatedProduct.price && updatedProduct.originalPrice > updatedProduct.price) {
+
+    if (Array.isArray(payload.categories)) {
+      const cleanCats = payload.categories.map((c: any) => String(c || '').trim()).filter(Boolean);
+      updatedProduct.categories = cleanCats.length > 0 ? cleanCats : [updatedProduct.category || 'luxury'];
+    } else if (payload.category) {
+      updatedProduct.categories = [String(payload.category).trim()];
+    }
+
+    if (updatedProduct.originalPrice && updatedProduct.originalPrice > updatedProduct.price) {
       updatedProduct.discountPercent = Math.round(
         ((updatedProduct.originalPrice - updatedProduct.price) / updatedProduct.originalPrice) * 100
       );
+    } else {
+      updatedProduct.discountPercent = 0;
     }
 
     await updateProductDb(updatedProduct);
     return res.json({ success: true, product: updatedProduct });
   } catch (error) {
     console.error('Error updating product:', error);
-    return res.status(500).json({ success: false, message: 'فشل تحديث المنتج' });
+    return res.status(500).json({ success: false, message: 'فشل تحديث المنتج، يرجى المحاولة مرة أخرى' });
   }
 });
 
@@ -1816,7 +1929,6 @@ app.post('/api/security/clear-logs', async (req: Request, res: Response) => {
     if (!db) return;
 
     await clearSecurityLogsDb();
-    invalidateStoreCache();
     return res.json({ success: true });
   } catch (error) {
     console.error('Error clearing logs:', error);

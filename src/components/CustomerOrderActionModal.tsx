@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Order } from '../types';
-import { formatPrice, formatPhoneForWhatsApp } from '../utils/constants';
+import { buildWhatsAppUrl, formatPrice, formatPhoneForWhatsApp } from '../utils/constants';
 import { translateColorName } from '../i18n/storefront';
 import {
   CheckCircle2,
@@ -270,11 +270,12 @@ export const CustomerOrderActionModal: React.FC = () => {
 
               <div className="space-y-2 pt-2">
                 <a
-                  href={`https://wa.me/${storeWhatsApp}?text=${encodeURIComponent(
+                  href={buildWhatsAppUrl(
+                    storeWhatsApp,
                     isFr
                       ? `Bonjour, je suis ${currentOrder.customerName}, j'ai confirmé ma commande #${currentOrder.orderNumber}. Merci.`
                       : `السلام عليكم، أنا ${currentOrder.customerName}، قمت بتأكيد طلبي رقم #${currentOrder.orderNumber} عبر الرابط. شكراً لكم.`
-                  )}`}
+                  )}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow transition cursor-pointer"
@@ -313,11 +314,12 @@ export const CustomerOrderActionModal: React.FC = () => {
 
               <div className="space-y-2 pt-2">
                 <a
-                  href={`https://wa.me/${storeWhatsApp}?text=${encodeURIComponent(
+                  href={buildWhatsAppUrl(
+                    storeWhatsApp,
                     isFr
                       ? `Bonjour, concernant la commande #${currentOrder.orderNumber}, je souhaite avoir des informations ou recommander.`
                       : `السلام عليكم، بخصوص الطلب رقم #${currentOrder.orderNumber}، أود الاستفسار أو إعادة الطلب.`
-                  )}`}
+                  )}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#c5a869] hover:bg-[#b59859] text-black font-black text-xs shadow transition cursor-pointer"
@@ -501,11 +503,12 @@ export const CustomerOrderActionModal: React.FC = () => {
                   </button>
 
                   <a
-                    href={`https://wa.me/${storeWhatsApp}?text=${encodeURIComponent(
+                    href={buildWhatsAppUrl(
+                      storeWhatsApp,
                       isFr
                         ? `Bonjour, concernant ma commande #${currentOrder.orderNumber}, je souhaite modifier l'adresse ou poser une question.`
                         : `السلام عليكم، بخصوص طلبي رقم #${currentOrder.orderNumber}، أود تعديل تفاصيل العنوان أو الاستفسار.`
-                    )}`}
+                    )}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5"

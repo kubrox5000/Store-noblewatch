@@ -387,14 +387,40 @@ export function formatPhoneForWhatsApp(phone: string): string {
 }
 
 /**
- * Build a clean, valid https://wa.me/<digits>?text=... URL from any phone input format
+ * Strip lone UTF-16 surrogates, U+FE0F variation selectors, and replacement chars
+ * so WhatsApp URI links never produce  characters on Windows/Desktop clients.
+ */
+export function sanitizeWhatsAppText(input?: string): string {
+  if (!input) return '';
+  let clean = '';
+  for (let i = 0; i < input.length; i++) {
+    const code = input.charCodeAt(i);
+    if (code === 0xfffd || code === 0xfe0f) continue;
+    if (code >= 0xd800 && code <= 0xdbff) {
+      const next = i + 1 < input.length ? input.charCodeAt(i + 1) : 0;
+      if (next >= 0xdc00 && next <= 0xdfff) {
+        clean += input[i] + input[i + 1];
+        i++;
+      }
+      continue;
+    }
+    if (code >= 0xdc00 && code <= 0xdfff) continue;
+    clean += input[i];
+  }
+  return clean;
+}
+
+/**
+ * Build a clean, valid https://api.whatsapp.com/send?phone=<digits>&text=... URL
+ * directly (skipping wa.me double-encoding redirect issues on desktop browsers)
  */
 export function buildWhatsAppUrl(phone?: string, text?: string): string {
   const digits = formatPhoneForWhatsApp(phone || '') || '212612345678';
-  if (text && text.trim().length > 0) {
-    return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
+  const safeText = sanitizeWhatsAppText(text);
+  if (safeText && safeText.trim().length > 0) {
+    return `https://api.whatsapp.com/send?phone=${digits}&text=${encodeURIComponent(safeText)}`;
   }
-  return `https://wa.me/${digits}`;
+  return `https://api.whatsapp.com/send?phone=${digits}`;
 }
 
 /**
@@ -407,7 +433,8 @@ export function buildTelHref(phone?: string): string {
 
 /**
  * Generate a professional, comprehensive Moroccan Arabic WhatsApp confirmation message
- * containing complete customer order details with direct options to confirm or cancel
+ * using strictly BMP (U+0000-U+FFFF) semantic icons so every client renders crisp icons
+ * without  replacement characters.
  */
 export function generateCustomerConfirmationMessage(
   order: {
@@ -427,41 +454,45 @@ export function generateCustomerConfirmationMessage(
   },
   storeName: string = 'Noblewatch'
 ): string {
-  const itemsText = order.items
+  const itemsText = (order.items || [])
     .map((it, idx) => {
-      const colorsLine = it.selectedColors && it.selectedColors.length > 1
-        ? it.selectedColors.map((c, cIdx) => `⌚ ساعة ${cIdx + 1}: ${c}`).join(' | ')
-        : it.color;
+      const colorsLine =
+        it.selectedColors && it.selectedColors.length > 1
+          ? it.selectedColors.map((c, cIdx) => `⌚ ساعة ${cIdx + 1}: ${c}`).join(' | ')
+          : it.color;
       return (
-        `• *المنتج (${idx + 1}):* ${it.name}\n` +
-        `   🎨 *الألوان المطلوبة:* ${colorsLine}\n` +
-        `   📦 *الكمية:* ${it.quantity} ${it.bundleLabel ? `[${it.bundleLabel}]` : ''}`
+        `⌚ *المنتج (${idx + 1}):* ${sanitizeWhatsAppText(it.name)}\n` +
+        `   ◈ *الألوان المطلوبة:* ${sanitizeWhatsAppText(colorsLine)}\n` +
+        `   ▪ *الكمية:* ${it.quantity} ${it.bundleLabel ? `[${sanitizeWhatsAppText(it.bundleLabel)}]` : ''}`
       );
     })
     .join('\n\n');
 
-  const origin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://noblewatch.ma';
+  const origin =
+    typeof window !== 'undefined' && window.location.origin
+      ? window.location.origin
+      : 'https://noblewatch.ma';
   const confirmUrl = `${origin}/#confirm-order?id=${encodeURIComponent(order.id)}`;
 
-  return (
-    `السلام عليكم ورحمة الله أخي/أختي *${order.customerName}* 👋\n\n` +
-    `معك خدمة تأكيد ومتابعة الطلبات من متجر *${storeName}* للساعات والإكسسوارات الفاخرة بالمغرب 🇲🇦\n\n` +
-    `نشكرك جزيلاً على ثقتك واختيارك لنا! تم تسجيل طلبيتك بنجاح برقم: *#${order.orderNumber}*\n\n` +
-    `📋 *تفاصيل الطلبية كاملة:*\n` +
-    `${itemsText}\n\n` +
-    `💰 *المبلغ الإجمالي عند الاستلام:* *${formatPrice(order.totalAmount)}*\n` +
-    `🚚 *مصاريف الشحن والتوصيل:* *مجاناً 0 درهم* لجميع مدن وقرى المغرب 🇲🇦\n` +
-    `📍 *عنوان التسليم:* ${order.city} - ${order.address}\n\n` +
-    `🛡️ *حق الفحص والمعاينة قبل الدفع:*\n` +
-    `يحق لك فحص ومعاينة ساعتك بيدك والتأكد من لمعانها وجودتها قبل تسليم أي درهم للموزع، وضمان لمدة سنة كاملة.\n\n` +
-    `━━━━━━━━━━━━━━━━━━━━\n` +
-    `👇 *يرجى تأكيد شحن الطلبية للبدء في تجهيزها فوراً:* 👇\n\n` +
-    `🟢 *لتأكيد الطلب للشحن:* قم بالرد على هذه الرسالة بكلمة: (*تأكيد*) أو (*نعم*)\n` +
-    `🔴 *لإلغاء الطلب:* قم بالرد بكلمة: (*إلغاء*)\n` +
-    `✏️ *لتعديل اللون أو العنوان:* أرسل التعديل المطلوب مباشرة في هذه المحادثة\n\n` +
-    `🌐 *أو اضغط على الرابط التالي للتأكيد أو الإلغاء بنقرة واحدة:*\n` +
-    `${confirmUrl}\n\n` +
-    `يسعدنا دائماً خدمتك ونتمنى لك تجربة تسوق راقية وفخمة! ✨`
+  return sanitizeWhatsAppText(
+    `✨ السلام عليكم ورحمة الله أخي/أختي *${order.customerName}*\n\n` +
+      `⌚ معك خدمة تأكيد ومتابعة الطلبات من متجر *${storeName}* للساعات الفاخرة بالمغرب\n\n` +
+      `✅ تم تسجيل طلبيتك بنجاح برقم: *#${order.orderNumber}*\n\n` +
+      `☑ *تفاصيل الطلبية كاملة:*\n` +
+      `${itemsText}\n\n` +
+      `✔ *المبلغ الإجمالي عند الاستلام:* *${formatPrice(order.totalAmount)}*\n` +
+      `⚡ *الشحن والتوصيل السريع:* *مجاناً 0 درهم* لجميع مدن وقرى المغرب ✈\n` +
+      `➤ *عنوان التسليم:* ${order.city} - ${order.address}\n\n` +
+      `⚖ *حق الفحص والمعاينة قبل الدفع:*\n` +
+      `يحق لك فحص ومعاينة ساعتك بيدك والتأكد من لمعانها وجودتها قبل تسليم أي درهم للموزع، مع ضمان لمدة سنة كاملة ✅\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n` +
+      `⬇ *يرجى تأكيد شحن الطلبية للبدء في تجهيزها فوراً:* ⬇\n\n` +
+      `✅ *لتأكيد الطلب للشحن:* قم بالرد على هذه الرسالة بكلمة: (*تأكيد*) أو (*نعم*)\n` +
+      `❌ *لإلغاء الطلب:* قم بالرد بكلمة: (*إلغاء*)\n` +
+      `✏ *لتعديل اللون أو العنوان:* أرسل التعديل المطلوب مباشرة في هذه المحادثة\n\n` +
+      `➡ *أو اضغط على الرابط التالي للتأكيد أو الإلغاء بنقرة واحدة:*\n` +
+      `${confirmUrl}\n\n` +
+      `يسعدنا دائماً خدمتك ونتمنى لك تجربة تسوق راقية وفخمة! ✨`
   );
 }
 
@@ -469,9 +500,8 @@ export function generateCustomerConfirmationMessage(
  * Get direct WhatsApp link to customer phone with prefilled confirmation message
  */
 export function getWhatsAppCustomerOrderUrl(order: any, storeName = 'Noblewatch'): string {
-  const cleanPhone = formatPhoneForWhatsApp(order.phone);
   const msg = generateCustomerConfirmationMessage(order, storeName);
-  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+  return buildWhatsAppUrl(order.phone, msg);
 }
 
 /**
@@ -503,8 +533,8 @@ export function generateCustomerShippedMessage(
           ? it.selectedColors.map((c, cIdx) => `ساعة ${cIdx + 1}: ${c}`).join(' | ')
           : it.color;
       return (
-        `• *المنتج (${idx + 1}):* ${it.name}\n` +
-        `   🎨 *اللون:* ${colorsLine} | 📦 *الكمية:* ${it.quantity}`
+        `⌚ *المنتج (${idx + 1}):* ${sanitizeWhatsAppText(it.name)}\n` +
+        `   ◈ *اللون:* ${sanitizeWhatsAppText(colorsLine)} | ▪ *الكمية:* ${it.quantity}`
       );
     })
     .join('\n');
@@ -515,24 +545,24 @@ export function generateCustomerShippedMessage(
       : 'https://noblewatch.ma';
   const trackUrl = `${origin}/#track?order=${encodeURIComponent(order.orderNumber)}`;
 
-  return (
-    `السلام عليكم ورحمة الله أخي/أختي *${order.customerName}* 👋\n\n` +
-    `معك قسم الشحن والمتابعة في متجر *${storeName}* للساعات الفاخرة 🇲🇦✨\n\n` +
-    `يسعدنا إبلاغك بأنه *تم شحن طلبيتك بنجاح* وتوجيهها عبر شركة التوصيل السريع! 🚚📦\n\n` +
-    `⏱️ *مدة التوصيل المتوقعة:*\n` +
-    `سوف تتوصل بطلبك خلال *24 ساعة* بإذن الله، وسيقوم موزع شركة التوصيل بالاتصال بك هاتفياً قبل الوصول لتسليمك الطرد.\n\n` +
-    `━━━━━━━━━━━━━━━━━━━━\n` +
-    `📋 *ملخص الطلبية المشحونة:*\n` +
-    `🔢 *رقم الطلب:* *#${order.orderNumber}*\n` +
-    `${itemsText}\n` +
-    `📍 *عنوان التسليم:* ${order.city} - ${order.address}\n` +
-    `💰 *المبلغ المطلوب عند الاستلام:* *${formatPrice(order.totalAmount)}* (التوصيل مجاني 0 درهم)\n` +
-    `━━━━━━━━━━━━━━━━━━━━\n\n` +
-    `📞 *ملاحظة هامة:* يرجى إبقاء هاتفك متاحاً للرد على مكالمة الموزع.\n` +
-    `🛡️ *ضمان الثقة:* يمكنك معاينة وفحص طلبيتك قبل تسليم المبلغ للموزع.\n\n` +
-    `🌐 *لتتبع حالة طلبك مباشرة:*\n` +
-    `${trackUrl}\n\n` +
-    `نتمنى لك استلاماً موفقاً وتجربة راقية مع ساعاتنا! 🤝⌚`
+  return sanitizeWhatsAppText(
+    `✨ السلام عليكم ورحمة الله أخي/أختي *${order.customerName}*\n\n` +
+      `⌚ معك قسم الشحن والمتابعة في متجر *${storeName}* للساعات الفاخرة\n\n` +
+      `✅ يسعدنا إبلاغك بأنه *تم شحن طلبيتك بنجاح* وتوجيهها عبر شركة التوصيل السريع! ⚡✈\n\n` +
+      `⏳ *مدة التوصيل المتوقعة (خلال 24 ساعة):*\n` +
+      `سوف تتوصل بطلبك خلال *24 ساعة* بإذن الله، وسيقوم موزع شركة التوصيل بالاتصال بك هاتفياً قبل الوصول لتسليمك الطرد.\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n` +
+      `☑ *ملخص الطلبية المشحونة:*\n` +
+      `# *رقم الطلب:* *#${order.orderNumber}*\n` +
+      `${itemsText}\n` +
+      `➤ *عنوان التسليم:* ${order.city} - ${order.address}\n` +
+      `✔ *المبلغ المطلوب عند الاستلام:* *${formatPrice(order.totalAmount)}* (التوصيل مجاني 0 درهم)\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `☎ *ملاحظة هامة:* يرجى إبقاء هاتفك متاحاً للرد على مكالمة الموزع.\n` +
+      `⚖ *ضمان الثقة:* يمكنك معاينة وفحص طلبيتك قبل تسليم المبلغ للموزع.\n\n` +
+      `➡ *لتتبع حالة طلبك مباشرة:*\n` +
+      `${trackUrl}\n\n` +
+      `نتمنى لك استلاماً موفقاً وتجربة راقية مع ساعاتنا! ✨⌚`
   );
 }
 
@@ -540,9 +570,8 @@ export function generateCustomerShippedMessage(
  * Get direct WhatsApp link with the professional 24h shipping notification message
  */
 export function getWhatsAppCustomerShippedUrl(order: any, storeName = 'Noblewatch'): string {
-  const cleanPhone = formatPhoneForWhatsApp(order.phone);
   const msg = generateCustomerShippedMessage(order, storeName);
-  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+  return buildWhatsAppUrl(order.phone, msg);
 }
 
 const ARABIC_TO_OZON_CITY_MAP: Record<string, string> = {

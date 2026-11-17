@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Star,
   ShieldCheck,
@@ -166,20 +166,26 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
     }
   };
 
-  // Product reviews
-  const productReviews = reviews.filter((r) => r.productId === product.id && r.isApproved);
-  const effectiveReviewCount =
-    productReviews.length > 0 ? productReviews.length : Number(product.reviewCount || 0);
-  const effectiveRating =
-    productReviews.length > 0
-      ? Number(
-          (
-            productReviews.reduce((sum, r) => sum + (Number(r.rating) || 5), 0) /
-            productReviews.length
-          ).toFixed(1)
-        )
-      : Number(product.rating || 5);
-  const fiveStarCount = productReviews.filter((r) => r.rating === 5).length;
+  // Product reviews (memoized)
+  const { productReviews, effectiveReviewCount, effectiveRating, fiveStarCount } = useMemo(() => {
+    const filtered = reviews.filter((r) => r.productId === product.id && r.isApproved);
+    const count = filtered.length > 0 ? filtered.length : Number(product.reviewCount || 0);
+    let sum = 0;
+    let fiveStars = 0;
+    for (let i = 0; i < filtered.length; i++) {
+      const r = Number(filtered[i].rating) || 5;
+      sum += r;
+      if (r === 5) fiveStars += 1;
+    }
+    const avg =
+      filtered.length > 0 ? Number((sum / filtered.length).toFixed(1)) : Number(product.rating || 5);
+    return {
+      productReviews: filtered,
+      effectiveReviewCount: count,
+      effectiveRating: avg,
+      fiveStarCount: fiveStars,
+    };
+  }, [reviews, product.id, product.reviewCount, product.rating]);
 
   const scrollToProductReviews = () => {
     const el = document.getElementById('product-reviews-section');
@@ -896,8 +902,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                     try {
                       const nextFeatures = [...allFeatures];
                       nextFeatures[idx] = trimmed;
-                      const ok = await updateProduct(product.id, { features: nextFeatures });
-                      if (ok) {
+                      const res = await updateProduct(product.id, { features: nextFeatures });
+                      if (res.ok) {
                         setEditingFeatureIdx(null);
                         setEditingFeatureValue('');
                       }
@@ -927,8 +933,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                     setIsSavingFeature(true);
                     try {
                       const nextFeatures = [...allFeatures, trimmed];
-                      const ok = await updateProduct(product.id, { features: nextFeatures });
-                      if (ok) {
+                      const res = await updateProduct(product.id, { features: nextFeatures });
+                      if (res.ok) {
                         setNewFeatureValue('');
                         setIsAddingFeature(false);
                       }

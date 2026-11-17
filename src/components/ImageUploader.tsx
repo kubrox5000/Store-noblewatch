@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   UploadCloud,
   Image as ImageIcon,
@@ -23,7 +24,7 @@ interface ImageUploaderProps {
   allowMultiple?: boolean;
 }
 
-export const ImageUploader: React.FC<ImageUploaderProps> = ({
+export const ImageUploader: React.FC<ImageUploaderProps> = React.memo(({
   images = [],
   onChange,
   maxImages = 8,
@@ -88,26 +89,35 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     });
   };
 
-  // Upload a single file and return self-contained data URL
+  // Upload a single file and return compact persistent /uploads/... URL (falling back to compressed dataUrl if offline)
   const uploadFileToServer = async (file: File): Promise<string> => {
     // Validate file type
     if (!file.type.startsWith('image/')) {
       throw new Error('الملف المختار ليس صورة صالحة');
     }
 
-    // Compress client-side to lightweight JPEG (~80-120KB)
+    // Compress client-side to lightweight JPEG (~60-110KB)
     const compressedDataUrl = await compressImage(file);
 
-    // Sync to server in background
-    fetch('/api/upload', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        dataUrl: compressedDataUrl,
-        filename: file.name,
-        mimeType: file.type,
-      }),
-    }).catch(() => {});
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dataUrl: compressedDataUrl,
+          filename: file.name,
+          mimeType: 'image/jpeg',
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        if (data?.success && data?.url) {
+          return data.url;
+        }
+      }
+    } catch {
+      // Fallback safely to compressed data URL
+    }
 
     return compressedDataUrl;
   };
@@ -401,30 +411,33 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       )}
 
       {/* Modal: Fullscreen Preview */}
-      {previewModalImage && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md"
-          onClick={() => setPreviewModalImage(null)}
-        >
+      {previewModalImage &&
+        createPortal(
           <div
-            className="relative max-w-3xl max-h-[90vh] p-2 bg-[#141722] border border-white/20 rounded-2xl shadow-2xl flex flex-col items-center"
-            onClick={(e) => e.stopPropagation()}
+            dir="rtl"
+            className="fixed inset-0 z-[95] flex items-center justify-center p-4 bg-black/90"
+            onClick={() => setPreviewModalImage(null)}
           >
-            <button
-              type="button"
-              onClick={() => setPreviewModalImage(null)}
-              className="absolute top-3 right-3 z-10 p-2 rounded-xl bg-black/70 hover:bg-black text-white"
+            <div
+              className="relative max-w-3xl max-h-[90vh] p-2 bg-[#141722] border border-white/20 rounded-2xl shadow-2xl flex flex-col items-center"
+              onClick={(e) => e.stopPropagation()}
             >
-              <X className="w-5 h-5" />
-            </button>
-            <img
-              src={previewModalImage}
-              alt="معاينة الصورة"
-              className="max-h-[80vh] w-auto object-contain rounded-xl"
-            />
-          </div>
-        </div>
-      )}
+              <button
+                type="button"
+                onClick={() => setPreviewModalImage(null)}
+                className="absolute top-3 right-3 z-10 p-2 rounded-xl bg-black/70 hover:bg-black text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <img
+                src={previewModalImage}
+                alt="معاينة الصورة"
+                className="max-h-[80vh] w-auto object-contain rounded-xl"
+              />
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
-};
+});

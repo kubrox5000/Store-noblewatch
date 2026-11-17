@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useDeferredValue, useTransition } from 'react';
 import { Sparkles, Filter } from 'lucide-react';
 import { ProductCard } from './ProductCard';
 import { useStore } from '../context/StoreContext';
@@ -8,13 +8,15 @@ import { translateProductDescription, translateProductSubtitle } from '../i18n/s
 export const ProductGrid: React.FC = () => {
   const { products, selectedCategory, setSelectedCategory, searchQuery, isLoading } = useStore();
   const { isFr } = useLanguage();
+  const deferredSearch = useDeferredValue(searchQuery);
+  const [, startTransition] = useTransition();
 
   const filteredProducts = useMemo(() => {
+    const q = deferredSearch.toLowerCase().trim();
     return products.filter((product) => {
       if (!product.isPublished) return false;
 
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
+      if (q) {
         const matchName = product.name.toLowerCase().includes(q);
         const matchSku = product.sku.toLowerCase().includes(q);
         const matchDesc =
@@ -37,7 +39,7 @@ export const ProductGrid: React.FC = () => {
 
       return true;
     });
-  }, [products, selectedCategory, searchQuery]);
+  }, [products, selectedCategory, deferredSearch]);
 
   return (
     <section id="products-section" className="py-12 bg-white border-b border-gray-200/80 scroll-mt-20">
@@ -77,7 +79,7 @@ export const ProductGrid: React.FC = () => {
             return (
               <button
                 key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
+                onClick={() => startTransition(() => setSelectedCategory(cat.id))}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                   active
                     ? 'gold-gradient-bg text-black shadow-md shadow-[#c5a869]/20 scale-105'

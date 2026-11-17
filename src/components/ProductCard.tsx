@@ -15,18 +15,15 @@ const prefetchProductDetail = () => {
   import('./ProductDetailPage').catch(() => {});
 };
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, priority = false }) => {
-  const { setActiveProductId, setCheckoutProduct, addToCart, reviews } = useStore();
+export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product, priority = false }) => {
+  const { setActiveProductId, setCheckoutProduct, addToCart, reviewsStatsByProduct } = useStore();
   const { lang, isFr } = useLanguage();
   const [selectedColorIndex, setSelectedColorIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
 
-  const liveReviews = reviews.filter((r) => r.productId === product.id && r.isApproved);
-  const displayReviewCount = liveReviews.length > 0 ? liveReviews.length : Number(product.reviewCount || 0);
-  const displayRating =
-    liveReviews.length > 0
-      ? Number((liveReviews.reduce((s, r) => s + (Number(r.rating) || 5), 0) / liveReviews.length).toFixed(1))
-      : Number(product.rating || 5);
+  const reviewStats = reviewsStatsByProduct[product.id];
+  const displayReviewCount = reviewStats ? reviewStats.count : Number(product.reviewCount || 0);
+  const displayRating = reviewStats ? reviewStats.avgRating : Number(product.rating || 5);
 
   const productColors = getProductColors(product);
   const activeColor = productColors[selectedColorIndex] || productColors[0];
@@ -58,7 +55,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, priority = fa
       }}
       onTouchStart={prefetchProductDetail}
       onMouseLeave={() => setIsHovered(false)}
-      className="group relative rounded-2xl bg-white border border-gray-200/90 hover:border-[#c5a869] transition-all duration-300 shadow-sm hover:shadow-xl flex flex-col justify-between overflow-hidden cursor-pointer"
+      className="perf-card group relative rounded-2xl bg-white border border-gray-200/90 hover:border-[#c5a869] transition-all duration-300 shadow-sm hover:shadow-xl flex flex-col justify-between overflow-hidden cursor-pointer"
     >
       {/* Top Badges */}
       <div className="absolute top-3 right-3 left-3 flex items-center justify-between z-10 pointer-events-none">
@@ -223,4 +220,4 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, priority = fa
       </div>
     </div>
   );
-};
+});

@@ -17,6 +17,15 @@
     -webkit-tap-highlight-color: transparent;
     -webkit-font-smoothing: antialiased;
   }
+
+  button, a, select, input, summary, [role="button"] {
+    touch-action: manipulation;
+  }
+}
+
+.perf-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 380px 480px;
 }
 
 /* Custom scrollbar */

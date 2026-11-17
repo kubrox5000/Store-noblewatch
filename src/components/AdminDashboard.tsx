@@ -90,7 +90,7 @@ import {
   getWhatsAppCustomerShippedUrl,
 } from '../utils/constants';
 import { ImageUploader } from './ImageUploader';
-import { VideoUploader } from './VideoUploader';
+import { AdminProductModal } from './AdminProductModal';
 
 export const AdminDashboard: React.FC = () => {
   const {
@@ -171,12 +171,11 @@ export const AdminDashboard: React.FC = () => {
   const [productSearch, setProductSearch] = useState('');
   const [isEditingProduct, setIsEditingProduct] = useState<boolean>(false);
   const [editingProduct, setEditingProduct] = useState<Partial<Product> | null>(null);
-  const [newColorName, setNewColorName] = useState('');
-  const [newColorCode, setNewColorCode] = useState('#111111');
-  const [newColorImageIndex, setNewColorImageIndex] = useState(0);
-  const [newFeatureText, setNewFeatureText] = useState('');
-  const [isVideoUploading, setIsVideoUploading] = useState(false);
-  const [isSavingProduct, setIsSavingProduct] = useState(false);
+
+  // Reviews filters & pagination (prevents rendering 1,200+ DOM nodes at once)
+  const [reviewsSearch, setReviewsSearch] = useState('');
+  const [reviewsPage, setReviewsPage] = useState(1);
+  const REVIEWS_PER_PAGE = 24;
 
   // Settings editing state
   const [localSettings, setLocalSettings] = useState<StoreSettings | null>(settings);
@@ -214,7 +213,7 @@ export const AdminDashboard: React.FC = () => {
   }, []);
 
   React.useEffect(() => {
-    if (isAdminOpen && isAdmin) {
+    if (isAdminOpen && isAdmin && activeTab === 'settings') {
       fetchSecurityOverview();
     }
   }, [isAdminOpen, isAdmin, activeTab, fetchSecurityOverview]);
@@ -595,7 +594,7 @@ export const AdminDashboard: React.FC = () => {
   ]);
 
   const selectedProductStats = useMemo(() => {
-    if (!selectedAnalyticsProduct) return null;
+    if (activeTab !== 'product_stats' || !selectedAnalyticsProduct) return null;
     const trimmed = wholesalePriceInput.trim();
     const parsed = trimmed === '' ? 0 : Number(trimmed);
     const liveOverride =
@@ -621,6 +620,7 @@ export const AdminDashboard: React.FC = () => {
       productStatsFilteredOrders
     );
   }, [
+    activeTab,
     selectedAnalyticsProduct,
     productStatsFilteredOrders,
     reviews,
@@ -628,13 +628,12 @@ export const AdminDashboard: React.FC = () => {
     shippingCostInput,
   ]);
 
-  const allProductsAnalyticsList = useMemo(
-    () =>
-      (products || [])
-        .map((p) => computeProductAnalytics(p, undefined, undefined, productStatsFilteredOrders))
-        .sort((a, b) => b.totalOrders - a.totalOrders || b.deliveredRevenue - a.deliveredRevenue),
-    [products, productStatsFilteredOrders, reviews]
-  );
+  const allProductsAnalyticsList = useMemo(() => {
+    if (activeTab !== 'stats' && activeTab !== 'product_stats') return [];
+    return (products || [])
+      .map((p) => computeProductAnalytics(p, undefined, undefined, productStatsFilteredOrders))
+      .sort((a, b) => b.totalOrders - a.totalOrders || b.deliveredRevenue - a.deliveredRevenue);
+  }, [activeTab, products, productStatsFilteredOrders, reviews]);
 
   // Keep selectedOrder synchronized if orders update via auto-transition
   React.useEffect(() => {
@@ -866,8 +865,7 @@ export const AdminDashboard: React.FC = () => {
     const storeName = settings?.storeName || 'Noblewatch';
     let url: string;
     if (customMessage && customMessage.trim()) {
-      const cleanPhone = formatPhoneForWhatsApp(order.phone);
-      url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(customMessage)}`;
+      url = buildWhatsAppUrl(order.phone, customMessage);
     } else {
       url = getWhatsAppCustomerOrderUrl(order, storeName);
     }
@@ -956,10 +954,6 @@ export const AdminDashboard: React.FC = () => {
 
   // Product Editing Actions
   const handleStartAddProduct = () => {
-    setNewColorName('');
-    setNewColorCode('#111111');
-    setNewColorImageIndex(0);
-    setNewFeatureText('');
     setEditingProduct({
       name: '',
       sku: '',
@@ -1003,62 +997,17 @@ export const AdminDashboard: React.FC = () => {
     setIsEditingProduct(true);
   };
 
-  const handleSaveProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingProduct || isSavingProduct) return;
+  const handleSaveProductModal = React.useCallback(
+    async (payload: Partial<Product>, existingId?: string) => {
+      return existingId ? updateProduct(existingId, payload) : addProduct(payload);
+    },
+    [updateProduct, addProduct]
+  );
 
-    if (isVideoUploading) {
-      alert('يرجى الانتظار بضع ثوانٍ حتى يكتمل رفع الفيديو أولاً.');
-      return;
-    }
-
-    setIsSavingProduct(true);
-    try {
-      const payload = {
-        ...editingProduct,
-        name: editingProduct.name?.trim() || 'ساعة يد فاخرة',
-        sku: editingProduct.sku?.trim() || `NW-${Math.floor(100 + Math.random() * 900)}`,
-        price: Number(editingProduct.price) || 0,
-        originalPrice: Number(editingProduct.originalPrice) || Number(editingProduct.price) || 0,
-        stock: editingProduct.stock !== undefined && editingProduct.stock !== ('' as any) ? Number(editingProduct.stock) : 10,
-        images: Array.isArray(editingProduct.images) ? editingProduct.images : [],
-        colors: Array.isArray(editingProduct.colors) ? editingProduct.colors : [],
-        videos: Array.isArray(editingProduct.videos) ? editingProduct.videos : [],
-        features: Array.isArray(editingProduct.features)
-          ? editingProduct.features.map((f) => String(f || '').trim()).filter(Boolean)
-          : [],
-        tieredPricing: {
-          enabled: editingProduct.tieredPricing?.enabled !== false,
-          mode: editingProduct.tieredPricing?.mode || 'auto',
-          twoPiecesDiscountPercent: editingProduct.tieredPricing?.twoPiecesDiscountPercent !== undefined && editingProduct.tieredPricing?.twoPiecesDiscountPercent !== ('' as any)
-            ? Number(editingProduct.tieredPricing.twoPiecesDiscountPercent)
-            : 16,
-          threePiecesDiscountPercent: editingProduct.tieredPricing?.threePiecesDiscountPercent !== undefined && editingProduct.tieredPricing?.threePiecesDiscountPercent !== ('' as any)
-            ? Number(editingProduct.tieredPricing.threePiecesDiscountPercent)
-            : 24,
-          twoPiecesPrice: editingProduct.tieredPricing?.twoPiecesPrice !== undefined && editingProduct.tieredPricing?.twoPiecesPrice !== ('' as any)
-            ? Number(editingProduct.tieredPricing.twoPiecesPrice)
-            : undefined,
-          threePiecesPrice: editingProduct.tieredPricing?.threePiecesPrice !== undefined && editingProduct.tieredPricing?.threePiecesPrice !== ('' as any)
-            ? Number(editingProduct.tieredPricing.threePiecesPrice)
-            : undefined,
-          twoPiecesBadge: editingProduct.tieredPricing?.twoPiecesBadge?.trim() || 'الأكثر طلباً ⭐',
-          threePiecesBadge: editingProduct.tieredPricing?.threePiecesBadge?.trim() || 'أفضل توفير 🔥',
-        },
-      };
-
-      const ok = editingProduct.id
-        ? await updateProduct(editingProduct.id, payload)
-        : await addProduct(payload);
-
-      if (ok) {
-        setIsEditingProduct(false);
-        setEditingProduct(null);
-      }
-    } finally {
-      setIsSavingProduct(false);
-    }
-  };
+  const handleCloseProductModal = React.useCallback(() => {
+    setIsEditingProduct(false);
+    setEditingProduct(null);
+  }, []);
 
   const handleSaveWholesalePrice = async () => {
     if (!selectedAnalyticsProduct || isSavingWholesalePrice) return;
@@ -1078,11 +1027,11 @@ export const AdminDashboard: React.FC = () => {
 
     setIsSavingWholesalePrice(true);
     try {
-      const ok = await updateProduct(selectedAnalyticsProduct.id, {
+      const res = await updateProduct(selectedAnalyticsProduct.id, {
         wholesalePrice: parsedWholesale,
         shippingCostPerOrder: parsedShipping,
       });
-      if (ok) {
+      if (res.ok) {
         showToast(
           `تم حفظ سعر الجملة (${formatPrice(parsedWholesale)}) ومصاريف الشحن (${formatPrice(parsedShipping)}/طلب) وحساب الربح الصافي`,
           'success'
@@ -1330,7 +1279,8 @@ export const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div dir="rtl" className="fixed inset-0 z-50 overflow-y-auto bg-black/90 backdrop-blur-md text-right">
+    <>
+    <div dir="rtl" className="fixed inset-0 z-50 overflow-y-auto bg-[#0b0d13] text-right">
       <div className="min-h-screen max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         {/* Admin Navigation Bar */}
         <div className="flex items-center justify-between bg-[#151822] border border-white/10 rounded-2xl p-4 shadow-xl">
@@ -4232,8 +4182,30 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Fast Search Bar for Products */}
+                <div className="relative">
+                  <Search className="w-4 h-4 text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    placeholder="ابحث عن ساعة بالاسم أو رمز الموديل (SKU) لتعديلها فوراً..."
+                    className="w-full bg-[#151822] border border-white/10 rounded-xl pr-10 pl-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#c5a869]"
+                  />
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {products.map((p) => (
+                  {products
+                    .filter((p) => {
+                      const q = productSearch.trim().toLowerCase();
+                      if (!q) return true;
+                      return (
+                        p.name.toLowerCase().includes(q) ||
+                        (p.sku || '').toLowerCase().includes(q) ||
+                        (p.category || '').toLowerCase().includes(q)
+                      );
+                    })
+                    .map((p) => (
                     <div
                       key={p.id}
                       className="p-4 rounded-2xl bg-[#151822] border border-white/5 flex flex-col justify-between space-y-3"
@@ -4242,6 +4214,8 @@ export const AdminDashboard: React.FC = () => {
                         <img
                           src={p.images[0] || '/assets/luxury_watch_hero.jpg'}
                           alt={p.name}
+                          loading="lazy"
+                          decoding="async"
                           onError={(e) => {
                             (e.currentTarget as HTMLImageElement).src = '/assets/luxury_watch_hero.jpg';
                           }}
@@ -4277,33 +4251,32 @@ export const AdminDashboard: React.FC = () => {
 
                         <div className="flex items-center gap-1.5">
                           <button
+                            type="button"
                             onClick={() => {
-                              setNewFeatureText('');
-                              setEditingProduct({
-                                ...p,
-                                features: Array.isArray(p.features) ? [...p.features] : [],
-                              });
+                              setEditingProduct(p);
                               setIsEditingProduct(true);
                             }}
-                            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300"
+                            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 cursor-pointer"
                             title="تعديل"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
+                            type="button"
                             onClick={() => duplicateProduct(p.id)}
-                            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-[#c5a869]"
+                            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-[#c5a869] cursor-pointer"
                             title="نسخ المنتج"
                           >
                             <Copy className="w-3.5 h-3.5" />
                           </button>
                           <button
+                            type="button"
                             onClick={() => {
                               if (window.confirm(`هل أنت متأكد من حذف ${p.name}؟`)) {
                                 deleteProduct(p.id);
                               }
                             }}
-                            className="p-2 rounded-lg bg-white/5 hover:bg-rose-500/20 text-rose-400"
+                            className="p-2 rounded-lg bg-white/5 hover:bg-rose-500/20 text-rose-400 cursor-pointer"
                             title="حذف"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -4317,55 +4290,121 @@ export const AdminDashboard: React.FC = () => {
             )}
 
             {/* ================= TAB 4: REVIEWS MANAGEMENT ================= */}
-            {activeTab === 'reviews' && (
-              <div className="space-y-4">
-                <div className="p-4 rounded-2xl bg-[#151822] border border-white/5">
-                  <h3 className="text-base font-bold text-white">إدارة تقييمات وتعليقات الزبائن</h3>
-                  <p className="text-xs text-gray-400">مراجعة الآراء، إظهار أو إخفاء التقييمات فالمتجر</p>
-                </div>
+            {activeTab === 'reviews' && (() => {
+              const rq = reviewsSearch.trim().toLowerCase();
+              const filteredReviews = rq
+                ? reviews.filter(
+                    (rev) =>
+                      rev.author.toLowerCase().includes(rq) ||
+                      (rev.city || '').toLowerCase().includes(rq) ||
+                      rev.comment.toLowerCase().includes(rq)
+                  )
+                : reviews;
+              const totalPages = Math.max(1, Math.ceil(filteredReviews.length / REVIEWS_PER_PAGE));
+              const currentPage = Math.min(reviewsPage, totalPages);
+              const pagedReviews = filteredReviews.slice(
+                (currentPage - 1) * REVIEWS_PER_PAGE,
+                currentPage * REVIEWS_PER_PAGE
+              );
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {reviews.map((rev) => (
-                    <div
-                      key={rev.id}
-                      className="p-4 rounded-2xl bg-[#151822] border border-white/5 flex flex-col justify-between space-y-3"
-                    >
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-bold text-white">
-                            {rev.author} ({rev.city})
-                          </span>
-                          <span className="text-amber-400 font-bold text-xs">{rev.rating} ⭐</span>
+              return (
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-[#151822] border border-white/5">
+                    <div>
+                      <h3 className="text-base font-bold text-white">
+                        إدارة تقييمات وتعليقات الزبائن ({filteredReviews.length})
+                      </h3>
+                      <p className="text-xs text-gray-400">
+                        مراجعة الآراء، إظهار أو إخفاء التقييمات فالمتجر (عرض {REVIEWS_PER_PAGE} تعليقاً في كل صفحة لسرعة التصفح)
+                      </p>
+                    </div>
+                    <div className="relative w-full sm:w-72">
+                      <Search className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={reviewsSearch}
+                        onChange={(e) => {
+                          setReviewsSearch(e.target.value);
+                          setReviewsPage(1);
+                        }}
+                        placeholder="ابحث بالاسم، المدينة أو نص التعليق..."
+                        className="w-full bg-[#1b1f2b] border border-white/10 rounded-xl pr-9 pl-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#c5a869]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {pagedReviews.map((rev) => (
+                      <div
+                        key={rev.id}
+                        className="p-4 rounded-2xl bg-[#151822] border border-white/5 flex flex-col justify-between space-y-3"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-bold text-white">
+                              {rev.author} ({rev.city})
+                            </span>
+                            <span className="text-amber-400 font-bold text-xs">{rev.rating} ⭐</span>
+                          </div>
+                          <p className="text-xs text-gray-300 italic">"{rev.comment}"</p>
                         </div>
-                        <p className="text-xs text-gray-300 italic">"{rev.comment}"</p>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-white/5 text-xs">
+                          <button
+                            type="button"
+                            onClick={() => toggleReviewApproval(rev.id, !rev.isApproved)}
+                            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-semibold transition cursor-pointer ${
+                              rev.isApproved
+                                ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/30'
+                                : 'bg-zinc-800 text-zinc-400'
+                            }`}
+                          >
+                            {rev.isApproved ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                            <span>{rev.isApproved ? 'معروض للعموم' : 'مخفي حالياً'}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => deleteReview(rev.id)}
+                            className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-500/20 cursor-pointer"
+                            title="حذف"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
+                    ))}
+                  </div>
 
-                      <div className="flex items-center justify-between pt-2 border-t border-white/5 text-xs">
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between pt-2 px-4 py-3 rounded-2xl bg-[#151822] border border-white/5 text-xs">
+                      <span className="text-gray-400">
+                        الصفحة <strong className="text-white">{currentPage}</strong> من{' '}
+                        <strong className="text-white">{totalPages}</strong>
+                      </span>
+                      <div className="flex items-center gap-2">
                         <button
-                          onClick={() => toggleReviewApproval(rev.id, !rev.isApproved)}
-                          className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-semibold transition ${
-                            rev.isApproved
-                              ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/30'
-                              : 'bg-zinc-800 text-zinc-400'
-                          }`}
+                          type="button"
+                          disabled={currentPage <= 1}
+                          onClick={() => setReviewsPage((p) => Math.max(1, p - 1))}
+                          className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-200 border border-white/10 disabled:opacity-40 cursor-pointer"
                         >
-                          {rev.isApproved ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                          <span>{rev.isApproved ? 'معروض للعموم' : 'مخفي حالياً'}</span>
+                          السابق
                         </button>
-
                         <button
-                          onClick={() => deleteReview(rev.id)}
-                          className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-500/20"
-                          title="حذف"
+                          type="button"
+                          disabled={currentPage >= totalPages}
+                          onClick={() => setReviewsPage((p) => Math.min(totalPages, p + 1))}
+                          className="px-3 py-1.5 rounded-xl bg-[#c5a869]/20 hover:bg-[#c5a869]/30 text-amber-300 border border-[#c5a869]/40 disabled:opacity-40 cursor-pointer"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          التالي
                         </button>
                       </div>
                     </div>
-                  ))}
+                  )}
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* ================= TAB 5: STORE CUSTOMIZATION & POLICIES ================= */}
             {activeTab === 'settings' && localSettings && (
@@ -5903,10 +5942,12 @@ export const AdminDashboard: React.FC = () => {
             )}
           </div>
         )}
+      </div>
+    </div>
 
         {/* ================= MODAL: ORDER DETAILS & EDIT ================= */}
         {selectedOrder && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto">
+          <div dir="rtl" className="fixed inset-0 z-[60] flex items-start justify-center p-3 sm:p-6 bg-black/80 overflow-y-auto text-right">
             <div className="relative w-full max-w-lg rounded-3xl bg-[#141720] border border-white/10 p-6 space-y-5 text-right my-4 sm:my-8 shadow-2xl">
               <div className="flex items-center justify-between border-b border-white/10 pb-3">
                 <div>
@@ -6034,7 +6075,7 @@ export const AdminDashboard: React.FC = () => {
                       </button>
                     </div>
                     <div
-                      className="p-3 rounded-xl bg-black/50 border border-white/5 font-mono text-[11px] text-gray-300 leading-relaxed whitespace-pre-wrap max-h-36 overflow-y-auto"
+                      className="p-3 rounded-xl bg-black/50 border border-white/5 font-sans text-xs text-gray-200 leading-relaxed whitespace-pre-wrap max-h-44 overflow-y-auto"
                       dir="rtl"
                     >
                       {generateCustomerConfirmationMessage(selectedOrder, settings?.storeName)}
@@ -6137,959 +6178,18 @@ export const AdminDashboard: React.FC = () => {
           />
         )}
 
-        {/* ================= MODAL: ADD / EDIT PRODUCT ================= */}
+        {/* ================= MODAL: ADD / EDIT PRODUCT (ISOLATED MEMOIZED) ================= */}
         {isEditingProduct && editingProduct && (
-          <div
-            id="admin-product-modal-scroll"
-            className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md overflow-y-auto"
-          >
-            <div className="relative w-full max-w-3xl rounded-3xl bg-[#141720] border border-white/10 p-5 sm:p-8 space-y-6 text-right my-3 sm:my-6 shadow-2xl">
-              {/* Sticky Top Bar with Header and Quick Actions */}
-              <div className="sticky top-0 z-30 bg-[#141720]/95 backdrop-blur-md -mx-5 -mt-5 px-5 pt-5 pb-3 sm:-mx-8 sm:-mt-8 sm:px-8 sm:pt-6 border-b border-white/10 space-y-3 shadow-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-[#c5a869]" />
-                      <span>{editingProduct.id ? 'تعديل بيانات ومواصفات المنتج' : 'إضافة ساعة يد أو إكسسوار جديد'}</span>
-                    </h3>
-                    <p className="text-[11px] text-gray-400 mt-0.5">
-                      يمكنك تعديل الاسم، السعر، الصور، الألوان، باقات التوفير، والفيديوهات
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const container = document.getElementById('admin-product-modal-scroll');
-                        if (container) {
-                          container.scrollTo({ top: 0, behavior: 'smooth' });
-                        }
-                      }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#c5a869]/20 hover:bg-[#c5a869]/30 text-amber-300 border border-[#c5a869]/40 text-xs font-bold transition cursor-pointer"
-                      title="الرجوع إلى أعلى النموذج لتعديل الاسم والسعر"
-                    >
-                      <span>⬆️</span>
-                      <span>الصعود للأعلى</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsEditingProduct(false);
-                        setEditingProduct(null);
-                      }}
-                      className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
-                      title="إغلاق"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Quick Section Jump Tabs */}
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] text-gray-400 border-t border-white/5 pt-2">
-                  <span className="text-gray-500 font-semibold whitespace-nowrap ml-1">الانتقال السريع:</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const el = document.getElementById('prod-basic-info');
-                      if (el) el.scrollIntoView({ behavior: 'smooth' });
-                      else {
-                        const container = document.getElementById('admin-product-modal-scroll');
-                        if (container) container.scrollTo({ top: 0, behavior: 'smooth' });
-                      }
-                    }}
-                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-[#c5a869]/20 hover:text-amber-300 text-gray-300 font-bold transition cursor-pointer whitespace-nowrap"
-                  >
-                    📝 الاسم والسعر
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const el = document.getElementById('prod-bundles-section');
-                      if (el) el.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-[#c5a869]/20 hover:text-amber-300 text-gray-300 font-bold transition cursor-pointer whitespace-nowrap"
-                  >
-                    🎁 باقات التوفير
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const el = document.getElementById('prod-photos-section');
-                      if (el) el.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-[#c5a869]/20 hover:text-amber-300 text-gray-300 font-bold transition cursor-pointer whitespace-nowrap"
-                  >
-                    🖼️ الصور
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const el = document.getElementById('prod-colors-section');
-                      if (el) el.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-[#c5a869]/20 hover:text-amber-300 text-gray-300 font-bold transition cursor-pointer whitespace-nowrap"
-                  >
-                    🎨 الألوان
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const el = document.getElementById('prod-video-section');
-                      if (el) el.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-[#c5a869]/20 hover:text-amber-300 text-gray-300 font-bold transition cursor-pointer whitespace-nowrap"
-                  >
-                    🎥 الفيديوهات
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const el = document.getElementById('prod-features-section');
-                      if (el) el.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-[#c5a869]/20 hover:text-amber-300 text-gray-300 font-bold transition cursor-pointer whitespace-nowrap"
-                  >
-                    ✨ المميزات الحصرية
-                  </button>
-                </div>
-              </div>
-
-              <form onSubmit={handleSaveProduct} className="space-y-4 text-xs">
-                <div id="prod-basic-info" className="grid grid-cols-1 sm:grid-cols-2 gap-4 scroll-mt-28">
-
-                  <div>
-                    <label className="block text-gray-300 font-semibold mb-1">اسم الساعة الكامل *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="مثال: ساعة رويال كرونوغراف أسود وذهبي"
-                      value={editingProduct.name || ''}
-                      onChange={(e) =>
-                        setEditingProduct({ ...editingProduct, name: e.target.value })
-                      }
-                      className="w-full bg-[#1b1f2b] border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-[#c5a869]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-300 font-semibold mb-1">رمز الموديل (SKU)</label>
-                    <input
-                      type="text"
-                      placeholder="مثال: NW-105 (أو اتركه فارغاً)"
-                      value={editingProduct.sku || ''}
-                      onChange={(e) =>
-                        setEditingProduct({ ...editingProduct, sku: e.target.value })
-                      }
-                      className="w-full bg-[#1b1f2b] border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-[#c5a869] text-left"
-                      dir="ltr"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-300 font-semibold mb-1">السعر الحالي بالدرهم (MAD) *</label>
-                    <input
-                      type="number"
-                      required
-                      placeholder="مثال: 349"
-                      value={editingProduct.price !== undefined && editingProduct.price !== null ? editingProduct.price : ''}
-                      onChange={(e) =>
-                        setEditingProduct({ ...editingProduct, price: e.target.value === '' ? ('' as any) : Number(e.target.value) })
-                      }
-                      className="w-full bg-[#1b1f2b] border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-[#c5a869]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-300 font-semibold mb-1">السعر قبل التخفيض (MAD)</label>
-                    <input
-                      type="number"
-                      placeholder="مثال: 499 (اختياري)"
-                      value={editingProduct.originalPrice !== undefined && editingProduct.originalPrice !== null ? editingProduct.originalPrice : ''}
-                      onChange={(e) =>
-                        setEditingProduct({
-                          ...editingProduct,
-                          originalPrice: e.target.value === '' ? ('' as any) : Number(e.target.value),
-                        })
-                      }
-                      className="w-full bg-[#1b1f2b] border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-[#c5a869]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-300 font-semibold mb-1">الكمية المتوفرة فالمخزون *</label>
-                    <input
-                      type="number"
-                      required
-                      placeholder="مثال: 15"
-                      value={editingProduct.stock !== undefined && editingProduct.stock !== null ? editingProduct.stock : ''}
-                      onChange={(e) =>
-                        setEditingProduct({ ...editingProduct, stock: e.target.value === '' ? ('' as any) : Number(e.target.value) })
-                      }
-                      className="w-full bg-[#1b1f2b] border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-[#c5a869]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-300 font-semibold mb-1">التصنيف الأساسي</label>
-                    <select
-                      value={editingProduct.category || 'men'}
-                      onChange={(e) =>
-                        setEditingProduct({ ...editingProduct, category: e.target.value, categories: [e.target.value] })
-                      }
-                      className="w-full bg-[#1b1f2b] border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none"
-                    >
-                      <option value="men">ساعات رجالية</option>
-                      <option value="women">ساعات نسائية</option>
-                    </select>
-                  </div>
-
-                  {/* ================= COMPREHENSIVE TIERED BUNDLE CONTROL PANEL ================= */}
-                  <div id="prod-bundles-section" className="sm:col-span-2 p-4 sm:p-5 rounded-2xl bg-[#1b1f2b] border border-white/10 space-y-4 scroll-mt-28">
-                    {/* Header with Enable/Disable Toggle */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-white/10">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-xl bg-[#c5a869]/20 border border-[#c5a869]/40 flex items-center justify-center text-[#c5a869]">
-                          <Sparkles className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                            <span>عروض باقات التوفير (اشتري 1، 2، 3 بتمن لزيادة المبيعات)</span>
-                          </h4>
-                          <p className="text-[11px] text-gray-400">
-                            ميزة مضاعفة المبيعات: تتيح للزبون شراء قطعتين أو 3 قطع بأسعار تشجيعية وتوفير فوري
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Enable / Disable Toggle Button */}
-                      <label className="flex items-center gap-2 cursor-pointer select-none bg-[#141720] border border-white/10 px-3 py-1.5 rounded-xl hover:border-white/20">
-                        <input
-                          type="checkbox"
-                          checked={editingProduct.tieredPricing?.enabled !== false}
-                          onChange={(e) =>
-                            setEditingProduct({
-                              ...editingProduct,
-                              tieredPricing: {
-                                ...editingProduct.tieredPricing,
-                                enabled: e.target.checked,
-                              },
-                            })
-                          }
-                          className="w-4 h-4 rounded text-[#c5a869] focus:ring-[#c5a869] bg-transparent"
-                        />
-                        <span className={`text-xs font-bold ${
-                          editingProduct.tieredPricing?.enabled !== false ? 'text-amber-400' : 'text-gray-400'
-                        }`}>
-                          {editingProduct.tieredPricing?.enabled !== false ? 'العروض مُفعلة 🚀' : 'معطلة (بيع فردي فقط)'}
-                        </span>
-                      </label>
-                    </div>
-
-                    {editingProduct.tieredPricing?.enabled !== false ? (
-                      <div className="space-y-4 pt-1">
-                        {/* Mode Switcher: Auto (%) vs Custom Price (MAD) */}
-                        <div className="flex items-center justify-between flex-wrap gap-2">
-                          <span className="text-xs font-semibold text-gray-300">
-                            طريقة تحديد وتطبيق التخفيضات:
-                          </span>
-                          <div className="flex items-center bg-[#141720] p-1 rounded-xl border border-white/10 text-xs">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setEditingProduct({
-                                  ...editingProduct,
-                                  tieredPricing: {
-                                    ...editingProduct.tieredPricing,
-                                    mode: 'auto',
-                                  },
-                                })
-                              }
-                              className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
-                                (editingProduct.tieredPricing?.mode || 'auto') === 'auto'
-                                  ? 'bg-[#c5a869] text-black shadow-xs font-black'
-                                  : 'text-gray-400 hover:text-white'
-                              }`}
-                            >
-                              ⚡ حساب تلقائي بالنسبة (%)
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setEditingProduct({
-                                  ...editingProduct,
-                                  tieredPricing: {
-                                    ...editingProduct.tieredPricing,
-                                    mode: 'custom',
-                                  },
-                                })
-                              }
-                              className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
-                                editingProduct.tieredPricing?.mode === 'custom'
-                                  ? 'bg-[#c5a869] text-black shadow-xs font-black'
-                                  : 'text-gray-400 hover:text-white'
-                              }`}
-                            >
-                              ✍️ أسعار محددة بالدرهم (MAD)
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Automatic Percentage Mode Inputs */}
-                        {(editingProduct.tieredPricing?.mode || 'auto') === 'auto' && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl bg-[#141720] border border-white/5">
-                            <div>
-                              <label className="block text-gray-300 text-xs font-semibold mb-1">
-                                نسبة تخفيض باقة قطعتين (%)
-                              </label>
-                              <div className="relative">
-                                <input
-                                  type="number"
-                                  min="1"
-                                  max="70"
-                                  placeholder="16"
-                                  value={editingProduct.tieredPricing?.twoPiecesDiscountPercent ?? 16}
-                                  onChange={(e) =>
-                                    setEditingProduct({
-                                      ...editingProduct,
-                                      tieredPricing: {
-                                        ...editingProduct.tieredPricing,
-                                        twoPiecesDiscountPercent: e.target.value === '' ? ('' as any) : Number(e.target.value),
-                                      },
-                                    })
-                                  }
-                                  className="w-full bg-[#1b1f2b] border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#c5a869] pl-8"
-                                />
-                                <span className="absolute left-3 top-2.5 text-xs text-gray-400 font-bold">%</span>
-                              </div>
-                              <span className="text-[10px] text-gray-400 mt-1 block">
-                                يُطبق تلقائياً على السعر الأساسي للقطعتين
-                              </span>
-                            </div>
-
-                            <div>
-                              <label className="block text-gray-300 text-xs font-semibold mb-1">
-                                نسبة تخفيض باقة 3 قطع (%)
-                              </label>
-                              <div className="relative">
-                                <input
-                                  type="number"
-                                  min="1"
-                                  max="80"
-                                  placeholder="24"
-                                  value={editingProduct.tieredPricing?.threePiecesDiscountPercent ?? 24}
-                                  onChange={(e) =>
-                                    setEditingProduct({
-                                      ...editingProduct,
-                                      tieredPricing: {
-                                        ...editingProduct.tieredPricing,
-                                        threePiecesDiscountPercent: e.target.value === '' ? ('' as any) : Number(e.target.value),
-                                      },
-                                    })
-                                  }
-                                  className="w-full bg-[#1b1f2b] border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#c5a869] pl-8"
-                                />
-                                <span className="absolute left-3 top-2.5 text-xs text-gray-400 font-bold">%</span>
-                              </div>
-                              <span className="text-[10px] text-gray-400 mt-1 block">
-                                خصم أعلى لتشجيع طلب باقة الهدايا
-                              </span>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Custom Fixed Prices Mode Inputs */}
-                        {editingProduct.tieredPricing?.mode === 'custom' && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl bg-[#141720] border border-white/5">
-                            <div>
-                              <label className="block text-gray-300 text-xs font-semibold mb-1">
-                                سعر باقة قطعتين الإجمالي (MAD) *
-                              </label>
-                              <input
-                                type="number"
-                                placeholder="مثال: 499"
-                                value={editingProduct.tieredPricing?.twoPiecesPrice ?? ''}
-                                onChange={(e) =>
-                                  setEditingProduct({
-                                    ...editingProduct,
-                                    tieredPricing: {
-                                      ...editingProduct.tieredPricing,
-                                      twoPiecesPrice: e.target.value === '' ? undefined : Number(e.target.value),
-                                    },
-                                  })
-                                }
-                                className="w-full bg-[#1b1f2b] border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#c5a869]"
-                              />
-                              <span className="text-[10px] text-gray-400 mt-1 block">
-                                السعر الفردي للقطعة الواحدة: {editingProduct.price ? `${formatPrice(Number(editingProduct.price))}` : '0 MAD'}
-                              </span>
-                            </div>
-
-                            <div>
-                              <label className="block text-gray-300 text-xs font-semibold mb-1">
-                                سعر باقة 3 قطع الإجمالي (MAD) *
-                              </label>
-                              <input
-                                type="number"
-                                placeholder="مثال: 689"
-                                value={editingProduct.tieredPricing?.threePiecesPrice ?? ''}
-                                onChange={(e) =>
-                                  setEditingProduct({
-                                    ...editingProduct,
-                                    tieredPricing: {
-                                      ...editingProduct.tieredPricing,
-                                      threePiecesPrice: e.target.value === '' ? undefined : Number(e.target.value),
-                                    },
-                                  })
-                                }
-                                className="w-full bg-[#1b1f2b] border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#c5a869]"
-                              />
-                              <span className="text-[10px] text-gray-400 mt-1 block">
-                                السعر الكلي عند شراء 3 ساعات معاً
-                              </span>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Custom Badges Configuration */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-gray-400 text-[11px] mb-1">
-                              نص شارة باقة قطعتين
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="الأكثر طلباً ⭐"
-                              value={editingProduct.tieredPricing?.twoPiecesBadge || 'الأكثر طلباً ⭐'}
-                              onChange={(e) =>
-                                setEditingProduct({
-                                  ...editingProduct,
-                                  tieredPricing: {
-                                    ...editingProduct.tieredPricing,
-                                    twoPiecesBadge: e.target.value,
-                                  },
-                                })
-                              }
-                              className="w-full bg-[#141720] border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-[#c5a869]"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-gray-400 text-[11px] mb-1">
-                              نص شارة باقة 3 قطع
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="أفضل توفير 🔥"
-                              value={editingProduct.tieredPricing?.threePiecesBadge || 'أفضل توفير 🔥'}
-                              onChange={(e) =>
-                                setEditingProduct({
-                                  ...editingProduct,
-                                  tieredPricing: {
-                                    ...editingProduct.tieredPricing,
-                                    threePiecesBadge: e.target.value,
-                                  },
-                                })
-                              }
-                              className="w-full bg-[#141720] border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-[#c5a869]"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Real-time Visual Preview for Admin */}
-                        {(() => {
-                          const previewOffers = calculateTierOffers(editingProduct as any);
-                          return (
-                            <div className="p-3.5 rounded-xl bg-[#141720] border border-white/10 space-y-2">
-                              <div className="flex items-center justify-between text-xs text-gray-300">
-                                <span className="font-bold flex items-center gap-1.5 text-amber-400">
-                                  <Eye className="w-3.5 h-3.5" />
-                                  <span>معاينة حية لشكل الباقات للمشتري في المتجر:</span>
-                                </span>
-                                <span className="text-[10px] text-gray-400">
-                                  السعر الفردي: {formatPrice(Number(editingProduct.price) || 0)}
-                                </span>
-                              </div>
-
-                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                {previewOffers.map((t) => (
-                                  <div
-                                    key={t.quantity}
-                                    className="p-2.5 rounded-xl bg-[#1b1f2b] border border-white/10 text-right space-y-1"
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-xs font-bold text-white">{t.label}</span>
-                                      {t.badge && (
-                                        <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-[#c5a869] text-black">
-                                          {t.badge}
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div className="text-sm font-black text-amber-400">
-                                      {formatPrice(t.totalPrice)}
-                                    </div>
-                                    <div className="text-[10px] text-gray-400 flex items-center justify-between">
-                                      <span>({formatPrice(t.unitPrice)}/قطعة)</span>
-                                      {t.savingsMAD > 0 && (
-                                        <span className="text-emerald-400 font-bold">
-                                          وفر {formatPrice(t.savingsMAD)}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    ) : (
-                      <div className="p-3 rounded-xl bg-[#141720] border border-white/5 text-center text-xs text-gray-400">
-                        عروض الباقات معطلة لهذا المنتج حالياً. سيتمكن الزبائن من شراء قطعة واحدة فقط بالسعر الأساسي ({formatPrice(Number(editingProduct.price) || 0)}).
-                      </div>
-                    )}
-                  </div>
-
-                  <div id="prod-photos-section" className="sm:col-span-2 scroll-mt-28">
-                    <ImageUploader
-                      images={editingProduct.images || []}
-                      onChange={(newImages) => {
-                        setEditingProduct({
-                          ...editingProduct,
-                          images: newImages,
-                        });
-                      }}
-                      maxImages={8}
-                      label="صور الساعة (تحميل مباشر من الحاسوب أو الهاتف)"
-                      helperText="اختر صور الساعة من حاسوبك. يمكنك رفع عدة صور في نفس الوقت وتحديد الصورة الرئيسية للساعة بنقرة واحدة."
-                    />
-                  </div>
-
-                  {/* الألوان المتوفرة للمنتج */}
-                  <div id="prod-colors-section" className="sm:col-span-2 rounded-2xl bg-[#161a25] border border-white/10 p-4 sm:p-5 space-y-4 scroll-mt-28">
-                    <div className="border-b border-white/10 pb-3">
-                      <div className="flex items-center gap-2 text-white font-bold text-sm">
-                        <Palette className="w-4 h-4 text-[#c5a869]" />
-                        <span>الألوان المتوفرة لهذا الموديل</span>
-                        <span className="text-xs font-normal text-[#c5a869] bg-[#c5a869]/15 border border-[#c5a869]/30 px-2 py-0.5 rounded-full">
-                          {(editingProduct.colors || []).length} ألوان
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-400 mt-1">
-                        أدخل اسم كل لون ودرجته واربطه بالصورة المخصصة له ليتمكن الزبون من اختياره عند الشراء.
-                      </p>
-                    </div>
-
-                    {/* Form to add a custom new color */}
-                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 p-3 rounded-xl bg-black/30 border border-white/5 items-end">
-                      <div className="sm:col-span-5">
-                        <label className="block text-xs font-semibold text-gray-300 mb-1">اسم اللون (بالعربية)</label>
-                        <input
-                          type="text"
-                          value={newColorName}
-                          onChange={(e) => setNewColorName(e.target.value)}
-                          placeholder="مثال: أسود كربوني، ذهبي عيار 18..."
-                          className="w-full bg-[#1b1f2b] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#c5a869]"
-                        />
-                      </div>
-
-                      <div className="sm:col-span-3">
-                        <label className="block text-xs font-semibold text-gray-300 mb-1">درجة اللون</label>
-                        <div className="flex items-center gap-2 bg-[#1b1f2b] border border-white/10 rounded-xl px-2.5 py-1.5">
-                          <input
-                            type="color"
-                            value={newColorCode}
-                            onChange={(e) => setNewColorCode(e.target.value)}
-                            className="w-7 h-7 rounded-lg border-0 bg-transparent cursor-pointer p-0"
-                          />
-                          <span className="text-xs font-mono text-gray-300 uppercase">{newColorCode}</span>
-                        </div>
-                      </div>
-
-                      <div className="sm:col-span-2">
-                        <label className="block text-xs font-semibold text-gray-300 mb-1">الصورة المرتبطة</label>
-                        <select
-                          value={newColorImageIndex}
-                          onChange={(e) => setNewColorImageIndex(Number(e.target.value))}
-                          className="w-full bg-[#1b1f2b] border border-white/10 rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-[#c5a869]"
-                        >
-                          {(editingProduct.images || []).length > 0 ? (
-                            (editingProduct.images || []).map((_, imgIdx) => (
-                              <option key={imgIdx} value={imgIdx}>
-                                الصورة {imgIdx + 1} {imgIdx === 0 ? '(الرئيسية)' : ''}
-                              </option>
-                            ))
-                          ) : (
-                            <option value={0}>الصورة 1</option>
-                          )}
-                        </select>
-                      </div>
-
-                      <div className="sm:col-span-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!newColorName.trim()) return;
-                            setEditingProduct({
-                              ...editingProduct,
-                              colors: [
-                                ...(editingProduct.colors || []),
-                                {
-                                  name: newColorName.trim(),
-                                  code: newColorCode,
-                                  accent: '#c5a869',
-                                  imageIndex: newColorImageIndex,
-                                },
-                              ],
-                            });
-                            setNewColorName('');
-                          }}
-                          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl gold-gradient-bg text-black font-bold text-xs shadow hover:brightness-110 cursor-pointer"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>إضافة لون</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* List of currently added colors */}
-                    {(editingProduct.colors || []).length === 0 ? (
-                      <div className="text-center py-4 text-xs text-gray-500 border border-dashed border-white/10 rounded-xl">
-                        لم تتم إضافة أي لون بعد. اضغط على أحد الألوان السريعة أعلاه أو أضف لوناً جديداً.
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-1">
-                        {(editingProduct.colors || []).map((c, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] border border-white/10 hover:border-[#c5a869]/40 transition group"
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <label className="relative cursor-pointer flex-shrink-0">
-                                <span
-                                  className="w-6 h-6 rounded-full border border-white/30 block shadow-inner"
-                                  style={{ backgroundColor: c.code }}
-                                />
-                                <input
-                                  type="color"
-                                  value={c.code}
-                                  onChange={(e) => {
-                                    const updated = [...(editingProduct.colors || [])];
-                                    updated[idx] = { ...updated[idx], code: e.target.value };
-                                    setEditingProduct({ ...editingProduct, colors: updated });
-                                  }}
-                                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                                  title="تغيير درجة اللون"
-                                />
-                              </label>
-
-                              <div className="min-w-0">
-                                <input
-                                  type="text"
-                                  value={c.name}
-                                  onChange={(e) => {
-                                    const updated = [...(editingProduct.colors || [])];
-                                    updated[idx] = { ...updated[idx], name: e.target.value };
-                                    setEditingProduct({ ...editingProduct, colors: updated });
-                                  }}
-                                  className="bg-transparent text-xs font-bold text-white border-b border-transparent hover:border-white/20 focus:border-[#c5a869] focus:outline-none w-full"
-                                  placeholder="اسم اللون"
-                                />
-                                <div className="flex items-center gap-2 text-[10px] text-gray-400 mt-0.5">
-                                  <span>مرتبط بـ:</span>
-                                  <select
-                                    value={c.imageIndex || 0}
-                                    onChange={(e) => {
-                                      const updated = [...(editingProduct.colors || [])];
-                                      updated[idx] = { ...updated[idx], imageIndex: Number(e.target.value) };
-                                      setEditingProduct({ ...editingProduct, colors: updated });
-                                    }}
-                                    className="bg-[#1b1f2b] text-[10px] text-[#c5a869] rounded px-1.5 py-0.5 border border-white/10 focus:outline-none cursor-pointer"
-                                  >
-                                    {(editingProduct.images || []).length > 0 ? (
-                                      (editingProduct.images || []).map((_, imgIdx) => (
-                                        <option key={imgIdx} value={imgIdx}>
-                                          صورة {imgIdx + 1}
-                                        </option>
-                                      ))
-                                    ) : (
-                                      <option value={0}>صورة 1</option>
-                                    )}
-                                  </select>
-                                </div>
-                              </div>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const updated = (editingProduct.colors || []).filter((_, i) => i !== idx);
-                                setEditingProduct({ ...editingProduct, colors: updated });
-                              }}
-                              className="text-gray-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-rose-500/10 transition cursor-pointer flex-shrink-0"
-                              title="حذف هذا اللون"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* فيديوهات الساعة والمعاينة الحية */}
-                  <div id="prod-video-section" className="sm:col-span-2 rounded-2xl bg-[#161a25] border border-white/10 p-4 sm:p-5 scroll-mt-28">
-                    <VideoUploader
-                      videos={editingProduct.videos || []}
-                      onChange={(newVideos) =>
-                        setEditingProduct({ ...editingProduct, videos: newVideos })
-                      }
-                      productImages={editingProduct.images || []}
-                      maxVideos={4}
-                      onUploadingChange={setIsVideoUploading}
-                    />
-                  </div>
-
-                  {/* أهم المميزات الحصرية (تعديل / إضافة / حذف) */}
-                  <div
-                    id="prod-features-section"
-                    className="sm:col-span-2 rounded-2xl bg-[#161a25] border border-white/10 p-4 sm:p-5 space-y-4 scroll-mt-28"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                          <Sparkles className="w-4 h-4 text-[#c5a869]" />
-                          <span>أهم المميزات الحصرية (تظهر في صفحة المنتج)</span>
-                        </h4>
-                        <p className="text-[11px] text-gray-400 mt-0.5">
-                          يمكنك تعديل نص أي ميزة، إعادة ترتيبها، إضافة ميزات جديدة أو حذفها نهائياً
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] bg-[#c5a869]/20 text-amber-300 border border-[#c5a869]/40 px-2.5 py-1 rounded-full font-bold">
-                          {(editingProduct.features || []).length} ميزة
-                        </span>
-                        {(editingProduct.features || []).length > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => setEditingProduct({ ...editingProduct, features: [] })}
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-[11px] font-bold transition cursor-pointer"
-                            title="حذف جميع المميزات"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                            <span>حذف الكل</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Add new feature row */}
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <input
-                        type="text"
-                        placeholder="أضف ميزة حصرية جديدة (مثال: مقاومة للماء 5ATM، علبة فاخرة...)"
-                        value={newFeatureText}
-                        onChange={(e) => setNewFeatureText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            const trimmed = newFeatureText.trim();
-                            if (!trimmed) return;
-                            setEditingProduct({
-                              ...editingProduct,
-                              features: [...(editingProduct.features || []), trimmed],
-                            });
-                            setNewFeatureText('');
-                          }
-                        }}
-                        className="flex-1 bg-[#1b1f2b] border border-white/10 rounded-xl px-3.5 py-2 text-white text-xs focus:outline-none focus:border-[#c5a869]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const trimmed = newFeatureText.trim();
-                          if (!trimmed) return;
-                          setEditingProduct({
-                            ...editingProduct,
-                            features: [...(editingProduct.features || []), trimmed],
-                          });
-                          setNewFeatureText('');
-                        }}
-                        className="px-4 py-2 rounded-xl gold-gradient-bg text-black font-bold text-xs flex items-center justify-center gap-1.5 hover:brightness-110 cursor-pointer whitespace-nowrap"
-                      >
-                        <Plus className="w-4 h-4" />
-                        <span>إضافة ميزة</span>
-                      </button>
-                    </div>
-
-                    {/* Features list */}
-                    {(editingProduct.features || []).length === 0 ? (
-                      <div className="text-center py-4 text-gray-500 text-[11px] bg-[#1b1f2b]/50 rounded-xl border border-dashed border-white/10">
-                        لا توجد مميزات مضافة حالياً. أضف ميزة جديدة من الحقل أعلاه أو اتركه فارغاً لإخفاء هذا القسم.
-                      </div>
-                    ) : (
-                      <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                        {(editingProduct.features || []).map((feat, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center gap-2 p-2 rounded-xl bg-[#1b1f2b] border border-white/10"
-                          >
-                            <span className="w-6 h-6 rounded-lg bg-[#c5a869]/15 text-[#c5a869] font-bold text-[11px] flex items-center justify-center flex-shrink-0">
-                              {idx + 1}
-                            </span>
-                            <input
-                              type="text"
-                              value={feat}
-                              onChange={(e) => {
-                                const updated = [...(editingProduct.features || [])];
-                                updated[idx] = e.target.value;
-                                setEditingProduct({ ...editingProduct, features: updated });
-                              }}
-                              className="flex-1 bg-[#141720] border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-[#c5a869]"
-                            />
-                            <div className="flex items-center gap-1 flex-shrink-0">
-                              <button
-                                type="button"
-                                disabled={idx === 0}
-                                onClick={() => {
-                                  if (idx === 0) return;
-                                  const updated = [...(editingProduct.features || [])];
-                                  [updated[idx - 1], updated[idx]] = [updated[idx], updated[idx - 1]];
-                                  setEditingProduct({ ...editingProduct, features: updated });
-                                }}
-                                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 disabled:opacity-30 cursor-pointer text-[10px]"
-                                title="تحريك لأعلى"
-                              >
-                                ▲
-                              </button>
-                              <button
-                                type="button"
-                                disabled={idx === (editingProduct.features || []).length - 1}
-                                onClick={() => {
-                                  const list = [...(editingProduct.features || [])];
-                                  if (idx >= list.length - 1) return;
-                                  [list[idx], list[idx + 1]] = [list[idx + 1], list[idx]];
-                                  setEditingProduct({ ...editingProduct, features: list });
-                                }}
-                                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 disabled:opacity-30 cursor-pointer text-[10px]"
-                                title="تحريك لأسفل"
-                              >
-                                ▼
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const updated = (editingProduct.features || []).filter((_, i) => i !== idx);
-                                  setEditingProduct({ ...editingProduct, features: updated });
-                                }}
-                                className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition cursor-pointer"
-                                title="حذف هذه الميزة"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="block text-gray-300 font-semibold mb-1">الوصف العام والمميزات</label>
-                    <textarea
-                      rows={3}
-                      value={editingProduct.description || ''}
-                      placeholder="اكتب وصفاً جذاباً للساعة، تفاصيل المينا والسوار والمحرك..."
-                      onChange={(e) =>
-                        setEditingProduct({ ...editingProduct, description: e.target.value })
-                      }
-                      className="w-full bg-[#1b1f2b] border border-white/10 rounded-xl px-3.5 py-2 text-white focus:outline-none focus:border-[#c5a869]"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-6 py-2">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editingProduct.isPublished}
-                      onChange={(e) =>
-                        setEditingProduct({ ...editingProduct, isPublished: e.target.checked })
-                      }
-                      className="w-4 h-4 rounded accent-[#c5a869]"
-                    />
-                    <span className="text-gray-300 font-semibold">نشر المنتج في المتجر مباشرة</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editingProduct.isSpecialOffer}
-                      onChange={(e) =>
-                        setEditingProduct({ ...editingProduct, isSpecialOffer: e.target.checked })
-                      }
-                      className="w-4 h-4 rounded accent-[#c5a869]"
-                    />
-                    <span className="text-gray-300 font-semibold">إضافة إلى قسم العروض الخاصة</span>
-                  </label>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-white/10">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const container = document.getElementById('admin-product-modal-scroll');
-                      if (container) {
-                        container.scrollTo({ top: 0, behavior: 'smooth' });
-                      }
-                    }}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-amber-300 border border-white/10 text-xs font-bold transition cursor-pointer"
-                  >
-                    <span>⬆️</span>
-                    <span>الصعود لأعلى النموذج لتعديل الاسم والسعر</span>
-                  </button>
-
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      disabled={isSavingProduct}
-                      onClick={() => {
-                        setIsEditingProduct(false);
-                        setEditingProduct(null);
-                      }}
-                      className="px-4 py-2.5 rounded-xl bg-white/5 text-gray-300 hover:bg-white/10 disabled:opacity-50 cursor-pointer"
-                    >
-                      إلغاء
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isVideoUploading || isSavingProduct}
-                      className="px-6 py-2.5 rounded-xl gold-gradient-bg text-black font-extrabold shadow hover:brightness-110 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    >
-                      {(isVideoUploading || isSavingProduct) && (
-                        <Loader2 className="w-4 h-4 animate-spin text-black" />
-                      )}
-                      <span>
-                        {isVideoUploading
-                          ? 'جاري رفع الفيديو... يرجى الانتظار'
-                          : isSavingProduct
-                          ? 'جاري حفظ ونشر المنتج...'
-                          : 'حفظ ونشر المنتج'}
-                      </span>
-                    </button>
-                  </div>
-                </div>
-
-              </form>
-            </div>
-          </div>
+          <AdminProductModal
+            product={editingProduct}
+            onClose={handleCloseProductModal}
+            onSave={handleSaveProductModal}
+          />
         )}
 
         {/* ================= MODAL: EDIT NEW ORDER ================= */}
         {editingOrder && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-sm overflow-y-auto">
+          <div dir="rtl" className="fixed inset-0 z-[60] flex items-start justify-center p-3 sm:p-6 bg-black/85 overflow-y-auto text-right">
             <div className="relative w-full max-w-2xl bg-[#141720] border border-amber-500/40 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-5 text-right my-4 sm:my-8">
               <div className="flex items-center justify-between border-b border-white/10 pb-3">
                 <div className="flex items-center gap-2.5">
@@ -7469,7 +6569,6 @@ export const AdminDashboard: React.FC = () => {
             onClose={() => setPreviewPromoVoucher(null)}
           />
         )}
-      </div>
-    </div>
+    </>
   );
 };

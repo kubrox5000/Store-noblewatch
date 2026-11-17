@@ -96,12 +96,39 @@ export interface StoreDatabaseSnapshot {
   deletedOrderIds: string[];
 }
 
-// Fast in-memory read-through cache invalidated on every mutation
+// Fast in-memory read-through cache kept warm across mutations
 let cachedSnapshot: StoreDatabaseSnapshot | null = null;
+let cacheVersion = 1;
 let seedPromise: Promise<void> | null = null;
+
+export function getStoreCacheVersion(): number {
+  return cacheVersion;
+}
+
+export function bumpStoreCacheVersion() {
+  cacheVersion += 1;
+}
 
 export function invalidateStoreCache() {
   cachedSnapshot = null;
+  cacheVersion += 1;
+}
+
+function recalculateCachedCategoryCounts() {
+  if (!cachedSnapshot) return;
+  const products = cachedSnapshot.products || [];
+  cachedSnapshot.categories = (cachedSnapshot.categories || []).map((cat) => {
+    if (cat.id === 'all' || cat.slug === 'all') {
+      return { ...cat, count: products.filter((p) => p.isPublished).length };
+    }
+    const count = products.filter(
+      (p) =>
+        p.isPublished &&
+        (p.category === cat.id ||
+          (Array.isArray(p.categories) && p.categories.includes(cat.id)))
+    ).length;
+    return { ...cat, count };
+  });
 }
 
 function buildSettingsObject(row: typeof storeSettingsTable.$inferSelect | undefined): StoreSettings & { adminPasswordHash?: string } {
@@ -741,7 +768,9 @@ export async function insertSecurityLogDb(entry: SecurityBlockLog): Promise<void
       city: entry.city || null,
       ip: entry.ip || null,
     });
-    invalidateStoreCache();
+    if (cachedSnapshot) {
+      cachedSnapshot.securityLogs = [entry, ...(cachedSnapshot.securityLogs || [])].slice(0, 150);
+    }
   } catch (error) {
     console.error('Failed to insert security log:', error);
   }
@@ -750,7 +779,9 @@ export async function insertSecurityLogDb(entry: SecurityBlockLog): Promise<void
 export async function clearSecurityLogsDb(): Promise<void> {
   try {
     await db.delete(securityLogsTable);
-    invalidateStoreCache();
+    if (cachedSnapshot) {
+      cachedSnapshot.securityLogs = [];
+    }
   } catch (error) {
     console.error('Failed to clear security logs:', error);
     throw new Error('Failed to clear security logs.', { cause: error });
@@ -786,14 +817,34 @@ export async function createOrderDb(
       clientIp: newOrder.clientIp || null,
     });
 
-    for (const upd of stockUpdates) {
-      await db
-        .update(productsTable)
-        .set({ stock: upd.stock })
-        .where(eq(productsTable.id, upd.id));
+    if (stockUpdates.length > 0) {
+      await Promise.all(
+        stockUpdates.map((upd) =>
+          db
+            .update(productsTable)
+            .set({ stock: upd.stock })
+            .where(eq(productsTable.id, upd.id))
+        )
+      );
     }
 
-    invalidateStoreCache();
+    if (cachedSnapshot) {
+      const normalizedOrder = {
+        ...newOrder,
+        city: normalizeMoroccanCityName(newOrder.city),
+      };
+      cachedSnapshot.orders = [
+        normalizedOrder,
+        ...(cachedSnapshot.orders || []).filter((o) => o.id !== newOrder.id),
+      ];
+      if (stockUpdates.length > 0) {
+        const stockMap = new Map(stockUpdates.map((u) => [u.id, u.stock]));
+        cachedSnapshot.products = cachedSnapshot.products.map((p) =>
+          stockMap.has(p.id) ? { ...p, stock: stockMap.get(p.id)! } : p
+        );
+      }
+      bumpStoreCacheVersion();
+    }
     return newOrder;
   } catch (error) {
     console.error('Database query failed in createOrderDb:', error);
@@ -825,7 +876,16 @@ export async function updateOrderDb(order: Order & { clientIp?: string }): Promi
       })
       .where(eq(ordersTable.id, order.id));
 
-    invalidateStoreCache();
+    if (cachedSnapshot) {
+      const normalizedOrder = {
+        ...order,
+        city: normalizeMoroccanCityName(order.city),
+      };
+      cachedSnapshot.orders = (cachedSnapshot.orders || []).map((o) =>
+        o.id === order.id ? normalizedOrder : o
+      );
+      bumpStoreCacheVersion();
+    }
     return order;
   } catch (error) {
     console.error('Database query failed in updateOrderDb:', error);
@@ -849,11 +909,22 @@ export async function deleteOrderDb(idOrNumber: string, matchedOrder?: Order): P
     if (matchedOrder) {
       await db.delete(ordersTable).where(eq(ordersTable.id, matchedOrder.id));
     } else {
-      await db.delete(ordersTable).where(inArray(ordersTable.id, idsToBlacklist));
-      await db.delete(ordersTable).where(inArray(ordersTable.orderNumber, idsToBlacklist));
+      await Promise.all([
+        db.delete(ordersTable).where(inArray(ordersTable.id, idsToBlacklist)),
+        db.delete(ordersTable).where(inArray(ordersTable.orderNumber, idsToBlacklist)),
+      ]);
     }
 
-    invalidateStoreCache();
+    if (cachedSnapshot) {
+      const delSet = new Set(idsToBlacklist);
+      cachedSnapshot.deletedOrderIds = Array.from(
+        new Set([...(cachedSnapshot.deletedOrderIds || []), ...idsToBlacklist])
+      );
+      cachedSnapshot.orders = (cachedSnapshot.orders || []).filter(
+        (o) => !delSet.has(o.id) && !delSet.has(o.orderNumber)
+      );
+      bumpStoreCacheVersion();
+    }
   } catch (error) {
     console.error('Database query failed in deleteOrderDb:', error);
     throw new Error('Failed to delete order from database.', { cause: error });
@@ -874,7 +945,13 @@ export async function clearAllOrdersDb(existingOrders: Order[]): Promise<void> {
         .onConflictDoNothing();
     }
     await db.delete(ordersTable);
-    invalidateStoreCache();
+    if (cachedSnapshot) {
+      cachedSnapshot.deletedOrderIds = Array.from(
+        new Set([...(cachedSnapshot.deletedOrderIds || []), ...idsToBlacklist])
+      );
+      cachedSnapshot.orders = [];
+      bumpStoreCacheVersion();
+    }
   } catch (error) {
     console.error('Database query failed in clearAllOrdersDb:', error);
     throw new Error('Failed to clear orders from database.', { cause: error });
@@ -911,7 +988,14 @@ export async function createProductDb(product: Product): Promise<Product> {
       tieredPricing: product.tieredPricing || null,
       sortOrder: -1,
     });
-    invalidateStoreCache();
+    if (cachedSnapshot) {
+      cachedSnapshot.products = [
+        product,
+        ...(cachedSnapshot.products || []).filter((p) => p.id !== product.id),
+      ];
+      recalculateCachedCategoryCounts();
+      bumpStoreCacheVersion();
+    }
     return product;
   } catch (error) {
     console.error('Database query failed in createProductDb:', error);
@@ -951,7 +1035,13 @@ export async function updateProductDb(product: Product): Promise<Product> {
       })
       .where(eq(productsTable.id, product.id));
 
-    invalidateStoreCache();
+    if (cachedSnapshot) {
+      cachedSnapshot.products = (cachedSnapshot.products || []).map((p) =>
+        p.id === product.id ? product : p
+      );
+      recalculateCachedCategoryCounts();
+      bumpStoreCacheVersion();
+    }
     return product;
   } catch (error) {
     console.error('Database query failed in updateProductDb:', error);
@@ -962,7 +1052,11 @@ export async function updateProductDb(product: Product): Promise<Product> {
 export async function deleteProductDb(id: string): Promise<boolean> {
   try {
     const res = await db.delete(productsTable).where(eq(productsTable.id, id)).returning();
-    invalidateStoreCache();
+    if (cachedSnapshot) {
+      cachedSnapshot.products = (cachedSnapshot.products || []).filter((p) => p.id !== id);
+      recalculateCachedCategoryCounts();
+      bumpStoreCacheVersion();
+    }
     return res.length > 0;
   } catch (error) {
     console.error('Database query failed in deleteProductDb:', error);
@@ -998,7 +1092,25 @@ export async function createReviewDb(
         .where(eq(productsTable.id, productRatingUpdate.productId));
     }
 
-    invalidateStoreCache();
+    if (cachedSnapshot) {
+      const normalizedReview = {
+        ...review,
+        city: normalizeMoroccanCityName(review.city || 'المغرب'),
+      };
+      cachedSnapshot.reviews = [normalizedReview, ...(cachedSnapshot.reviews || [])];
+      if (productRatingUpdate) {
+        cachedSnapshot.products = (cachedSnapshot.products || []).map((p) =>
+          p.id === productRatingUpdate.productId
+            ? {
+                ...p,
+                rating: productRatingUpdate.rating,
+                reviewCount: productRatingUpdate.reviewCount,
+              }
+            : p
+        );
+      }
+      bumpStoreCacheVersion();
+    }
     return review;
   } catch (error) {
     console.error('Database query failed in createReviewDb:', error);
@@ -1013,8 +1125,14 @@ export async function updateReviewApprovalDb(id: string, isApproved: boolean): P
       .set({ isApproved })
       .where(eq(reviewsTable.id, id))
       .returning();
-    invalidateStoreCache();
-    return updated[0] ? mapReviewRow(updated[0]) : null;
+    const mapped = updated[0] ? mapReviewRow(updated[0]) : null;
+    if (cachedSnapshot && mapped) {
+      cachedSnapshot.reviews = (cachedSnapshot.reviews || []).map((r) =>
+        r.id === id ? mapped : r
+      );
+      bumpStoreCacheVersion();
+    }
+    return mapped;
   } catch (error) {
     console.error('Database query failed in updateReviewApprovalDb:', error);
     throw new Error('Failed to update review in database.', { cause: error });
@@ -1024,7 +1142,10 @@ export async function updateReviewApprovalDb(id: string, isApproved: boolean): P
 export async function deleteReviewDb(id: string): Promise<void> {
   try {
     await db.delete(reviewsTable).where(eq(reviewsTable.id, id));
-    invalidateStoreCache();
+    if (cachedSnapshot) {
+      cachedSnapshot.reviews = (cachedSnapshot.reviews || []).filter((r) => r.id !== id);
+      bumpStoreCacheVersion();
+    }
   } catch (error) {
     console.error('Database query failed in deleteReviewDb:', error);
     throw new Error('Failed to delete review from database.', { cause: error });
@@ -1110,7 +1231,16 @@ export async function updateSettingsDb(merged: StoreSettings & { adminPasswordHa
           updatedAt: new Date(),
         },
       });
-    invalidateStoreCache();
+    if (cachedSnapshot) {
+      cachedSnapshot.settings = {
+        ...cachedSnapshot.settings,
+        ...merged,
+        orderSecurity: persistedOrderSecurity,
+        promoCodes: persistedPromoCodes,
+        trackingPixels: merged.trackingPixels || DEFAULT_TRACKING_PIXELS,
+      };
+      bumpStoreCacheVersion();
+    }
   } catch (error) {
     console.error('Database query failed in updateSettingsDb:', error);
     throw new Error('Failed to update settings in database.', { cause: error });
@@ -1125,50 +1255,99 @@ export async function syncStoreDataDb(payload: {
 }): Promise<void> {
   try {
     if (Array.isArray(payload.products) && payload.products.length > 0) {
-      await db.delete(productsTable);
-      await db.insert(productsTable).values(
-        payload.products.map((p, idx) => ({
-          id: p.id,
-          sku: p.sku,
-          name: p.name,
-          subtitle: p.subtitle || '',
-          category: p.category,
-          categories: p.categories || [p.category],
-          price: Number(p.price),
-          wholesalePrice: Number(p.wholesalePrice || 0),
-          shippingCostPerOrder: Number(p.shippingCostPerOrder || 0),
-          originalPrice: Number(p.originalPrice),
-          discountPercent: Number(p.discountPercent || 0),
-          rating: Number(p.rating || 5),
-          reviewCount: Number(p.reviewCount || 0),
-          stock: Number(p.stock ?? 10),
-          isNew: Boolean(p.isNew),
-          isSpecialOffer: Boolean(p.isSpecialOffer),
-          isPublished: p.isPublished !== undefined ? Boolean(p.isPublished) : true,
-          colors: p.colors || [],
-          images: p.images || [],
-          videos: p.videos || [],
-          specs: p.specs || ({} as any),
-          boxContents: p.boxContents || [],
-          description: p.description || '',
-          features: p.features || [],
-          tieredPricing: p.tieredPricing || null,
-          sortOrder: idx,
-        }))
-      );
+      for (let idx = 0; idx < payload.products.length; idx++) {
+        const p = payload.products[idx];
+        await db
+          .insert(productsTable)
+          .values({
+            id: p.id,
+            sku: p.sku,
+            name: p.name,
+            subtitle: p.subtitle || '',
+            category: p.category,
+            categories: p.categories || [p.category],
+            price: Number(p.price),
+            wholesalePrice: Number(p.wholesalePrice || 0),
+            shippingCostPerOrder: Number(p.shippingCostPerOrder || 0),
+            originalPrice: Number(p.originalPrice),
+            discountPercent: Number(p.discountPercent || 0),
+            rating: Number(p.rating || 5),
+            reviewCount: Number(p.reviewCount || 0),
+            stock: Number(p.stock ?? 10),
+            isNew: Boolean(p.isNew),
+            isSpecialOffer: Boolean(p.isSpecialOffer),
+            isPublished: p.isPublished !== undefined ? Boolean(p.isPublished) : true,
+            colors: p.colors || [],
+            images: p.images || [],
+            videos: p.videos || [],
+            specs: p.specs || ({} as any),
+            boxContents: p.boxContents || [],
+            description: p.description || '',
+            features: p.features || [],
+            tieredPricing: p.tieredPricing || null,
+            sortOrder: idx,
+          })
+          .onConflictDoUpdate({
+            target: productsTable.id,
+            set: {
+              sku: p.sku,
+              name: p.name,
+              subtitle: p.subtitle || '',
+              category: p.category,
+              categories: p.categories || [p.category],
+              price: Number(p.price),
+              wholesalePrice: Number(p.wholesalePrice || 0),
+              shippingCostPerOrder: Number(p.shippingCostPerOrder || 0),
+              originalPrice: Number(p.originalPrice),
+              discountPercent: Number(p.discountPercent || 0),
+              rating: Number(p.rating || 5),
+              reviewCount: Number(p.reviewCount || 0),
+              stock: Number(p.stock ?? 10),
+              isNew: Boolean(p.isNew),
+              isSpecialOffer: Boolean(p.isSpecialOffer),
+              isPublished: p.isPublished !== undefined ? Boolean(p.isPublished) : true,
+              colors: p.colors || [],
+              images: p.images || [],
+              videos: p.videos || [],
+              specs: p.specs || ({} as any),
+              boxContents: p.boxContents || [],
+              description: p.description || '',
+              features: p.features || [],
+              tieredPricing: p.tieredPricing || null,
+              sortOrder: idx,
+            },
+          });
+      }
+      if (cachedSnapshot) {
+        cachedSnapshot.products = payload.products;
+      }
     }
 
     if (Array.isArray(payload.categories) && payload.categories.length > 0) {
-      await db.delete(categoriesTable);
-      await db.insert(categoriesTable).values(
-        payload.categories.map((c, idx) => ({
-          id: c.id,
-          name: c.name,
-          slug: c.slug,
-          count: Number(c.count) || 0,
-          sortOrder: idx,
-        }))
-      );
+      for (let idx = 0; idx < payload.categories.length; idx++) {
+        const c = payload.categories[idx];
+        await db
+          .insert(categoriesTable)
+          .values({
+            id: c.id,
+            name: c.name,
+            slug: c.slug,
+            count: Number(c.count) || 0,
+            sortOrder: idx,
+          })
+          .onConflictDoUpdate({
+            target: categoriesTable.id,
+            set: {
+              name: c.name,
+              slug: c.slug,
+              count: Number(c.count) || 0,
+              sortOrder: idx,
+            },
+          });
+      }
+      if (cachedSnapshot) {
+        cachedSnapshot.categories = payload.categories;
+      }
     }
 
     if (payload.settings) {
@@ -1217,7 +1396,7 @@ export async function syncStoreDataDb(payload: {
       }
     }
 
-    invalidateStoreCache();
+    bumpStoreCacheVersion();
   } catch (error) {
     console.error('Database query failed in syncStoreDataDb:', error);
     throw new Error('Failed to synchronize store data with database.', { cause: error });
