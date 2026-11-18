@@ -871,7 +871,13 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                     activeTab === 'desc' ? 'text-[#b8860b]' : 'text-gray-400'
                   }`}
                 />
-                <span>{isFr ? 'Description & Détails' : 'وصف الساعة ومميزاتها'}</span>
+                <span>
+                  {isFr
+                    ? 'Description & Détails'
+                    : product.category?.includes('accessories') || product.categories?.includes('accessories')
+                    ? 'وصف المنتج ومميزاته'
+                    : 'وصف الساعة ومميزاتها'}
+                </span>
               </button>
 
               <button
@@ -1164,35 +1170,64 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
             )}
 
             {/* 4. Care & Warranty */}
-            {activeTab === 'care' && (
-              <div className="max-w-3xl space-y-4 text-xs sm:text-sm text-gray-700 leading-relaxed">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  {isFr ? 'Conditions de garantie & entretien' : 'شروط الضمان والعناية بالساعة'}
-                </h3>
-                <p>
-                  {isFr
-                    ? "Chaque montre Noblewatch est fabriquée en acier inoxydable de haute qualité avec un placage durable. Pour préserver son éclat pendant des années :"
-                    : 'ساعة Noblewatch مصنوعة من أجود أنواع الفولاذ المقاوم للصدأ ومطلية بتقنيات كهربائية متقدمة. للحفاظ على لمعانها لعشرات السنين:'}
-                </p>
-                <ul className={`list-disc list-inside space-y-2 text-gray-700 ${isFr ? 'pl-2' : 'pr-2'}`}>
-                  {isFr ? (
-                    <>
-                      <li>Évitez le contact direct avec les parfums concentrés ou produits chimiques.</li>
-                      <li>Nettoyez le verre et le boîtier avec un chiffon doux en microfibre.</li>
-                      <li>Assurez-vous que la couronne est bien fermée avant tout contact avec l’eau.</li>
-                      <li>La garantie couvre tout défaut de fabrication du mouvement avec réparation ou remplacement gratuit pendant 1 an via votre certificat de garantie officiel remis à l’achat.</li>
-                    </>
-                  ) : (
-                    <>
-                      <li>تجنب تعريض الساعة مباشرة للعطور المركزة أو المنظفات الكيميائية الحارقة.</li>
-                      <li>امسح زجاج وهيكل الساعة بقطعة قماش ناعمة (Microfiber) عند الحاجة.</li>
-                      <li>تأكد من إحكام إغلاق تاج ضبط الوقت (Crown) قبل أي تلامس مع الماء.</li>
-                      <li>عند شراء أي منتج يحصل الزبون على شهادة ضمان رسمية لمدة سنة كاملة تشمل صيانة أو استبدال أي عطب مصنعي في المحرك مجاناً.</li>
-                    </>
-                  )}
-                </ul>
-              </div>
-            )}
+            {activeTab === 'care' && (() => {
+              const isAccessory =
+                product.category?.includes('accessories') ||
+                Boolean(product.categories?.includes('accessories'));
+              return (
+                <div className="max-w-3xl space-y-4 text-xs sm:text-sm text-gray-700 leading-relaxed">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    {isFr
+                      ? 'Conditions de garantie & entretien'
+                      : isAccessory
+                      ? 'شروط الضمان والعناية بالإكسسوار'
+                      : 'شروط الضمان والعناية بالساعة'}
+                  </h3>
+                  <p>
+                    {isFr
+                      ? isAccessory
+                        ? "Chaque accessoire Noblewatch est fabriqué avec des matériaux sélectionnés (cuir véritable, acier inoxydable 316L et pierres naturelles). Pour préserver son éclat pendant des années :"
+                        : "Chaque montre Noblewatch est fabriquée en acier inoxydable de haute qualité avec un placage durable. Pour préserver son éclat pendant des années :"
+                      : isAccessory
+                      ? 'كل إكسسوار في Noblewatch مصنوع من خامات منتقاة بعناية (الجلد الطبيعي، الفولاذ المقاوم للصدأ 316L، والأحجار الطبيعية). للحفاظ على جودته ولمعانه:'
+                      : 'ساعة Noblewatch مصنوعة من أجود أنواع الفولاذ المقاوم للصدأ ومطلية بتقنيات كهربائية متقدمة. للحفاظ على لمعانها لعشرات السنين:'}
+                  </p>
+                  <ul className={`list-disc list-inside space-y-2 text-gray-700 ${isFr ? 'pl-2' : 'pr-2'}`}>
+                    {isFr ? (
+                      isAccessory ? (
+                        <>
+                          <li>Évitez le contact direct avec les parfums concentrés, le chlore ou produits chimiques.</li>
+                          <li>Essuyez les parties métalliques et le cuir avec un chiffon doux et sec après usage.</li>
+                          <li>Rangez votre bracelet dans son pochon ou coffret à l’abri de l’humidité excessive.</li>
+                          <li>La garantie couvre tout défaut de fabrication du fermoir ou du matériau pendant 1 an via votre certificat officiel.</li>
+                        </>
+                      ) : (
+                        <>
+                          <li>Évitez le contact direct avec les parfums concentrés ou produits chimiques.</li>
+                          <li>Nettoyez le verre et le boîtier avec un chiffon doux en microfibre.</li>
+                          <li>Assurez-vous que la couronne est bien fermée avant tout contact avec l’eau.</li>
+                          <li>La garantie couvre tout défaut de fabrication du mouvement avec réparation ou remplacement gratuit pendant 1 an via votre certificat de garantie officiel remis à l’achat.</li>
+                        </>
+                      )
+                    ) : isAccessory ? (
+                      <>
+                        <li>تجنب تعريض السوار مباشرة للعطور المركزة أو المواد الكيميائية للحفاظ على ثبات اللون.</li>
+                        <li>امسح الأجزاء المعدنية والجلد بقطعة قماش ناعمة وجافة بعد الاستعمال.</li>
+                        <li>يُفضل حفظ السوار في علبته الخاصة بعيداً عن الرطوبة العالية.</li>
+                        <li>عند شراء أي منتج يحصل الزبون على شهادة ضمان رسمية لمدة سنة كاملة ضد أي عيب مصنعي في القفل أو الخامة.</li>
+                      </>
+                    ) : (
+                      <>
+                        <li>تجنب تعريض الساعة مباشرة للعطور المركزة أو المنظفات الكيميائية الحارقة.</li>
+                        <li>امسح زجاج وهيكل الساعة بقطعة قماش ناعمة (Microfiber) عند الحاجة.</li>
+                        <li>تأكد من إحكام إغلاق تاج ضبط الوقت (Crown) قبل أي تلامس مع الماء.</li>
+                        <li>عند شراء أي منتج يحصل الزبون على شهادة ضمان رسمية لمدة سنة كاملة تشمل صيانة أو استبدال أي عطب مصنعي في المحرك مجاناً.</li>
+                      </>
+                    )}
+                  </ul>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
@@ -1210,7 +1245,13 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                 <span>{isFr ? 'Avis vérifiés des acheteurs' : 'تقييمات وتعليقات موثقة من مشترين حقيقيين'}</span>
               </div>
               <h2 className="text-2xl sm:text-3xl font-black text-gray-900">
-                {isFr ? 'Avis de nos clients sur cette montre ⭐' : 'شنو قالو زبناءنا على الساعة؟ ⭐'}
+                {isFr
+                  ? product.category?.includes('accessories') || product.categories?.includes('accessories')
+                    ? 'Avis de nos clients sur ce produit ⭐'
+                    : 'Avis de nos clients sur cette montre ⭐'
+                  : product.category?.includes('accessories') || product.categories?.includes('accessories')
+                  ? 'شنو قالو زبناءنا على هاد المنتج؟ ⭐'
+                  : 'شنو قالو زبناءنا على الساعة؟ ⭐'}
               </h2>
               <div className="flex flex-wrap items-center gap-2 pt-0.5">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-extrabold text-emerald-800">

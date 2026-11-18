@@ -62,8 +62,10 @@ import { SocialLinks, StorePolicies, SecurityBlockLog, OrderSecuritySettings, Tr
 import {
   extractFacebookPixelId,
   extractGoogleTagId,
+  extractTiktokPixelId,
   isValidFacebookPixelId,
   isValidGoogleTagId,
+  isValidTiktokPixelId,
   getGoogleTagType,
   initTrackingPixels,
   runPixelVerificationTest,
@@ -1148,6 +1150,8 @@ export const AdminDashboard: React.FC = () => {
     googleEnabled: false,
     googleTagId: '',
     googleAdsConversionLabel: '',
+    tiktokEnabled: false,
+    tiktokPixelId: '',
   };
 
   const currentTrackingPixels: TrackingPixelsSettings = {
@@ -1216,6 +1220,8 @@ export const AdminDashboard: React.FC = () => {
         googleEnabled: Boolean(source.trackingPixels?.googleEnabled),
         googleTagId: extractGoogleTagId(source.trackingPixels?.googleTagId),
         googleAdsConversionLabel: String(source.trackingPixels?.googleAdsConversionLabel || '').trim(),
+        tiktokEnabled: Boolean(source.trackingPixels?.tiktokEnabled),
+        tiktokPixelId: extractTiktokPixelId(source.trackingPixels?.tiktokPixelId),
       };
       const cleanedTarget: StoreSettings = {
         ...source,
@@ -1268,12 +1274,15 @@ export const AdminDashboard: React.FC = () => {
     };
     const fbId = extractFacebookPixelId(basePixels.facebookPixelId);
     const gId = extractGoogleTagId(basePixels.googleTagId);
+    const ttId = extractTiktokPixelId(basePixels.tiktokPixelId);
     const cleanedPixels: TrackingPixelsSettings = {
       facebookEnabled: Boolean(basePixels.facebookEnabled),
       facebookPixelId: fbId,
       googleEnabled: Boolean(basePixels.googleEnabled),
       googleTagId: gId,
       googleAdsConversionLabel: String(basePixels.googleAdsConversionLabel || '').trim(),
+      tiktokEnabled: Boolean(basePixels.tiktokEnabled),
+      tiktokPixelId: ttId,
     };
 
     if (cleanedPixels.facebookEnabled && !isValidFacebookPixelId(cleanedPixels.facebookPixelId)) {
@@ -1284,6 +1293,12 @@ export const AdminDashboard: React.FC = () => {
 
     if (cleanedPixels.googleEnabled && !isValidGoogleTagId(cleanedPixels.googleTagId)) {
       showToast('معرف Google Pixel غير صالح — يجب أن يبدأ بـ G- أو AW- أو GTM-', 'error');
+      setPixelReport(getPixelDiagnostics(cleanedPixels));
+      return;
+    }
+
+    if (cleanedPixels.tiktokEnabled && !isValidTiktokPixelId(cleanedPixels.tiktokPixelId)) {
+      showToast('معرف TikTok Pixel غير صالح — يجب أن يتكون من 10 إلى 30 حرفاً ورقماً فقط (مثل CXXXXXXXXXXXXXXX)', 'error');
       setPixelReport(getPixelDiagnostics(cleanedPixels));
       return;
     }
@@ -1306,7 +1321,8 @@ export const AdminDashboard: React.FC = () => {
       if (savedOk) {
         const fbOk = !cleanedPixels.facebookEnabled || (report.facebook.formatValid && report.facebook.sdkReady);
         const gOk = !cleanedPixels.googleEnabled || (report.google.formatValid && report.google.sdkReady);
-        if (fbOk && gOk) {
+        const ttOk = !cleanedPixels.tiktokEnabled || (report.tiktok.formatValid && report.tiktok.sdkReady);
+        if (fbOk && gOk && ttOk) {
           showToast('تم حفظ إعدادات البيكسل وروابط التواصل والتحقق من اشتغالها بنجاح', 'success');
         }
       }
@@ -5112,7 +5128,7 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 2b. Facebook Pixel & Google Pixel Tracking + Live Verification */}
+                {/* 2b. Facebook, Google & TikTok Pixel Tracking + Live Verification */}
                 <div className="p-6 rounded-2xl bg-[#151822] border border-[#c5a869]/30 space-y-5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
                     <div className="flex items-center gap-2.5">
@@ -5121,7 +5137,7 @@ export const AdminDashboard: React.FC = () => {
                       </div>
                       <div>
                         <h4 className="text-sm font-bold text-white">
-                          ربط بيكسل التتبع والإعلانات (Facebook Pixel & Google Pixel)
+                          ربط بيكسل التتبع والإعلانات (Facebook Pixel, Google Pixel & TikTok Pixel)
                         </h4>
                         <p className="text-[11px] text-gray-400">
                           تتبع تلقائي لجميع أحداث التجارة الإلكترونية (مشاهدة المنتج، الإضافة للسلة، بدء الطلب، الشراء بعملة MAD)
@@ -5148,7 +5164,7 @@ export const AdminDashboard: React.FC = () => {
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-xs">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs">
                     {/* Facebook / Meta Pixel Card */}
                     <div className="p-4 rounded-xl bg-[#1b1f2b] border border-white/10 space-y-3">
                       <div className="flex items-center justify-between">
@@ -5415,6 +5431,131 @@ export const AdminDashboard: React.FC = () => {
                             <div className="text-[10px] text-emerald-300 font-bold flex items-center gap-1">
                               <Check className="w-3 h-3" />
                               <span>تم إرسال حدث اختباري (pixel_verification_test) بنجاح</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* TikTok Pixel Card */}
+                    <div className="p-4 rounded-xl bg-[#1b1f2b] border border-white/10 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-pink-500/15 flex items-center justify-center text-pink-400">
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                            </svg>
+                          </div>
+                          <div>
+                            <span className="font-bold text-white block">TikTok Pixel</span>
+                            <span className="text-[10px] text-gray-400">TikTok Ads Manager</span>
+                          </div>
+                        </div>
+
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <span className="text-[11px] text-gray-300 font-semibold">
+                            {currentTrackingPixels.tiktokEnabled ? 'مفعل' : 'معطل'}
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={Boolean(currentTrackingPixels.tiktokEnabled)}
+                            onChange={(e) =>
+                              updateTrackingPixelField('tiktokEnabled', e.target.checked)
+                            }
+                            className="w-4 h-4 accent-[#c5a869] cursor-pointer"
+                          />
+                        </label>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-gray-300 font-semibold">
+                            معرف TikTok Pixel ID
+                          </label>
+                          {currentTrackingPixels.tiktokPixelId && (
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                isValidTiktokPixelId(currentTrackingPixels.tiktokPixelId)
+                                  ? 'bg-emerald-500/15 text-emerald-300'
+                                  : 'bg-rose-500/15 text-rose-300'
+                              }`}
+                            >
+                              {isValidTiktokPixelId(currentTrackingPixels.tiktokPixelId)
+                                ? 'صيغة صحيحة'
+                                : 'صيغة غير صالحة (10-30 حرفاً ورقماً)'}
+                            </span>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          value={currentTrackingPixels.tiktokPixelId || ''}
+                          onChange={(e) => {
+                            const extracted = extractTiktokPixelId(e.target.value);
+                            const wasValid = isValidTiktokPixelId(currentTrackingPixels.tiktokPixelId);
+                            if (!extracted) {
+                              updateTrackingPixelFields({
+                                tiktokPixelId: '',
+                                tiktokEnabled: false,
+                              });
+                            } else if (!wasValid && isValidTiktokPixelId(extracted)) {
+                              updateTrackingPixelFields({
+                                tiktokPixelId: extracted,
+                                tiktokEnabled: true,
+                              });
+                            } else {
+                              updateTrackingPixelField('tiktokPixelId', extracted);
+                            }
+                          }}
+                          placeholder="مثال: CXXXXXXXXXXXXXXX (أو الصق كود البيكسل)"
+                          className="w-full bg-[#151822] border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-pink-500 text-left font-mono"
+                          dir="ltr"
+                        />
+                        <p className="text-[10px] text-gray-500 mt-1">
+                          الأحداث المرسلة تلقائياً: PageView، ViewContent، AddToCart، InitiateCheckout، CompletePayment
+                        </p>
+                      </div>
+
+                      {/* TikTok Diagnostic Result */}
+                      {pixelReport && (
+                        <div
+                          className={`p-3 rounded-xl border text-[11px] space-y-1.5 ${
+                            !pixelReport.tiktok.enabled
+                              ? 'bg-gray-900/40 border-white/10 text-gray-400'
+                              : pixelReport.tiktok.scriptState === 'loaded' &&
+                                pixelReport.tiktok.sdkReady
+                              ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300'
+                              : pixelReport.tiktok.scriptState === 'blocked' &&
+                                pixelReport.tiktok.formatValid
+                              ? 'bg-amber-950/40 border-amber-500/30 text-amber-300'
+                              : !pixelReport.tiktok.formatValid
+                              ? 'bg-rose-950/40 border-rose-500/30 text-rose-300'
+                              : 'bg-blue-950/40 border-blue-500/30 text-blue-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between font-bold">
+                            <span className="flex items-center gap-1.5">
+                              {!pixelReport.tiktok.enabled ? (
+                                <Clock className="w-3.5 h-3.5" />
+                              ) : pixelReport.tiktok.scriptState === 'loaded' &&
+                                pixelReport.tiktok.sdkReady ? (
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                              ) : pixelReport.tiktok.scriptState === 'blocked' &&
+                                pixelReport.tiktok.formatValid ? (
+                                <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                              ) : (
+                                <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                              )}
+                              <span>حالة TikTok Pixel:</span>
+                            </span>
+                            <span className="font-mono text-[10px]">
+                              {pixelReport.tiktok.sdkReady ? 'ttq() جاهز' : 'ttq غير مهيأ'}
+                            </span>
+                          </div>
+                          <p className="leading-relaxed opacity-95">{pixelReport.tiktok.note}</p>
+                          {pixelReport.tiktok.testEventDispatched && (
+                            <div className="text-[10px] text-emerald-300 font-bold flex items-center gap-1">
+                              <Check className="w-3 h-3" />
+                              <span>تم إرسال حدث اختباري (NoblewatchPixelVerify) بنجاح</span>
                             </div>
                           )}
                         </div>

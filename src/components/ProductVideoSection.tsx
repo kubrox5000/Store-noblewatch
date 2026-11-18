@@ -73,29 +73,6 @@ const CATEGORY_FILTERS: CategoryFilterDef[] = [
   { id: 'women-accessories', label: 'إكسسوارات نساء', labelFr: 'Accessoires Femme', icon: Sparkle, group: 'accessories' },
 ];
 
-const VERIFIED_WATCH_VIDEOS = [
-  '/videos/video_prod-1.mp4',
-  '/videos/video_prod-2.mp4',
-  '/videos/video_prod-3.mp4',
-  '/videos/video_prod-4.mp4',
-  '/videos/video_prod-5.mp4',
-  '/videos/video_prod-6.mp4',
-];
-
-const VERIFIED_MEN_ACC_VIDEOS = [
-  '/videos/video_prod-acc-men-1.mp4',
-  '/videos/video_prod-acc-men-2.mp4',
-  '/videos/video_prod-acc-men-3.mp4',
-  '/videos/video_prod-acc-men-4.mp4',
-];
-
-const VERIFIED_WOMEN_ACC_VIDEOS = [
-  '/videos/video_prod-acc-women-1.mp4',
-  '/videos/video_prod-acc-women-2.mp4',
-  '/videos/video_prod-acc-women-3.mp4',
-  '/videos/video_prod-acc-women-4.mp4',
-];
-
 const INITIAL_VIDEO_LIMIT = 6;
 const VIDEO_LIMIT_STEP = 9;
 
@@ -121,16 +98,6 @@ const matchesVideoFilter = (p: Product, filterId: VideoCategoryFilterId): boolea
     default:
       return true;
   }
-};
-
-const resolveFallbackVideoUrl = (prod: Product, index: number): string => {
-  if (prod.category === 'men-accessories' || prod.categories?.includes('men-accessories')) {
-    return VERIFIED_MEN_ACC_VIDEOS[index % VERIFIED_MEN_ACC_VIDEOS.length];
-  }
-  if (prod.category === 'women-accessories' || prod.categories?.includes('women-accessories')) {
-    return VERIFIED_WOMEN_ACC_VIDEOS[index % VERIFIED_WOMEN_ACC_VIDEOS.length];
-  }
-  return VERIFIED_WATCH_VIDEOS[index % VERIFIED_WATCH_VIDEOS.length];
 };
 
 export const ProductVideoSection: React.FC = () => {
@@ -171,26 +138,30 @@ export const ProductVideoSection: React.FC = () => {
 
   const allVideos = useMemo<VideoItem[]>(() => {
     const items: VideoItem[] = [];
-    products.forEach((prod, index) => {
-      if (prod.videos && Array.isArray(prod.videos) && prod.videos.length > 0) {
-        prod.videos.forEach((vid) => {
-          items.push({
-            product: prod,
-            video: vid,
-          });
-        });
-      } else {
+    products.forEach((prod) => {
+      if (!prod.isPublished) return;
+      if (!Array.isArray(prod.videos) || prod.videos.length === 0) return;
+
+      prod.videos.forEach((vid, vIdx) => {
+        const trimmedUrl = typeof vid?.url === 'string' ? vid.url.trim() : '';
+        if (!trimmedUrl) return;
         items.push({
           product: prod,
           video: {
-            title: `معاينة حقيقية 360° وتفاصيل ${prod.name}`,
-            url: resolveFallbackVideoUrl(prod, index),
-            poster: prod.images[0] || '/assets/watches_and_accessories_hero.jpg',
-            aspect: '16:9',
-            duration: '0:45',
+            ...vid,
+            url: trimmedUrl,
+            title:
+              (typeof vid.title === 'string' && vid.title.trim()) ||
+              `معاينة حقيقية 360° وتفاصيل ${prod.name}${prod.videos.length > 1 ? ` (${vIdx + 1})` : ''}`,
+            poster:
+              (typeof vid.poster === 'string' && vid.poster.trim()) ||
+              prod.images?.[0] ||
+              '/assets/watches_and_accessories_hero.jpg',
+            aspect: vid.aspect || '16:9',
+            duration: (typeof vid.duration === 'string' && vid.duration.trim()) || '0:45',
           },
         });
-      }
+      });
     });
     return items;
   }, [products]);

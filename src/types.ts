@@ -197,6 +197,8 @@ export interface TrackingPixelsSettings {
   googleEnabled: boolean;
   googleTagId: string;
   googleAdsConversionLabel?: string;
+  tiktokEnabled: boolean;
+  tiktokPixelId: string;
 }
 
 export interface StoreSettings {

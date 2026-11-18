@@ -744,17 +744,34 @@ export const translateProductFeature = (feat: string, lang: Language): string =>
   if (f.includes('زجاج') || f.includes('خدش')) {
     return 'Verre minéral / saphir traité anti-rayures';
   }
-  if (f.includes('جلد')) {
-    return 'Bracelet en cuir véritable souple et confortable';
+  if (f.includes('أحجار') || f.includes('حجر') || f.includes('أونيكس') || f.includes('أوبسيديان') || f.includes('عين النمر') || f.includes('لافا')) {
+    return 'Perles en pierres naturelles sélectionnées à la main';
+  }
+  if (f.includes('مضفر') || f.includes('جلد طبيعي') || f.includes('جلد')) {
+    return f.includes('سوار') || f.includes('أساور') || f.includes('مضفر')
+      ? 'Cuir véritable tressé souple, durable et agréable au poignet'
+      : 'Bracelet en cuir véritable souple et confortable';
+  }
+  if (f.includes('مغناطيسي')) {
+    return 'Fermoir magnétique sécurisé en acier inoxydable';
+  }
+  if (f.includes('مقاس') || f.includes('تعديل') || f.includes('مناسب لجميع')) {
+    return 'Taille confortable adaptée à la majorité des poignets masculins';
+  }
+  if (f.includes('طقم') || f.includes('متعدد الطبقات')) {
+    return 'Ensemble polyvalent facile à assortir avec une montre ou seul';
+  }
+  if (f.includes('سوار') || f.includes('إكسسوار') || f.includes('معصم')) {
+    return 'Finition raffinée résistante à l’usure quotidienne sans noircir';
   }
   if (f.includes('سيليكون')) {
     return 'Bracelet sport en silicone souple et respirant';
   }
-  if (f.includes('علبة') || f.includes('هدايا')) {
-    return 'Livrée dans un coffret cadeau de luxe avec carte de garantie';
+  if (f.includes('علبة') || f.includes('هدايا') || f.includes('تغليف')) {
+    return 'Livré avec emballage cadeau élégant et certificat de garantie';
   }
-  if (f.includes('قفل') || f.includes('إغلاق')) {
-    return 'Fermoir déployant sécurisé et confortable';
+  if (f.includes('قفل') || f.includes('إغلاق') || f.includes('مشبك') || f.includes('إبزيم')) {
+    return 'Fermoir sécurisé haute robustesse et maintien optimal';
   }
   if (f.includes('قطر') && /\d+/.test(f)) {
     const mm = f.match(/(\d+)/)?.[1];
@@ -769,7 +786,10 @@ export const translateProductFeature = (feat: string, lang: Language): string =>
   if (f.includes('بلوتوث') || f.includes('مكالمات')) {
     return 'Connexion Bluetooth stable avec appels et notifications';
   }
-  return 'Finition horlogère haut de gamme et contrôle qualité certifié';
+  if (f.includes('ثنائي') || f.includes('فضي') || f.includes('ذهبي')) {
+    return 'Placage longue durée résistant à l’oxydation et à l’eau';
+  }
+  return 'Finition haut de gamme et contrôle qualité certifié';
 };
 
 // ============================================================================
@@ -923,14 +943,47 @@ export const translateProductSubtitle = (subtitle: string, lang: Language): stri
   if (SUBTITLE_EXACT_AR_TO_FR[s]) return SUBTITLE_EXACT_AR_TO_FR[s];
 
   const tags: string[] = [];
-  if (s.includes('رجالية')) tags.push('Montre Homme');
-  else if (s.includes('نسائية')) tags.push('Montre Femme');
-  else if (s.includes('إكسسوار')) tags.push('Accessoire de luxe');
-  else tags.push('Montre de luxe');
+  const hasNecklace = /قلادة|قلادت/.test(s);
+  const hasBracelet = /سوار|أساور|براسلي/.test(s);
+  const hasRing = /خاتم|خواتم/.test(s);
+  const hasAnklet = /خلخال/.test(s);
+  const hasHandChain = /سلسلة يد/.test(s);
+  const hasSet = /طقم|أطقم|باك|للأزواج/.test(s);
+  const isWomen = /للنساء|أنثوي|أنثوية|نسائي|نسائية|العروس|الحناء/.test(s);
 
+  if ((hasNecklace && hasBracelet) || (hasSet && (hasNecklace || hasBracelet || /آية الكرسي|يوسر/.test(s)))) {
+    tags.push('Parure Femme de luxe (Collier & Bracelet)');
+  } else if (hasBracelet && hasRing) {
+    tags.push('Parure Femme de luxe (Bracelet & Bague)');
+  } else if (hasHandChain) {
+    tags.push('Chaîne de main Femme de luxe');
+  } else if (hasAnklet) {
+    tags.push('Bracelet de cheville Femme de luxe');
+  } else if (hasRing) {
+    tags.push('Bague Femme de luxe');
+  } else if (hasNecklace) {
+    tags.push('Collier Femme de luxe');
+  } else if (hasBracelet) {
+    tags.push(isWomen ? 'Bracelet Femme de luxe' : 'Bracelet Homme de luxe');
+  } else if (hasSet && !/ساعة|ساعات/.test(s)) {
+    tags.push(isWomen ? 'Parure Femme de luxe' : 'Ensemble Accessoire de luxe');
+  } else if (/إكسسوار|مجوهرات|آية الكرسي|إن مع العسر|يوسر|الحناء/.test(s)) {
+    tags.push('Bijou & Accessoire de luxe');
+  } else if (s.includes('رجالية') || s.includes('رجالي')) {
+    tags.push('Montre Homme');
+  } else if (s.includes('نسائية') || s.includes('نسائي')) {
+    tags.push('Montre Femme');
+  } else {
+    tags.push('Montre de luxe');
+  }
+
+  if (s.includes('جلد')) tags.push('cuir véritable');
+  if (s.includes('أحجار') || s.includes('لافا') || s.includes('أونيكس') || s.includes('أوبسيديان') || s.includes('هيماتيت') || s.includes('عين النمر')) {
+    tags.push('pierres naturelles');
+  }
   if (s.includes('أوتوماتيك')) tags.push('mouvement automatique');
   else if (s.includes('كوارتز')) tags.push('quartz japonais');
-  if (s.includes('فولاذ') || s.includes('مقاوم للصدأ')) tags.push('acier inoxydable');
+  if (s.includes('فولاذ') || s.includes('مقاوم للصدأ') || s.includes('316L')) tags.push('acier inoxydable');
   if (s.includes('مقاوم للماء') || s.includes('مقاومة للماء')) tags.push('résistante à l’eau');
   if (s.includes('سافير') || s.includes('Sapphire')) tags.push('verre saphir');
 
@@ -1032,8 +1085,13 @@ export const translateProductDescription = (description: string, lang: Language)
   }
 
   // Line-by-line intelligent translation for multiline product descriptions
+  const isAccessoryDesc =
+    /سوار|أساور|معصم|أونيكس|لافا|أوبسيديان|هيماتيت|لازورد|إكسسوار|مرساة|قلادة|قلادت|خاتم|خلخال|سلسلة يد|طقم|باك|براسلي|مجوهرات|حناء|آية الكرسي|إن مع العسر|يوسر/.test(
+      normalized
+    );
   const lines = description.replace(/\r\n/g, '\n').split('\n');
   const translatedLines: string[] = [];
+  const seenGeneric = new Set<string>();
 
   for (const rawLine of lines) {
     const trimmed = normalizeSpaces(rawLine);
@@ -1053,13 +1111,34 @@ export const translateProductDescription = (description: string, lang: Language)
       translatedLines.push(`- ${translateProductFeature(trimmed, 'fr')}`);
       continue;
     }
+    if (
+      isAccessoryDesc &&
+      !/سوار|أساور|طقم|قلادة|قلادت|خاتم|خلخال|سلسلة يد|باك|براسلي/.test(trimmed)
+    ) {
+      const candidate = trimmed.includes('ضمان')
+        ? 'Livré dans son coffret cadeau élégant avec garantie officielle d’un an.'
+        : 'Conçu avec des finitions raffinées, idéal à porter au quotidien ou à offrir dans son écrin élégant.';
+      if (!seenGeneric.has(candidate)) {
+        seenGeneric.add(candidate);
+        translatedLines.push(candidate);
+      }
+      continue;
+    }
     const sub = translateProductSubtitle(trimmed, 'fr');
+    let lineOut = '';
     if (trimmed.includes('ضمان')) {
-      translatedLines.push(`${sub}, livrée dans son coffret luxe avec garantie officielle d’un an.`);
+      lineOut = `${sub}, livré dans son coffret soigné avec garantie officielle d’un an.`;
+    } else if (
+      isAccessoryDesc ||
+      /سوار|أساور|معصم|قلادة|قلادت|خاتم|خلخال|طقم|باك|براسلي|سلسلة يد/.test(trimmed)
+    ) {
+      lineOut = `${sub} avec finition soignée, idéal pour sublimer vos tenues quotidiennes et habillées.`;
     } else {
-      translatedLines.push(
-        `${sub} avec finition soignée, idéale pour un usage quotidien et les grandes occasions.`
-      );
+      lineOut = `${sub} avec finition soignée, idéale pour un usage quotidien et les grandes occasions.`;
+    }
+    if (!seenGeneric.has(lineOut)) {
+      seenGeneric.add(lineOut);
+      translatedLines.push(lineOut);
     }
   }
 

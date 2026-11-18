@@ -6,6 +6,7 @@ import { Header } from './components/Header';
 import { HeroSection } from './components/HeroSection';
 import { TrustGuarantees } from './components/TrustGuarantees';
 import { CategoriesSection } from './components/CategoriesSection';
+import { HowToOrderSection } from './components/HowToOrderSection';
 import { ProductGrid } from './components/ProductGrid';
 import { Footer } from './components/Footer';
 import { initTrackingPixels, trackPixelPageView } from './utils/trackingPixels';
@@ -134,6 +135,8 @@ const MainContent: React.FC = () => {
     settings?.trackingPixels?.googleEnabled,
     settings?.trackingPixels?.googleTagId,
     settings?.trackingPixels?.googleAdsConversionLabel,
+    settings?.trackingPixels?.tiktokEnabled,
+    settings?.trackingPixels?.tiktokPixelId,
   ]);
 
   const prevRouteProductIdRef = React.useRef<string | null | undefined>(undefined);
@@ -194,6 +197,7 @@ const MainContent: React.FC = () => {
             <HeroSection />
             <TrustGuarantees />
             <CategoriesSection />
+            <HowToOrderSection />
             <ProductGrid />
             <Suspense fallback={<div className="min-h-[320px] bg-[#f8f9fb]" aria-hidden="true" />}>
               <ProductVideoSection />

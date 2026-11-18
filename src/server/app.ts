@@ -1965,6 +1965,14 @@ app.put('/api/settings', async (req: Request, res: Response) => {
               rawPixels.googleAdsConversionLabel !== undefined
                 ? String(stripBidi(rawPixels.googleAdsConversionLabel) || '')
                 : String(db.settings?.trackingPixels?.googleAdsConversionLabel || ''),
+            tiktokEnabled:
+              rawPixels.tiktokEnabled !== undefined
+                ? Boolean(rawPixels.tiktokEnabled)
+                : Boolean(db.settings?.trackingPixels?.tiktokEnabled),
+            tiktokPixelId:
+              rawPixels.tiktokPixelId !== undefined
+                ? String(stripBidi(rawPixels.tiktokPixelId) || '').toUpperCase()
+                : String(db.settings?.trackingPixels?.tiktokPixelId || ''),
           }
         : {}),
     };

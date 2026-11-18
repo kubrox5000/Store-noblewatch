@@ -23,6 +23,7 @@ export interface PixelsDiagnosticReport {
   checkedAt: string;
   facebook: SinglePixelDiagnostic;
   google: SinglePixelDiagnostic;
+  tiktok: SinglePixelDiagnostic;
   dispatchedEvents: string[];
 }
 
@@ -38,6 +39,8 @@ declare global {
     _fbq?: any;
     dataLayer?: any[];
     gtag?: (...args: any[]) => void;
+    TiktokAnalyticsObject?: string;
+    ttq?: any;
   }
 }
 
@@ -49,14 +52,19 @@ let currentPixelsConfig: TrackingPixelsSettings = {
   googleEnabled: false,
   googleTagId: '',
   googleAdsConversionLabel: '',
+  tiktokEnabled: false,
+  tiktokPixelId: '',
 };
 
 const initializedFacebookIds = new Set<string>();
 const initializedGoogleIds = new Set<string>();
+const initializedTiktokIds = new Set<string>();
 
 let fbScriptState: PixelScriptState = 'disabled';
 let googleScriptState: PixelScriptState = 'disabled';
+let tiktokScriptState: PixelScriptState = 'disabled';
 let fbInitialPageViewSent = false;
+let tiktokInitialPageViewSent = false;
 
 export function extractFacebookPixelId(raw?: string): string {
   const str = String(raw || '').trim();
@@ -85,12 +93,30 @@ export function extractGoogleTagId(raw?: string): string {
   return str.replace(/\s+/g, '');
 }
 
+export function extractTiktokPixelId(raw?: string): string {
+  const str = String(raw || '').trim();
+  if (!str) return '';
+
+  // Match TikTok snippet: ttq.load('CXXXXXXXXXXXXXXX') or events.js?sdkid=CXXXXXXXXXXXXXXX
+  const loadMatch = str.match(/ttq\.load\s*\(\s*['"]([A-Za-z0-9_-]{8,32})['"]/i);
+  if (loadMatch?.[1]) return loadMatch[1].toUpperCase();
+
+  const urlMatch = str.match(/[?&]sdkid=([A-Za-z0-9_-]{8,32})/i);
+  if (urlMatch?.[1]) return urlMatch[1].toUpperCase();
+
+  return str.toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+}
+
 export function normalizeFacebookPixelId(raw?: string): string {
   return extractFacebookPixelId(raw);
 }
 
 export function normalizeGoogleTagId(raw?: string): string {
   return extractGoogleTagId(raw);
+}
+
+export function normalizeTiktokPixelId(raw?: string): string {
+  return extractTiktokPixelId(raw);
 }
 
 export function isValidFacebookPixelId(raw?: string): boolean {
@@ -101,6 +127,11 @@ export function isValidFacebookPixelId(raw?: string): boolean {
 export function isValidGoogleTagId(raw?: string): boolean {
   const id = normalizeGoogleTagId(raw);
   return /^(G-[A-Z0-9]{4,20}|AW-\d{6,16}|GTM-[A-Z0-9]{4,16})$/.test(id);
+}
+
+export function isValidTiktokPixelId(raw?: string): boolean {
+  const id = normalizeTiktokPixelId(raw);
+  return /^[A-Z0-9]{10,30}$/.test(id);
 }
 
 export function getGoogleTagType(raw?: string): 'ga4' | 'ads' | 'gtm' | 'unknown' {
@@ -140,6 +171,57 @@ function ensureGoogleGtagStub() {
     };
     window.gtag('js', new Date());
   }
+}
+
+function ensureTiktokStub() {
+  if (typeof window === 'undefined') return;
+  window.TiktokAnalyticsObject = 'ttq';
+  if (window.ttq && typeof window.ttq.track === 'function' && typeof window.ttq.load === 'function') {
+    return;
+  }
+  const ttq: any = (window.ttq = window.ttq || []);
+  ttq.methods = [
+    'page',
+    'track',
+    'identify',
+    'instances',
+    'debug',
+    'on',
+    'off',
+    'once',
+    'ready',
+    'alias',
+    'group',
+    'enableCookie',
+    'disableCookie',
+    'holdConsent',
+    'revokeConsent',
+    'grantConsent',
+  ];
+  ttq.setAndDefer = function (t: any, e: string) {
+    t[e] = function (...args: any[]) {
+      t.push([e, ...args]);
+    };
+  };
+  for (let i = 0; i < ttq.methods.length; i++) {
+    ttq.setAndDefer(ttq, ttq.methods[i]);
+  }
+  ttq.instance = function (t: string) {
+    const e = ttq._i[t] || [];
+    for (let n = 0; n < ttq.methods.length; n++) {
+      ttq.setAndDefer(e, ttq.methods[n]);
+    }
+    return e;
+  };
+  ttq.load = function (e: string, n?: Record<string, any>) {
+    ttq._i = ttq._i || {};
+    ttq._i[e] = ttq._i[e] || [];
+    ttq._i[e]._u = 'https://analytics.tiktok.com/i18n/pixel/events.js';
+    ttq._t = ttq._t || {};
+    ttq._t[e] = +new Date();
+    ttq._o = ttq._o || {};
+    ttq._o[e] = n || {};
+  };
 }
 
 function loadScriptOnce(
@@ -190,6 +272,8 @@ export function initTrackingPixels(config?: TrackingPixelsSettings | null): void
     googleEnabled: Boolean(config?.googleEnabled),
     googleTagId: normalizeGoogleTagId(config?.googleTagId),
     googleAdsConversionLabel: String(config?.googleAdsConversionLabel || '').trim(),
+    tiktokEnabled: Boolean(config?.tiktokEnabled),
+    tiktokPixelId: normalizeTiktokPixelId(config?.tiktokPixelId),
   };
 
   // 1. Facebook / Meta Pixel initialization
@@ -212,9 +296,7 @@ export function initTrackingPixels(config?: TrackingPixelsSettings | null): void
         }
       }
 
-      if (fbScriptState !== 'loaded') {
-        fbScriptState = 'loading';
-      }
+      fbScriptState = 'loading';
       loadScriptOnce(
         'noblewatch-fb-pixel-script',
         'https://connect.facebook.net/en_US/fbevents.js',
@@ -248,9 +330,7 @@ export function initTrackingPixels(config?: TrackingPixelsSettings | null): void
           window.dataLayer.push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
           initializedGoogleIds.add(gId);
         }
-        if (googleScriptState !== 'loaded') {
-          googleScriptState = 'loading';
-        }
+        googleScriptState = 'loading';
         loadScriptOnce(
           'noblewatch-google-pixel-script',
           `https://www.googletagmanager.com/gtm.js?id=${encodeURIComponent(gId)}`,
@@ -267,9 +347,7 @@ export function initTrackingPixels(config?: TrackingPixelsSettings | null): void
           window.gtag?.('config', gId, { send_page_view: true });
           initializedGoogleIds.add(gId);
         }
-        if (googleScriptState !== 'loaded') {
-          googleScriptState = 'loading';
-        }
+        googleScriptState = 'loading';
         loadScriptOnce(
           'noblewatch-google-pixel-script',
           `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gId)}`,
@@ -284,6 +362,42 @@ export function initTrackingPixels(config?: TrackingPixelsSettings | null): void
     }
   } catch {
     googleScriptState = 'blocked';
+  }
+
+  // 3. TikTok Pixel initialization
+  try {
+    if (!currentPixelsConfig.tiktokEnabled) {
+      tiktokScriptState = 'disabled';
+    } else if (!currentPixelsConfig.tiktokPixelId) {
+      tiktokScriptState = 'missing_id';
+    } else if (!isValidTiktokPixelId(currentPixelsConfig.tiktokPixelId)) {
+      tiktokScriptState = 'invalid_id';
+    } else {
+      ensureTiktokStub();
+      const ttId = currentPixelsConfig.tiktokPixelId;
+      if (!initializedTiktokIds.has(ttId)) {
+        window.ttq?.load(ttId);
+        initializedTiktokIds.add(ttId);
+        if (!tiktokInitialPageViewSent) {
+          window.ttq?.page();
+          tiktokInitialPageViewSent = true;
+        }
+      }
+
+      tiktokScriptState = 'loading';
+      loadScriptOnce(
+        'noblewatch-tiktok-pixel-script',
+        `https://analytics.tiktok.com/i18n/pixel/events.js?sdkid=${encodeURIComponent(ttId)}&lib=ttq`,
+        () => {
+          tiktokScriptState = 'loaded';
+        },
+        () => {
+          tiktokScriptState = 'blocked';
+        }
+      );
+    }
+  } catch {
+    tiktokScriptState = 'blocked';
   }
 }
 
@@ -302,6 +416,16 @@ function isGoogleActive(): boolean {
     currentPixelsConfig.googleEnabled &&
     isValidGoogleTagId(currentPixelsConfig.googleTagId) &&
     (typeof window.gtag === 'function' || Array.isArray(window.dataLayer))
+  );
+}
+
+function isTiktokReady(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    currentPixelsConfig.tiktokEnabled &&
+    isValidTiktokPixelId(currentPixelsConfig.tiktokPixelId) &&
+    Boolean(window.ttq) &&
+    typeof window.ttq.track === 'function'
   );
 }
 
@@ -326,6 +450,9 @@ export function trackPixelPageView(pageTitle?: string): void {
         page_title: pageTitle || (typeof document !== 'undefined' ? document.title : ''),
         page_location: typeof window !== 'undefined' ? window.location.href : '',
       });
+    }
+    if (isTiktokReady()) {
+      window.ttq?.page();
     }
   } catch {
     // Silent guard against third-party blockers
@@ -359,6 +486,21 @@ export function trackPixelViewContent(product: Product): void {
             quantity: 1,
           },
         ],
+      });
+    }
+    if (isTiktokReady()) {
+      window.ttq?.track('ViewContent', {
+        contents: [
+          {
+            content_id: product.id,
+            content_name: product.name,
+            content_type: 'product',
+            price,
+            quantity: 1,
+          },
+        ],
+        value: price,
+        currency: DEFAULT_CURRENCY,
       });
     }
   } catch {
@@ -403,6 +545,21 @@ export function trackPixelAddToCart(
         ],
       });
     }
+    if (isTiktokReady()) {
+      window.ttq?.track('AddToCart', {
+        contents: [
+          {
+            content_id: product.id,
+            content_name: product.name,
+            content_type: 'product',
+            price,
+            quantity: qty,
+          },
+        ],
+        value: totalValue,
+        currency: DEFAULT_CURRENCY,
+      });
+    }
   } catch {
     // Silent guard
   }
@@ -436,6 +593,19 @@ export function trackPixelInitiateCheckout(params: {
           price: Number(it.price) || 0,
           quantity: Number(it.quantity) || 1,
         })),
+      });
+    }
+    if (isTiktokReady()) {
+      window.ttq?.track('InitiateCheckout', {
+        contents: params.items.map((it) => ({
+          content_id: it.id,
+          content_name: it.name,
+          content_type: 'product',
+          price: Number(it.price) || 0,
+          quantity: Number(it.quantity) || 1,
+        })),
+        value: totalValue,
+        currency: DEFAULT_CURRENCY,
       });
     }
   } catch {
@@ -488,6 +658,21 @@ export function trackPixelPurchase(params: {
         });
       }
     }
+
+    if (isTiktokReady()) {
+      window.ttq?.track('CompletePayment', {
+        contents: items.map((it) => ({
+          content_id: it.productId,
+          content_name: it.name,
+          content_type: 'product',
+          price: Number(it.price) || 0,
+          quantity: Number(it.quantity) || 1,
+        })),
+        value,
+        currency: DEFAULT_CURRENCY,
+        order_id: params.orderNumber,
+      });
+    }
   } catch {
     // Silent guard
   }
@@ -529,6 +714,24 @@ function describeGoogleState(
   return sdkReady ? 'تم تجهيز طبقة البيانات (dataLayer) بنجاح.' : 'في انتظار التحميل.';
 }
 
+function describeTiktokState(
+  enabled: boolean,
+  id: string,
+  formatValid: boolean,
+  state: PixelScriptState,
+  sdkReady: boolean
+): string {
+  if (!enabled) return 'TikTok Pixel غير مفعل حالياً في الإعدادات.';
+  if (!id) return 'يرجى إدخال معرف TikTok Pixel ID (مثل CXXXXXXXXXXXXXXX).';
+  if (!formatValid) return 'صيغة المعرف غير صالحة (يجب أن يتكون من 10 إلى 30 حرفاً ورقماً فقط).';
+  if (state === 'loaded' && sdkReady) return 'تم تحميل سكريبت TikTok Pixel وتفعيله بنجاح دون أخطاء.';
+  if (state === 'blocked') {
+    return 'المعرف والتهيئة سليمان، لكن المتصفح أو مانع الإعلانات (AdBlocker) منع تحميل analytics.tiktok.com.';
+  }
+  if (state === 'loading') return 'جاري الاتصال بخوادم TikTok وتحميل السكريبت...';
+  return sdkReady ? 'تم تجهيز واجهة ttq() بنجاح.' : 'في انتظار التحميل.';
+}
+
 export function getPixelDiagnostics(config?: TrackingPixelsSettings | null): PixelsDiagnosticReport {
   const fbEnabled = Boolean(config?.facebookEnabled);
   const fbId = normalizeFacebookPixelId(config?.facebookPixelId);
@@ -541,6 +744,14 @@ export function getPixelDiagnostics(config?: TrackingPixelsSettings | null): Pix
   const gSdkReady =
     typeof window !== 'undefined' &&
     (typeof window.gtag === 'function' || Array.isArray(window.dataLayer));
+
+  const ttEnabled = Boolean(config?.tiktokEnabled);
+  const ttId = normalizeTiktokPixelId(config?.tiktokPixelId);
+  const ttValid = isValidTiktokPixelId(ttId);
+  const ttSdkReady =
+    typeof window !== 'undefined' &&
+    Boolean(window.ttq) &&
+    typeof window.ttq.track === 'function';
 
   return {
     checkedAt: new Date().toISOString(),
@@ -562,6 +773,15 @@ export function getPixelDiagnostics(config?: TrackingPixelsSettings | null): Pix
       initialized: gValid && initializedGoogleIds.has(gId),
       note: describeGoogleState(gEnabled, gId, gValid, googleScriptState, gSdkReady),
     },
+    tiktok: {
+      enabled: ttEnabled,
+      id: ttId,
+      formatValid: ttValid,
+      scriptState: tiktokScriptState,
+      sdkReady: ttSdkReady,
+      initialized: ttValid && initializedTiktokIds.has(ttId),
+      note: describeTiktokState(ttEnabled, ttId, ttValid, tiktokScriptState, ttSdkReady),
+    },
     dispatchedEvents: [],
   };
 }
@@ -574,7 +794,7 @@ export async function runPixelVerificationTest(
   // Allow network script onload/onerror up to 2.2s if still loading
   const start = Date.now();
   while (
-    (fbScriptState === 'loading' || googleScriptState === 'loading') &&
+    (fbScriptState === 'loading' || googleScriptState === 'loading' || tiktokScriptState === 'loading') &&
     Date.now() - start < 2200
   ) {
     await new Promise((r) => setTimeout(r, 150));
@@ -583,6 +803,7 @@ export async function runPixelVerificationTest(
   const dispatchedEvents: string[] = [];
   let fbTestDispatched = false;
   let gTestDispatched = false;
+  let ttTestDispatched = false;
 
   try {
     if (isFbReady()) {
@@ -610,9 +831,23 @@ export async function runPixelVerificationTest(
     // ignore
   }
 
+  try {
+    if (isTiktokReady()) {
+      window.ttq?.track('NoblewatchPixelVerify', {
+        source: 'admin_diagnostics',
+        currency: DEFAULT_CURRENCY,
+      });
+      ttTestDispatched = true;
+      dispatchedEvents.push('TikTok: NoblewatchPixelVerify');
+    }
+  } catch {
+    // ignore
+  }
+
   const report = getPixelDiagnostics(config);
   report.facebook.testEventDispatched = fbTestDispatched;
   report.google.testEventDispatched = gTestDispatched;
+  report.tiktok.testEventDispatched = ttTestDispatched;
   report.dispatchedEvents = dispatchedEvents;
   return report;
 }

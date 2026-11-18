@@ -24,6 +24,11 @@ import type {
   StoreSettings,
   TrackingPixelsSettings,
 } from '../types.ts';
+import {
+  LACOSTE_BRACELETS_CATALOG,
+  MEN_BRACELETS_CATALOG,
+} from './braceletsCatalog.ts';
+import { WOMEN_JEWELRY_CATALOG } from './womenJewelryCatalog.ts';
 
 function normalizeMoroccanCityName(city: string): string {
   const trimmed = String(city || '').trim();
@@ -74,6 +79,8 @@ export const DEFAULT_TRACKING_PIXELS: TrackingPixelsSettings = {
   googleEnabled: false,
   googleTagId: '',
   googleAdsConversionLabel: '',
+  tiktokEnabled: false,
+  tiktokPixelId: '',
 };
 
 export const DEFAULT_PROMO_CODES: PromoCode[] = [
@@ -478,6 +485,186 @@ export async function ensureDatabaseSchema(): Promise<void> {
   schemaEnsured = true;
 }
 
+// Idempotently seed the 20 men's fashion bracelets into whichever PostgreSQL DB is active (at most once)
+async function ensureMenBraceletsSeeded(): Promise<void> {
+  const existingBr = await db
+    .select({ id: productsTable.id })
+    .from(productsTable)
+    .where(sql`${productsTable.id} LIKE 'prod-br-%'`)
+    .limit(1);
+
+  if (existingBr.length > 0) {
+    return;
+  }
+
+  await db
+    .insert(categoriesTable)
+    .values({
+      id: 'men-accessories',
+      name: 'إكسسوارات رجالية',
+      slug: 'men-accessories',
+      count: MEN_BRACELETS_CATALOG.length,
+      sortOrder: 3,
+    })
+    .onConflictDoNothing();
+
+  await db
+    .insert(productsTable)
+    .values(
+      MEN_BRACELETS_CATALOG.map((p) => ({
+        id: p.id,
+        sku: p.sku,
+        name: p.name,
+        subtitle: p.subtitle,
+        category: p.category,
+        categories: p.categories,
+        price: p.price,
+        wholesalePrice: p.wholesalePrice,
+        shippingCostPerOrder: p.shippingCostPerOrder,
+        originalPrice: p.originalPrice,
+        discountPercent: p.discountPercent,
+        rating: p.rating,
+        reviewCount: p.reviewCount,
+        stock: p.stock,
+        isNew: p.isNew,
+        isSpecialOffer: p.isSpecialOffer,
+        isPublished: p.isPublished,
+        colors: p.colors,
+        images: p.images,
+        videos: p.videos,
+        specs: p.specs,
+        boxContents: p.boxContents,
+        description: p.description,
+        features: p.features,
+        tieredPricing: p.tieredPricing,
+        sortOrder: p.sortOrder,
+      }))
+    )
+    .onConflictDoNothing();
+
+  console.log(`✅ Seeded ${MEN_BRACELETS_CATALOG.length} men's fashion bracelets into PostgreSQL.`);
+}
+
+// Idempotently seed the 5 Lacoste Metropole & Strass bracelets (199 MAD) into the active PostgreSQL DB
+async function ensureLacosteBraceletsSeeded(): Promise<void> {
+  const existingLacoste = await db
+    .select({ id: productsTable.id })
+    .from(productsTable)
+    .where(sql`${productsTable.id} LIKE 'prod-lacoste-%'`)
+    .limit(1);
+
+  if (existingLacoste.length > 0) {
+    return;
+  }
+
+  await db
+    .insert(categoriesTable)
+    .values({
+      id: 'men-accessories',
+      name: 'إكسسوارات رجالية',
+      slug: 'men-accessories',
+      count: MEN_BRACELETS_CATALOG.length + LACOSTE_BRACELETS_CATALOG.length,
+      sortOrder: 3,
+    })
+    .onConflictDoNothing();
+
+  await db
+    .insert(productsTable)
+    .values(
+      LACOSTE_BRACELETS_CATALOG.map((p) => ({
+        id: p.id,
+        sku: p.sku,
+        name: p.name,
+        subtitle: p.subtitle,
+        category: p.category,
+        categories: p.categories,
+        price: p.price,
+        wholesalePrice: p.wholesalePrice,
+        shippingCostPerOrder: p.shippingCostPerOrder,
+        originalPrice: p.originalPrice,
+        discountPercent: p.discountPercent,
+        rating: p.rating,
+        reviewCount: p.reviewCount,
+        stock: p.stock,
+        isNew: p.isNew,
+        isSpecialOffer: p.isSpecialOffer,
+        isPublished: p.isPublished,
+        colors: p.colors,
+        images: p.images,
+        videos: p.videos,
+        specs: p.specs,
+        boxContents: p.boxContents,
+        description: p.description,
+        features: p.features,
+        tieredPricing: p.tieredPricing,
+        sortOrder: p.sortOrder,
+      }))
+    )
+    .onConflictDoNothing();
+
+  console.log(`✅ Seeded ${LACOSTE_BRACELETS_CATALOG.length} Lacoste men's bracelets (199 MAD) into PostgreSQL.`);
+}
+
+// Idempotently seed the 22 women's jewelry items under 'women-accessories' into PostgreSQL
+async function ensureWomenJewelrySeeded(): Promise<void> {
+  const existingWj = await db
+    .select({ id: productsTable.id })
+    .from(productsTable)
+    .where(sql`${productsTable.id} LIKE 'prod-wj-%'`)
+    .limit(1);
+
+  if (existingWj.length > 0) {
+    return;
+  }
+
+  await db
+    .insert(categoriesTable)
+    .values({
+      id: 'women-accessories',
+      name: 'إكسسوارات نسائية',
+      slug: 'women-accessories',
+      count: WOMEN_JEWELRY_CATALOG.length,
+      sortOrder: 4,
+    })
+    .onConflictDoNothing();
+
+  await db
+    .insert(productsTable)
+    .values(
+      WOMEN_JEWELRY_CATALOG.map((p) => ({
+        id: p.id,
+        sku: p.sku,
+        name: p.name,
+        subtitle: p.subtitle,
+        category: p.category,
+        categories: p.categories,
+        price: p.price,
+        wholesalePrice: p.wholesalePrice,
+        shippingCostPerOrder: p.shippingCostPerOrder,
+        originalPrice: p.originalPrice,
+        discountPercent: p.discountPercent,
+        rating: p.rating,
+        reviewCount: p.reviewCount,
+        stock: p.stock,
+        isNew: p.isNew,
+        isSpecialOffer: p.isSpecialOffer,
+        isPublished: p.isPublished,
+        colors: p.colors,
+        images: p.images,
+        videos: p.videos,
+        specs: p.specs,
+        boxContents: p.boxContents,
+        description: p.description,
+        features: p.features,
+        tieredPricing: p.tieredPricing,
+        sortOrder: p.sortOrder,
+      }))
+    )
+    .onConflictDoNothing();
+
+  console.log(`✅ Seeded ${WOMEN_JEWELRY_CATALOG.length} women's jewelry items into PostgreSQL.`);
+}
+
 // Lazily import initial data from data/store.json into PostgreSQL only on first request if DB is empty
 async function seedDatabaseIfEmpty(): Promise<void> {
   if (seedPromise) {
@@ -495,6 +682,9 @@ async function seedDatabaseIfEmpty(): Promise<void> {
         .from(productsTable);
 
       if ((settingsCountRow?.count || 0) > 0 || (productsCountRow?.count || 0) > 0) {
+        await ensureMenBraceletsSeeded();
+        await ensureLacosteBraceletsSeeded();
+        await ensureWomenJewelrySeeded();
         return;
       }
 
@@ -680,6 +870,10 @@ async function seedDatabaseIfEmpty(): Promise<void> {
           .onConflictDoNothing();
       }
 
+      await ensureMenBraceletsSeeded();
+      await ensureLacosteBraceletsSeeded();
+      await ensureWomenJewelrySeeded();
+
       console.log('✅ Initialized PostgreSQL database from existing store snapshot.');
     } catch (error) {
       seedPromise = null;
@@ -721,15 +915,34 @@ export async function getStoreSnapshot(): Promise<StoreDatabaseSnapshot> {
       .filter((o) => !deletedSet.has(o.id) && !deletedSet.has(o.orderNumber))
       .map(mapOrderRow);
 
-    const snapshot: StoreDatabaseSnapshot = {
-      settings: buildSettingsObject(settingsRows[0]),
-      categories: categoryRows.map((c) => ({
+    const mappedProducts = productRows.map(mapProductRow);
+    const mappedCategories = categoryRows.map((c) => {
+      if (c.id === 'all' || c.slug === 'all') {
+        return {
+          id: c.id,
+          name: c.name,
+          slug: c.slug,
+          count: mappedProducts.filter((p) => p.isPublished).length,
+        };
+      }
+      const computedCount = mappedProducts.filter(
+        (p) =>
+          p.isPublished &&
+          (p.category === c.id ||
+            (Array.isArray(p.categories) && p.categories.includes(c.id)))
+      ).length;
+      return {
         id: c.id,
         name: c.name,
         slug: c.slug,
-        count: c.count,
-      })),
-      products: productRows.map(mapProductRow),
+        count: computedCount,
+      };
+    });
+
+    const snapshot: StoreDatabaseSnapshot = {
+      settings: buildSettingsObject(settingsRows[0]),
+      categories: mappedCategories,
+      products: mappedProducts,
       orders: cleanOrders,
       reviews: reviewRows.map(mapReviewRow),
       securityLogs: secRows.map((l) => ({
