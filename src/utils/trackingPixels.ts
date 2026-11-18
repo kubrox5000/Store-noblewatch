@@ -58,12 +58,39 @@ let fbScriptState: PixelScriptState = 'disabled';
 let googleScriptState: PixelScriptState = 'disabled';
 let fbInitialPageViewSent = false;
 
+export function extractFacebookPixelId(raw?: string): string {
+  const str = String(raw || '').trim();
+  if (!str) return '';
+  if (/^\d{10,20}$/.test(str)) return str;
+
+  // Match Meta Pixel snippet: fbq('init', '123456789012345') or tr?id=123456789012345
+  const initMatch = str.match(/fbq\s*\(\s*['"]init['"]\s*,\s*['"](\d{10,20})['"]/i);
+  if (initMatch?.[1]) return initMatch[1];
+
+  const urlMatch = str.match(/[?&]id=(\d{10,20})/i);
+  if (urlMatch?.[1]) return urlMatch[1];
+
+  // Match first standalone 10-20 digit sequence
+  const seqMatch = str.match(/\b(\d{10,20})\b/);
+  if (seqMatch?.[1]) return seqMatch[1];
+
+  return str.replace(/[^\d]/g, '');
+}
+
+export function extractGoogleTagId(raw?: string): string {
+  const str = String(raw || '').trim().toUpperCase();
+  if (!str) return '';
+  const match = str.match(/\b(G-[A-Z0-9]{4,20}|AW-\d{6,16}|GTM-[A-Z0-9]{4,16})\b/);
+  if (match?.[1]) return match[1];
+  return str.replace(/\s+/g, '');
+}
+
 export function normalizeFacebookPixelId(raw?: string): string {
-  return String(raw || '').trim();
+  return extractFacebookPixelId(raw);
 }
 
 export function normalizeGoogleTagId(raw?: string): string {
-  return String(raw || '').trim().toUpperCase();
+  return extractGoogleTagId(raw);
 }
 
 export function isValidFacebookPixelId(raw?: string): boolean {

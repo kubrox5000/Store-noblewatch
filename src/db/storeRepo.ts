@@ -843,8 +843,8 @@ export async function createOrderDb(
           stockMap.has(p.id) ? { ...p, stock: stockMap.get(p.id)! } : p
         );
       }
-      bumpStoreCacheVersion();
     }
+    bumpStoreCacheVersion();
     return newOrder;
   } catch (error) {
     console.error('Database query failed in createOrderDb:', error);
@@ -884,8 +884,8 @@ export async function updateOrderDb(order: Order & { clientIp?: string }): Promi
       cachedSnapshot.orders = (cachedSnapshot.orders || []).map((o) =>
         o.id === order.id ? normalizedOrder : o
       );
-      bumpStoreCacheVersion();
     }
+    bumpStoreCacheVersion();
     return order;
   } catch (error) {
     console.error('Database query failed in updateOrderDb:', error);
@@ -923,8 +923,8 @@ export async function deleteOrderDb(idOrNumber: string, matchedOrder?: Order): P
       cachedSnapshot.orders = (cachedSnapshot.orders || []).filter(
         (o) => !delSet.has(o.id) && !delSet.has(o.orderNumber)
       );
-      bumpStoreCacheVersion();
     }
+    bumpStoreCacheVersion();
   } catch (error) {
     console.error('Database query failed in deleteOrderDb:', error);
     throw new Error('Failed to delete order from database.', { cause: error });
@@ -950,8 +950,8 @@ export async function clearAllOrdersDb(existingOrders: Order[]): Promise<void> {
         new Set([...(cachedSnapshot.deletedOrderIds || []), ...idsToBlacklist])
       );
       cachedSnapshot.orders = [];
-      bumpStoreCacheVersion();
     }
+    bumpStoreCacheVersion();
   } catch (error) {
     console.error('Database query failed in clearAllOrdersDb:', error);
     throw new Error('Failed to clear orders from database.', { cause: error });
@@ -994,8 +994,8 @@ export async function createProductDb(product: Product): Promise<Product> {
         ...(cachedSnapshot.products || []).filter((p) => p.id !== product.id),
       ];
       recalculateCachedCategoryCounts();
-      bumpStoreCacheVersion();
     }
+    bumpStoreCacheVersion();
     return product;
   } catch (error) {
     console.error('Database query failed in createProductDb:', error);
@@ -1040,8 +1040,8 @@ export async function updateProductDb(product: Product): Promise<Product> {
         p.id === product.id ? product : p
       );
       recalculateCachedCategoryCounts();
-      bumpStoreCacheVersion();
     }
+    bumpStoreCacheVersion();
     return product;
   } catch (error) {
     console.error('Database query failed in updateProductDb:', error);
@@ -1055,8 +1055,8 @@ export async function deleteProductDb(id: string): Promise<boolean> {
     if (cachedSnapshot) {
       cachedSnapshot.products = (cachedSnapshot.products || []).filter((p) => p.id !== id);
       recalculateCachedCategoryCounts();
-      bumpStoreCacheVersion();
     }
+    bumpStoreCacheVersion();
     return res.length > 0;
   } catch (error) {
     console.error('Database query failed in deleteProductDb:', error);
@@ -1109,8 +1109,8 @@ export async function createReviewDb(
             : p
         );
       }
-      bumpStoreCacheVersion();
     }
+    bumpStoreCacheVersion();
     return review;
   } catch (error) {
     console.error('Database query failed in createReviewDb:', error);
@@ -1130,8 +1130,8 @@ export async function updateReviewApprovalDb(id: string, isApproved: boolean): P
       cachedSnapshot.reviews = (cachedSnapshot.reviews || []).map((r) =>
         r.id === id ? mapped : r
       );
-      bumpStoreCacheVersion();
     }
+    bumpStoreCacheVersion();
     return mapped;
   } catch (error) {
     console.error('Database query failed in updateReviewApprovalDb:', error);
@@ -1144,8 +1144,8 @@ export async function deleteReviewDb(id: string): Promise<void> {
     await db.delete(reviewsTable).where(eq(reviewsTable.id, id));
     if (cachedSnapshot) {
       cachedSnapshot.reviews = (cachedSnapshot.reviews || []).filter((r) => r.id !== id);
-      bumpStoreCacheVersion();
     }
+    bumpStoreCacheVersion();
   } catch (error) {
     console.error('Database query failed in deleteReviewDb:', error);
     throw new Error('Failed to delete review from database.', { cause: error });
@@ -1164,6 +1164,12 @@ export async function updateSettingsDb(merged: StoreSettings & { adminPasswordHa
       ...(merged.orderSecurity || {}),
       promoCodes: persistedPromoCodes,
     };
+
+    const persistedTrackingPixels: TrackingPixelsSettings = {
+      ...DEFAULT_TRACKING_PIXELS,
+      ...(merged.trackingPixels || {}),
+    };
+    const persistedSocialLinks = merged.socialLinks || {};
 
     await db
       .insert(storeSettingsTable)
@@ -1185,9 +1191,9 @@ export async function updateSettingsDb(merged: StoreSettings & { adminPasswordHa
         heroSecondaryText: merged.heroSecondaryText,
         freeShippingThreshold: Number(merged.freeShippingThreshold) || 0,
         adminPasswordHash: merged.adminPasswordHash || 'admin123',
-        socialLinks: merged.socialLinks || {},
+        socialLinks: persistedSocialLinks,
         orderSecurity: persistedOrderSecurity,
-        trackingPixels: merged.trackingPixels || DEFAULT_TRACKING_PIXELS,
+        trackingPixels: persistedTrackingPixels,
         faqs: merged.faqs || [],
         policies: merged.policies || {
           privacy: '',
@@ -1217,9 +1223,9 @@ export async function updateSettingsDb(merged: StoreSettings & { adminPasswordHa
           heroSecondaryText: merged.heroSecondaryText,
           freeShippingThreshold: Number(merged.freeShippingThreshold) || 0,
           adminPasswordHash: merged.adminPasswordHash || 'admin123',
-          socialLinks: merged.socialLinks || {},
+          socialLinks: persistedSocialLinks,
           orderSecurity: persistedOrderSecurity,
-          trackingPixels: merged.trackingPixels || DEFAULT_TRACKING_PIXELS,
+          trackingPixels: persistedTrackingPixels,
           faqs: merged.faqs || [],
           policies: merged.policies || {
             privacy: '',
@@ -1235,12 +1241,13 @@ export async function updateSettingsDb(merged: StoreSettings & { adminPasswordHa
       cachedSnapshot.settings = {
         ...cachedSnapshot.settings,
         ...merged,
+        socialLinks: persistedSocialLinks,
         orderSecurity: persistedOrderSecurity,
         promoCodes: persistedPromoCodes,
-        trackingPixels: merged.trackingPixels || DEFAULT_TRACKING_PIXELS,
+        trackingPixels: persistedTrackingPixels,
       };
-      bumpStoreCacheVersion();
     }
+    bumpStoreCacheVersion();
   } catch (error) {
     console.error('Database query failed in updateSettingsDb:', error);
     throw new Error('Failed to update settings in database.', { cause: error });

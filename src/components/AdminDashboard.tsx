@@ -60,6 +60,8 @@ import {
 } from 'lucide-react';
 import { SocialLinks, StorePolicies, SecurityBlockLog, OrderSecuritySettings, TrackingPixelsSettings, PromoCode } from '../types';
 import {
+  extractFacebookPixelId,
+  extractGoogleTagId,
   isValidFacebookPixelId,
   isValidGoogleTagId,
   getGoogleTagType,
@@ -182,7 +184,19 @@ export const AdminDashboard: React.FC = () => {
   const REVIEWS_PER_PAGE = 24;
 
   // Settings editing state
-  const [localSettings, setLocalSettings] = useState<StoreSettings | null>(settings);
+  const [localSettings, setLocalSettingsState] = useState<StoreSettings | null>(settings);
+  const localSettingsRef = React.useRef<StoreSettings | null>(settings);
+  const isSettingsDirtyRef = React.useRef(false);
+  const setLocalSettings = React.useCallback(
+    (next: StoreSettings | null, markDirty: boolean = true) => {
+      if (markDirty) {
+        isSettingsDirtyRef.current = true;
+      }
+      localSettingsRef.current = next;
+      setLocalSettingsState(next);
+    },
+    []
+  );
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsSaveFeedback, setSettingsSaveFeedback] = useState<{
     type: 'success' | 'error';
@@ -222,10 +236,11 @@ export const AdminDashboard: React.FC = () => {
     }
   }, [isAdminOpen, isAdmin, activeTab, fetchSecurityOverview]);
 
-  // Sync settings when opened
+  // Sync settings from server snapshot when not actively editing unsaved changes
   React.useEffect(() => {
-    if (settings) {
-      setLocalSettings(settings);
+    if (settings && (!localSettingsRef.current || !isSettingsDirtyRef.current)) {
+      localSettingsRef.current = settings;
+      setLocalSettingsState(settings);
     }
   }, [settings]);
 
@@ -1140,18 +1155,37 @@ export const AdminDashboard: React.FC = () => {
     ...(localSettings?.trackingPixels || settings?.trackingPixels || {}),
   };
 
+  const updateTrackingPixelFields = (patch: Partial<TrackingPixelsSettings>) => {
+    const base = localSettingsRef.current || localSettings;
+    if (!base) return;
+    const basePixels: TrackingPixelsSettings = {
+      ...defaultTrackingPixels,
+      ...(base.trackingPixels || {}),
+    };
+    setLocalSettings({
+      ...base,
+      trackingPixels: {
+        ...basePixels,
+        ...patch,
+      },
+    });
+  };
+
   const updateTrackingPixelField = <K extends keyof TrackingPixelsSettings>(
     field: K,
     value: TrackingPixelsSettings[K]
   ) => {
-    if (!localSettings) return;
-    setLocalSettings({
-      ...localSettings,
-      trackingPixels: {
-        ...currentTrackingPixels,
-        [field]: value,
-      },
-    });
+    updateTrackingPixelFields({ [field]: value } as Partial<TrackingPixelsSettings>);
+  };
+
+  const normalizeSocialUrlClient = (raw?: string): string => {
+    const clean = String(raw || '')
+      .replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '')
+      .trim();
+    if (!clean) return '';
+    if (/^https?:\/\//i.test(clean)) return clean;
+    if (clean.startsWith('//')) return `https:${clean}`;
+    return `https://${clean.replace(/^\/+/, '')}`;
   };
 
   const [pixelReport, setPixelReport] = useState<PixelsDiagnosticReport | null>(null);
@@ -1165,27 +1199,42 @@ export const AdminDashboard: React.FC = () => {
   }, [activeTab]);
 
   const handleSaveSettings = async (
-    targetSettings: StoreSettings | null = localSettings,
+    targetSettings: StoreSettings | null = localSettingsRef.current || localSettings,
     customSuccessText?: string
   ): Promise<boolean> => {
-    if (!targetSettings || isSavingSettings) return false;
+    const source = targetSettings || localSettingsRef.current || localSettings;
+    if (!source || isSavingSettings) return false;
     setIsSavingSettings(true);
     setSettingsSaveFeedback(null);
     try {
-      const cleanWhatsApp = sanitizePhoneText(targetSettings.whatsappNumber);
-      const cleanContact = sanitizePhoneText(targetSettings.contactPhone);
+      const cleanWhatsApp = sanitizePhoneText(source.whatsappNumber);
+      const cleanContact = sanitizePhoneText(source.contactPhone);
+      const rawSocial = source.socialLinks || {};
+      const cleanedPixels: TrackingPixelsSettings = {
+        facebookEnabled: Boolean(source.trackingPixels?.facebookEnabled),
+        facebookPixelId: extractFacebookPixelId(source.trackingPixels?.facebookPixelId),
+        googleEnabled: Boolean(source.trackingPixels?.googleEnabled),
+        googleTagId: extractGoogleTagId(source.trackingPixels?.googleTagId),
+        googleAdsConversionLabel: String(source.trackingPixels?.googleAdsConversionLabel || '').trim(),
+      };
       const cleanedTarget: StoreSettings = {
-        ...targetSettings,
+        ...source,
         whatsappNumber: cleanWhatsApp,
         contactPhone: cleanContact,
         socialLinks: {
-          ...(targetSettings.socialLinks || {}),
+          ...rawSocial,
+          instagram: normalizeSocialUrlClient(rawSocial.instagram),
+          facebook: normalizeSocialUrlClient(rawSocial.facebook),
+          tiktok: normalizeSocialUrlClient(rawSocial.tiktok),
+          youtube: normalizeSocialUrlClient(rawSocial.youtube),
           ...(cleanWhatsApp ? { whatsapp: cleanWhatsApp } : {}),
         },
+        trackingPixels: cleanedPixels,
       };
-      setLocalSettings(cleanedTarget);
       const savedOk = await updateSettings(cleanedTarget);
       if (savedOk) {
+        isSettingsDirtyRef.current = false;
+        setLocalSettings(cleanedTarget, false);
         setSettingsSaveFeedback({
           type: 'success',
           text:
@@ -1211,13 +1260,20 @@ export const AdminDashboard: React.FC = () => {
   };
 
   const handleSaveAndVerifyPixels = async () => {
-    if (!localSettings) return;
+    const base = localSettingsRef.current || localSettings;
+    if (!base) return;
+    const basePixels: TrackingPixelsSettings = {
+      ...defaultTrackingPixels,
+      ...(base.trackingPixels || {}),
+    };
+    const fbId = extractFacebookPixelId(basePixels.facebookPixelId);
+    const gId = extractGoogleTagId(basePixels.googleTagId);
     const cleanedPixels: TrackingPixelsSettings = {
-      facebookEnabled: Boolean(currentTrackingPixels.facebookEnabled),
-      facebookPixelId: String(currentTrackingPixels.facebookPixelId || '').trim(),
-      googleEnabled: Boolean(currentTrackingPixels.googleEnabled),
-      googleTagId: String(currentTrackingPixels.googleTagId || '').trim().toUpperCase(),
-      googleAdsConversionLabel: String(currentTrackingPixels.googleAdsConversionLabel || '').trim(),
+      facebookEnabled: Boolean(basePixels.facebookEnabled),
+      facebookPixelId: fbId,
+      googleEnabled: Boolean(basePixels.googleEnabled),
+      googleTagId: gId,
+      googleAdsConversionLabel: String(basePixels.googleAdsConversionLabel || '').trim(),
     };
 
     if (cleanedPixels.facebookEnabled && !isValidFacebookPixelId(cleanedPixels.facebookPixelId)) {
@@ -1233,14 +1289,17 @@ export const AdminDashboard: React.FC = () => {
     }
 
     const updatedSettings: StoreSettings = {
-      ...localSettings,
+      ...base,
       trackingPixels: cleanedPixels,
     };
-    setLocalSettings(updatedSettings);
+    setLocalSettings(updatedSettings, true);
     setIsVerifyingPixels(true);
 
     try {
-      const savedOk = await updateSettings(updatedSettings);
+      const savedOk = await handleSaveSettings(
+        updatedSettings,
+        'تم حفظ إعدادات البيكسل وروابط التواصل والتعديلات بنجاح وتطبيقها على المتجر.'
+      );
       const report = await runPixelVerificationTest(cleanedPixels);
       setPixelReport(report);
 
@@ -1248,7 +1307,7 @@ export const AdminDashboard: React.FC = () => {
         const fbOk = !cleanedPixels.facebookEnabled || (report.facebook.formatValid && report.facebook.sdkReady);
         const gOk = !cleanedPixels.googleEnabled || (report.google.formatValid && report.google.sdkReady);
         if (fbOk && gOk) {
-          showToast('تم حفظ إعدادات البيكسل والتحقق من اشتغالها بنجاح', 'success');
+          showToast('تم حفظ إعدادات البيكسل وروابط التواصل والتحقق من اشتغالها بنجاح', 'success');
         }
       }
     } finally {
@@ -4865,14 +4924,35 @@ export const AdminDashboard: React.FC = () => {
 
                 {/* 2. Official Social Media Channels */}
                 <div className="p-6 rounded-2xl bg-[#151822] border border-white/5 space-y-5">
-                  <div className="flex items-center gap-2.5 pb-3 border-b border-white/10">
-                    <div className="w-8 h-8 rounded-lg bg-pink-500/15 flex items-center justify-center text-pink-400">
-                      <Globe className="w-4 h-4" />
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-pink-500/15 flex items-center justify-center text-pink-400">
+                        <Globe className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white">روابط مواقع التواصل الاجتماعي الرسمية للمتجر</h4>
+                        <p className="text-[11px] text-gray-400">تفتح مباشرة عند نقر الزبناء على أيقونات التواصل الاجتماعي في الفوتر</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-white">روابط مواقع التواصل الاجتماعي الرسمية للمتجر</h4>
-                      <p className="text-[11px] text-gray-400">تفتح مباشرة عند نقر الزبناء على أيقونات التواصل الاجتماعي في الفوتر</p>
-                    </div>
+
+                    <button
+                      type="button"
+                      disabled={isSavingSettings}
+                      onClick={() =>
+                        handleSaveSettings(
+                          localSettingsRef.current || localSettings,
+                          'تم حفظ روابط التواصل الاجتماعي والإعدادات بنجاح وتطبيقها على الموقع.'
+                        )
+                      }
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl gold-gradient-bg text-black font-extrabold text-xs shadow-lg hover:brightness-110 active:scale-95 disabled:opacity-50 cursor-pointer transition"
+                    >
+                      {isSavingSettings ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4" />
+                      )}
+                      <span>{isSavingSettings ? 'جاري الحفظ...' : 'حفظ روابط التواصل'}</span>
+                    </button>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -4885,7 +4965,7 @@ export const AdminDashboard: React.FC = () => {
                         </label>
                         {localSettings.socialLinks?.instagram && (
                           <a
-                            href={localSettings.socialLinks.instagram}
+                            href={normalizeSocialUrlClient(localSettings.socialLinks.instagram)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-[10px] text-[#c5a869] hover:underline flex items-center gap-1"
@@ -4896,7 +4976,8 @@ export const AdminDashboard: React.FC = () => {
                         )}
                       </div>
                       <input
-                        type="url"
+                        type="text"
+                        inputMode="url"
                         value={localSettings.socialLinks?.instagram || ''}
                         onChange={(e) =>
                           setLocalSettings({
@@ -4922,7 +5003,7 @@ export const AdminDashboard: React.FC = () => {
                         </label>
                         {localSettings.socialLinks?.facebook && (
                           <a
-                            href={localSettings.socialLinks.facebook}
+                            href={normalizeSocialUrlClient(localSettings.socialLinks.facebook)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-[10px] text-[#c5a869] hover:underline flex items-center gap-1"
@@ -4933,7 +5014,8 @@ export const AdminDashboard: React.FC = () => {
                         )}
                       </div>
                       <input
-                        type="url"
+                        type="text"
+                        inputMode="url"
                         value={localSettings.socialLinks?.facebook || ''}
                         onChange={(e) =>
                           setLocalSettings({
@@ -4961,7 +5043,7 @@ export const AdminDashboard: React.FC = () => {
                         </label>
                         {localSettings.socialLinks?.tiktok && (
                           <a
-                            href={localSettings.socialLinks.tiktok}
+                            href={normalizeSocialUrlClient(localSettings.socialLinks.tiktok)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-[10px] text-[#c5a869] hover:underline flex items-center gap-1"
@@ -4972,7 +5054,8 @@ export const AdminDashboard: React.FC = () => {
                         )}
                       </div>
                       <input
-                        type="url"
+                        type="text"
+                        inputMode="url"
                         value={localSettings.socialLinks?.tiktok || ''}
                         onChange={(e) =>
                           setLocalSettings({
@@ -4998,7 +5081,7 @@ export const AdminDashboard: React.FC = () => {
                         </label>
                         {localSettings.socialLinks?.youtube && (
                           <a
-                            href={localSettings.socialLinks.youtube}
+                            href={normalizeSocialUrlClient(localSettings.socialLinks.youtube)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-[10px] text-[#c5a869] hover:underline flex items-center gap-1"
@@ -5009,7 +5092,8 @@ export const AdminDashboard: React.FC = () => {
                         )}
                       </div>
                       <input
-                        type="url"
+                        type="text"
+                        inputMode="url"
                         value={localSettings.socialLinks?.youtube || ''}
                         onChange={(e) =>
                           setLocalSettings({
@@ -5115,13 +5199,24 @@ export const AdminDashboard: React.FC = () => {
                         <input
                           type="text"
                           value={currentTrackingPixels.facebookPixelId || ''}
-                          onChange={(e) =>
-                            updateTrackingPixelField(
-                              'facebookPixelId',
-                              e.target.value.replace(/[^\d]/g, '')
-                            )
-                          }
-                          placeholder="مثال: 123456789012345"
+                          onChange={(e) => {
+                            const extracted = extractFacebookPixelId(e.target.value);
+                            const wasValid = isValidFacebookPixelId(currentTrackingPixels.facebookPixelId);
+                            if (!extracted) {
+                              updateTrackingPixelFields({
+                                facebookPixelId: '',
+                                facebookEnabled: false,
+                              });
+                            } else if (!wasValid && isValidFacebookPixelId(extracted)) {
+                              updateTrackingPixelFields({
+                                facebookPixelId: extracted,
+                                facebookEnabled: true,
+                              });
+                            } else {
+                              updateTrackingPixelField('facebookPixelId', extracted);
+                            }
+                          }}
+                          placeholder="مثال: 123456789012345 (أو الصق كود البيكسل)"
                           className="w-full bg-[#151822] border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-blue-500 text-left font-mono"
                           dir="ltr"
                         />
@@ -5232,12 +5327,23 @@ export const AdminDashboard: React.FC = () => {
                           <input
                             type="text"
                             value={currentTrackingPixels.googleTagId || ''}
-                            onChange={(e) =>
-                              updateTrackingPixelField(
-                                'googleTagId',
-                                e.target.value.trim().toUpperCase()
-                              )
-                            }
+                            onChange={(e) => {
+                              const extracted = extractGoogleTagId(e.target.value);
+                              const wasValid = isValidGoogleTagId(currentTrackingPixels.googleTagId);
+                              if (!extracted) {
+                                updateTrackingPixelFields({
+                                  googleTagId: '',
+                                  googleEnabled: false,
+                                });
+                              } else if (!wasValid && isValidGoogleTagId(extracted)) {
+                                updateTrackingPixelFields({
+                                  googleTagId: extracted,
+                                  googleEnabled: true,
+                                });
+                              } else {
+                                updateTrackingPixelField('googleTagId', extracted);
+                              }
+                            }}
                             placeholder="G-XXXXXXXXXX أو AW-123456789"
                             className="w-full bg-[#151822] border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-amber-500 text-left font-mono"
                             dir="ltr"

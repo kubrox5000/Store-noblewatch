@@ -382,6 +382,15 @@ export const Footer: React.FC = () => {
               </div>
 
               {/* Social media links */}
+              {(() => {
+                const safeSocialUrl = (url?: string, fallback?: string) => {
+                  const clean = String(url || '').trim();
+                  if (!clean) return fallback || '#';
+                  if (/^https?:\/\//i.test(clean)) return clean;
+                  if (clean.startsWith('//')) return `https:${clean}`;
+                  return `https://${clean.replace(/^\/+/, '')}`;
+                };
+                return (
               <div className="flex items-center gap-2 pt-1">
                 <a
                   href={buildWhatsAppUrl(
@@ -400,7 +409,7 @@ export const Footer: React.FC = () => {
                 </a>
 
                 <a
-                  href={settings?.socialLinks?.instagram || 'https://instagram.com/noblewatch.ma'}
+                  href={safeSocialUrl(settings?.socialLinks?.instagram, 'https://instagram.com/noblewatch.ma')}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Instagram"
@@ -411,7 +420,7 @@ export const Footer: React.FC = () => {
                 </a>
 
                 <a
-                  href={settings?.socialLinks?.facebook || 'https://facebook.com/noblewatch.ma'}
+                  href={safeSocialUrl(settings?.socialLinks?.facebook, 'https://facebook.com/noblewatch.ma')}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Facebook"
@@ -422,7 +431,7 @@ export const Footer: React.FC = () => {
                 </a>
 
                 <a
-                  href={settings?.socialLinks?.tiktok || 'https://tiktok.com/@noblewatch.ma'}
+                  href={safeSocialUrl(settings?.socialLinks?.tiktok, 'https://tiktok.com/@noblewatch.ma')}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="TikTok"
@@ -435,7 +444,7 @@ export const Footer: React.FC = () => {
                 </a>
 
                 <a
-                  href={settings?.socialLinks?.youtube || 'https://youtube.com/@noblewatch'}
+                  href={safeSocialUrl(settings?.socialLinks?.youtube, 'https://youtube.com/@noblewatch')}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="YouTube"
@@ -445,6 +454,8 @@ export const Footer: React.FC = () => {
                   <Youtube className="w-4 h-4" />
                 </a>
               </div>
+                );
+              })()}
             </div>
           </div>
 

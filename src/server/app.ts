@@ -7,6 +7,7 @@ import { adminAuth } from '../lib/firebase-admin.ts';
 import {
   DEFAULT_ORDER_SECURITY,
   DEFAULT_PROMO_CODES,
+  DEFAULT_TRACKING_PIXELS,
   assembleMediaChunksDb,
   clearAllOrdersDb,
   clearSecurityLogsDb,
@@ -717,7 +718,8 @@ app.get('/api/store-data', async (req: Request, res: Response) => {
 
     const payload = getOrBuildStorePayload(db, isAdminAuthenticated);
     res.setHeader('ETag', payload.etag);
-    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+    res.setHeader('Vary', 'Authorization, Accept-Encoding');
 
     if (req.headers['if-none-match'] === payload.etag) {
       return res.status(304).end();
@@ -727,7 +729,6 @@ app.get('/api/store-data', async (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     if (acceptEncoding.includes('gzip') && !IS_SERVERLESS) {
       res.setHeader('Content-Encoding', 'gzip');
-      res.setHeader('Vary', 'Accept-Encoding');
       return res.send(payload.gzipBuffer);
     }
     return res.send(payload.plainBuffer);
@@ -1902,6 +1903,13 @@ app.put('/api/settings', async (req: Request, res: Response) => {
       typeof v === 'string'
         ? v.replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '').trim()
         : v;
+    const normalizeSocialUrl = (v: unknown): string => {
+      const clean = String(stripBidi(v) || '').trim();
+      if (!clean) return '';
+      if (/^https?:\/\//i.test(clean)) return clean;
+      if (clean.startsWith('//')) return `https:${clean}`;
+      return `https://${clean.replace(/^\/+/, '')}`;
+    };
     if (typeof payload.whatsappNumber === 'string') {
       payload.whatsappNumber = stripBidi(payload.whatsappNumber) as string;
     }
@@ -1911,18 +1919,65 @@ app.put('/api/settings', async (req: Request, res: Response) => {
     if (payload.heroImage && typeof payload.heroImage === 'string' && payload.heroImage.startsWith('data:image/')) {
       payload.heroImage = await extractBase64ImageToStorage(payload.heroImage, 'hero_banner', 0);
     }
+
+    const rawSocialInput = payload.socialLinks && typeof payload.socialLinks === 'object' ? payload.socialLinks : {};
+    const mergedSocialLinks: Record<string, string> = {
+      ...(db.settings?.socialLinks || {}),
+    };
+    for (const key of ['instagram', 'facebook', 'tiktok', 'youtube'] as const) {
+      if (key in rawSocialInput) {
+        mergedSocialLinks[key] = normalizeSocialUrl(rawSocialInput[key]);
+      }
+    }
+    if ('whatsapp' in rawSocialInput) {
+      mergedSocialLinks.whatsapp = String(stripBidi(rawSocialInput.whatsapp) || '');
+    }
+    if (typeof payload.whatsappNumber === 'string' && payload.whatsappNumber) {
+      mergedSocialLinks.whatsapp = payload.whatsappNumber;
+    }
+
+    const rawPixels =
+      payload.trackingPixels && typeof payload.trackingPixels === 'object'
+        ? payload.trackingPixels
+        : null;
+    const mergedTrackingPixels = {
+      ...DEFAULT_TRACKING_PIXELS,
+      ...(db.settings?.trackingPixels || {}),
+      ...(rawPixels
+        ? {
+            facebookEnabled:
+              rawPixels.facebookEnabled !== undefined
+                ? Boolean(rawPixels.facebookEnabled)
+                : Boolean(db.settings?.trackingPixels?.facebookEnabled),
+            facebookPixelId:
+              rawPixels.facebookPixelId !== undefined
+                ? String(stripBidi(rawPixels.facebookPixelId) || '')
+                : String(db.settings?.trackingPixels?.facebookPixelId || ''),
+            googleEnabled:
+              rawPixels.googleEnabled !== undefined
+                ? Boolean(rawPixels.googleEnabled)
+                : Boolean(db.settings?.trackingPixels?.googleEnabled),
+            googleTagId:
+              rawPixels.googleTagId !== undefined
+                ? String(stripBidi(rawPixels.googleTagId) || '').toUpperCase()
+                : String(db.settings?.trackingPixels?.googleTagId || ''),
+            googleAdsConversionLabel:
+              rawPixels.googleAdsConversionLabel !== undefined
+                ? String(stripBidi(rawPixels.googleAdsConversionLabel) || '')
+                : String(db.settings?.trackingPixels?.googleAdsConversionLabel || ''),
+          }
+        : {}),
+    };
+
     const mergedSettings = {
       ...db.settings,
       ...payload,
-      socialLinks: {
-        ...(db.settings?.socialLinks || {}),
-        ...(payload.socialLinks || {}),
-        ...(typeof payload.whatsappNumber === 'string' && payload.whatsappNumber
-          ? { whatsapp: payload.whatsappNumber }
-          : {}),
-      },
+      socialLinks: mergedSocialLinks,
+      trackingPixels: mergedTrackingPixels,
     };
     await updateSettingsDb(mergedSettings);
+    cachedStorePayloads.public = undefined;
+    cachedStorePayloads.admin = undefined;
     const { adminPasswordHash: _pw, ...publicSettings } = mergedSettings;
     return res.json({ success: true, settings: publicSettings });
   } catch (error) {

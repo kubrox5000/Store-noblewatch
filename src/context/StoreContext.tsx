@@ -232,47 +232,58 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }, 4000);
   }, []);
 
-  // Non-blocking background snapshot writer (caps cached reviews at 60 so main thread & localStorage stay lightweight)
-  const schedulePersistSnapshot = useCallback((override?: Partial<StoreSnapshot>) => {
+  const writeSnapshotNow = useCallback((override?: Partial<StoreSnapshot>) => {
     if (snapshotTimerRef.current) {
       clearTimeout(snapshotTimerRef.current);
-    }
-    snapshotTimerRef.current = setTimeout(() => {
       snapshotTimerRef.current = null;
-      try {
-        const cur = latestRef.current;
-        const prods = override?.products ?? cur.products;
-        const revs = override?.reviews ?? cur.reviews;
-        const cats = override?.categories ?? cur.categories;
-        const sets = override?.settings !== undefined ? override.settings : cur.settings;
-        // Strip inline base64 videos if any slipped through so localStorage never overflows
-        const slimProds = prods.map((p) =>
-          Array.isArray(p.videos) && p.videos.some((v) => typeof v.url === 'string' && v.url.startsWith('data:'))
-            ? {
-                ...p,
-                videos: p.videos.map((v) => ({
-                  ...v,
-                  url: typeof v.url === 'string' && v.url.startsWith('data:') ? '/videos/video_prod-1.mp4' : v.url,
-                })),
-              }
-            : p
-        );
-        localStorage.setItem(
-          STORE_SNAPSHOT_KEY,
-          JSON.stringify({
-            settings: sets,
-            categories: cats,
-            products: slimProds,
-            reviews: Array.isArray(revs) ? revs.slice(0, 60) : [],
-          })
-        );
-        localStorage.removeItem('noblewatch_saved_products');
-        localStorage.removeItem('noblewatch_has_custom_data');
-      } catch {
-        // ignore quota errors safely
-      }
-    }, 80);
+    }
+    try {
+      const cur = latestRef.current;
+      const prods = override?.products ?? cur.products;
+      const revs = override?.reviews ?? cur.reviews;
+      const cats = override?.categories ?? cur.categories;
+      const sets = override?.settings !== undefined ? override.settings : cur.settings;
+      // Strip inline base64 videos if any slipped through so localStorage never overflows
+      const slimProds = prods.map((p) =>
+        Array.isArray(p.videos) && p.videos.some((v) => typeof v.url === 'string' && v.url.startsWith('data:'))
+          ? {
+              ...p,
+              videos: p.videos.map((v) => ({
+                ...v,
+                url: typeof v.url === 'string' && v.url.startsWith('data:') ? '/videos/video_prod-1.mp4' : v.url,
+              })),
+            }
+          : p
+      );
+      localStorage.setItem(
+        STORE_SNAPSHOT_KEY,
+        JSON.stringify({
+          settings: sets,
+          categories: cats,
+          products: slimProds,
+          reviews: Array.isArray(revs) ? revs.slice(0, 60) : [],
+        })
+      );
+      localStorage.removeItem('noblewatch_saved_products');
+      localStorage.removeItem('noblewatch_has_custom_data');
+    } catch {
+      // ignore quota errors safely
+    }
   }, []);
+
+  // Non-blocking background snapshot writer (caps cached reviews at 60 so main thread & localStorage stay lightweight)
+  const schedulePersistSnapshot = useCallback(
+    (override?: Partial<StoreSnapshot>) => {
+      if (snapshotTimerRef.current) {
+        clearTimeout(snapshotTimerRef.current);
+      }
+      snapshotTimerRef.current = setTimeout(() => {
+        snapshotTimerRef.current = null;
+        writeSnapshotNow(override);
+      }, 80);
+    },
+    [writeSnapshotNow]
+  );
 
   // O(N) lookup map of approved review counts & averages by productId (replaces 48 x 1,218 filter scans!)
   const reviewsStatsByProduct = useMemo(() => {
@@ -377,6 +388,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       try {
         const res = await fetch('/api/store-data', {
           headers: getAdminHeaders(),
+          cache: 'no-store',
         });
         if (res.ok) {
           const json = await res.json();
@@ -1172,7 +1184,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         if (res.ok && data?.success) {
           if (data.settings) {
             setSettings(data.settings);
-            schedulePersistSnapshot({ settings: data.settings });
+            writeSnapshotNow({ settings: data.settings });
           }
           showToast('تم حفظ المعلومات والإعدادات بنجاح', 'success');
           return true;
@@ -1187,7 +1199,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         return false;
       }
     },
-    [getAdminHeaders, handleUnauthorizedAdmin, schedulePersistSnapshot, showToast]
+    [getAdminHeaders, handleUnauthorizedAdmin, writeSnapshotNow, showToast]
   );
 
   const value = useMemo<StoreContextType>(
