@@ -346,8 +346,8 @@ export const Footer: React.FC = () => {
       )}
 
       {/* 5. Main Footer Columns (4 Columns) */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-9 sm:py-14">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10">
           {/* Column 1: Brand & Identity */}
           <div className="space-y-5">
             <button
@@ -744,7 +744,7 @@ export const Footer: React.FC = () => {
       </div>
 
       {/* 7. Bottom Copyright Bar */}
-      <div className="border-t border-white/5 py-5 px-4 bg-[#040507] text-xs">
+      <div className="border-t border-white/5 pt-5 pb-24 lg:pb-5 px-4 bg-[#040507] text-xs">
         <div
           className={`max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center ${
             isFr ? 'sm:text-left' : 'sm:text-right'

@@ -2,7 +2,7 @@ import React from 'react';
 import { X, Trash2, ShoppingBag, Truck, Zap, ShieldCheck } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useLanguage } from '../context/LanguageContext';
-import { formatPrice } from '../utils/constants';
+import { formatPrice, getOptimizedImageUrl } from '../utils/constants';
 import { trackPixelInitiateCheckout } from '../utils/trackingPixels';
 import { translateColorName } from '../i18n/storefront';
 
@@ -122,7 +122,7 @@ export const CartDrawer: React.FC = () => {
                   className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200 flex gap-3 items-center justify-between shadow-sm"
                 >
                   <img
-                    src={item.product.images[0] || '/assets/luxury_watch_hero.jpg'}
+                    src={getOptimizedImageUrl(item.product.images[0] || '/assets/luxury_watch_hero.jpg', 480)}
                     alt={item.product.name}
                     loading="lazy"
                     decoding="async"

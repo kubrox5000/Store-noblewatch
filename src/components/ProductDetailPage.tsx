@@ -32,6 +32,7 @@ import {
   calculateTierOffers,
   getBundlePriceForQuantity,
   buildWhatsAppUrl,
+  getOptimizedImageUrl,
 } from '../utils/constants';
 import { trackPixelViewContent } from '../utils/trackingPixels';
 import { useStore } from '../context/StoreContext';
@@ -52,7 +53,7 @@ interface ProductDetailPageProps {
 }
 
 export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, onBack }) => {
-  const { setCheckoutProduct, addToCart, reviews, settings, showToast, isAdmin, updateProduct } = useStore();
+  const { setCheckoutProduct, addToCart, reviews, settings, showToast, isAdmin, updateProduct, loadProductReviews } = useStore();
   const { lang, isFr } = useLanguage();
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -73,10 +74,34 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
 
   const productColors = useMemo(() => getProductColors(product), [product]);
   const activeColor = productColors[selectedColorIndex] || productColors[0];
+  const isAccessory =
+    Boolean(product.category?.includes('accessories')) ||
+    Boolean(product.categories?.some((c) => c.includes('accessories')));
+  const isWomenAccessory =
+    product.category === 'women-accessories' ||
+    Boolean(product.categories?.includes('women-accessories'));
 
   useEffect(() => {
     trackPixelViewContent(product);
-  }, [product.id]);
+    loadProductReviews(product.id);
+    setActiveImageIndex(0);
+    setSelectedColorIndex(0);
+    setIsZoomed(false);
+
+    // Preload next gallery angles in background for instant thumbnail switching
+    const preloadTimer = window.setTimeout(() => {
+      if (Array.isArray(product.images)) {
+        product.images.slice(1, 5).forEach((src) => {
+          if (src) {
+            const img = new Image();
+            img.decoding = 'async';
+            img.src = src;
+          }
+        });
+      }
+    }, 120);
+    return () => window.clearTimeout(preloadTimer);
+  }, [product.id, loadProductReviews]);
 
   // Sync multiColors when quantity or color changes
   useEffect(() => {
@@ -118,7 +143,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
     const formattedColor = quantity > 1
       ? (allSame
           ? `${translateColorName(finalColors[0], lang)} (${quantity} ${isFr ? 'pièces' : 'قطع'})`
-          : finalColors.map((c, i) => `${isFr ? 'Montre' : 'ساعة'} ${i + 1}: ${translateColorName(c, lang)}`).join(' + '))
+          : finalColors.map((c, i) => `${isFr ? (isAccessory ? 'Pièce' : 'Montre') : (isAccessory ? 'قطعة' : 'ساعة')} ${i + 1}: ${translateColorName(c, lang)}`).join(' + '))
       : translateColorName(defaultColor, lang);
 
     setCheckoutProduct({
@@ -140,7 +165,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
     const formattedColor = quantity > 1
       ? (allSame
           ? `${translateColorName(finalColors[0], lang)} (${quantity} ${isFr ? 'pièces' : 'قطع'})`
-          : finalColors.map((c, i) => `${isFr ? 'Montre' : 'ساعة'} ${i + 1}: ${translateColorName(c, lang)}`).join(' + '))
+          : finalColors.map((c, i) => `${isFr ? (isAccessory ? 'Pièce' : 'Montre') : (isAccessory ? 'قطعة' : 'ساعة')} ${i + 1}: ${translateColorName(c, lang)}`).join(' + '))
       : defaultColor;
 
     const currentBundle = getBundlePriceForQuantity(product, quantity, lang);
@@ -160,7 +185,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
     } else {
       navigator.clipboard.writeText(window.location.href);
       showToast(
-        isFr ? 'Lien du produit copié pour le partage' : 'تم نسخ رابط الساعة لمشاركته',
+        isFr ? 'Lien du produit copié pour le partage' : isAccessory ? 'تم نسخ رابط المنتج لمشاركته' : 'تم نسخ رابط الساعة لمشاركته',
         'info'
       );
     }
@@ -199,7 +224,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
       {/* Breadcrumbs Navigation */}
       <div className="bg-white border-b border-gray-200 py-3">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between text-xs text-gray-500">
-          <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap">
+          <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap no-scrollbar">
             <button
               onClick={onBack}
               className="hover:text-black flex items-center gap-1 text-[#996515] font-bold"
@@ -209,11 +234,14 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
             </button>
             <span>/</span>
             <span>
-              {product.category?.includes('accessories') ||
-              (product.categories && product.categories.includes('accessories'))
+              {isWomenAccessory
                 ? isFr
-                  ? 'Accessoires de luxe'
-                  : 'الإكسسوارات الفاخرة'
+                  ? 'Accessoires & Bijoux Femme'
+                  : 'إكسسوارات ومجوهرات نسائية'
+                : isAccessory
+                ? isFr
+                  ? 'Accessoires Homme de luxe'
+                  : 'إكسسوارات رجالية فاخرة'
                 : isFr
                 ? 'Montres de luxe'
                 : 'ساعات اليد الفاخرة'}
@@ -232,9 +260,9 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-16">
+      <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 pt-4 sm:pt-8 space-y-10 sm:space-y-16">
         {/* ================= SECTION 1 & 2: PRIMARY INFO & PHOTO GALLERY ================= */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-12">
           {/* Gallery Column */}
           <div className="lg:col-span-7 space-y-4">
             {/* Main Stage Image with Zoom */}
@@ -245,6 +273,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
               <img
                 src={product.images[activeImageIndex] || product.images[0]}
                 alt={product.name}
+                fetchPriority="high"
+                decoding="async"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = '/assets/watches_and_accessories_hero.jpg';
                 }}
@@ -278,7 +308,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
             </div>
 
             {/* Thumbnails Row */}
-            <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
+            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 sm:gap-3">
               {product.images.map((img, idx) => (
                 <button
                   key={idx}
@@ -293,8 +323,10 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                   }`}
                 >
                   <img
-                    src={img}
+                    src={getOptimizedImageUrl(img, 480)}
                     alt={`زاوية ${idx + 1}`}
+                    loading="lazy"
+                    decoding="async"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = '/assets/watches_and_accessories_hero.jpg';
                     }}
@@ -361,7 +393,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                   <span>
                     {isFr
                       ? `${effectiveReviewCount.toLocaleString('fr-FR')} clients ont commenté`
-                      : `${effectiveReviewCount.toLocaleString('en-US')} شخص علّقوا على هذه الساعة`}
+                      : `${effectiveReviewCount.toLocaleString('en-US')} ${isAccessory ? 'شخص علّقوا على هذا المنتج' : 'شخص علّقوا على هذه الساعة'}`}
                   </span>
                 </span>
                 <span className="text-[11px] font-semibold text-[#996515] group-hover:underline">
@@ -402,7 +434,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
               <div className="mt-3 pt-3 border-t border-[#c5a869]/20 flex items-center justify-between text-xs text-gray-700 font-semibold gap-2 flex-wrap">
                 <span className="flex items-center gap-1.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>{isFr ? 'Vérifiez votre montre avant de payer' : 'افحص ساعتك قبل أن تدفع'}</span>
+                  <span>{isFr ? (isAccessory ? 'Vérifiez votre article avant de payer' : 'Vérifiez votre montre avant de payer') : (isAccessory ? 'افحص منتجك قبل أن تدفع' : 'افحص ساعتك قبل أن تدفع')}</span>
                 </span>
                 <span className="flex items-center gap-1.5 text-[#8a5a00]">
                   <ShieldCheck className="w-4 h-4 text-[#996515]" />
@@ -562,11 +594,19 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                           <span>
                             {isFr
                               ? `Couleurs du pack (${quantity} pièces) :`
+                              : isAccessory
+                              ? `تحديد ألوان القطع في الباقة (${quantity} قطع):`
                               : `تحديد ألوان الساعات في الباقة (${quantity} قطع):`}
                           </span>
                         </span>
                         <span className="text-[11px] text-gray-500 font-semibold">
-                          {isFr ? 'Choisissez la couleur de chaque montre' : 'اختر لون كل ساعة على حدة'}
+                          {isFr
+                            ? isAccessory
+                              ? 'Choisissez la couleur de chaque pièce'
+                              : 'Choisissez la couleur de chaque montre'
+                            : isAccessory
+                            ? 'اختر لون كل قطعة على حدة'
+                            : 'اختر لون كل ساعة على حدة'}
                         </span>
                       </div>
 
@@ -587,7 +627,9 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                                     {itemIdx + 1}
                                   </span>
                                   <span>
-                                    {isFr ? `Montre N° ${itemIdx + 1} :` : `لون الساعة رقم (${itemIdx + 1}):`}
+                                    {isFr
+                                      ? `${isAccessory ? 'Pièce' : 'Montre'} N° ${itemIdx + 1} :`
+                                      : `${isAccessory ? 'لون القطعة' : 'لون الساعة'} رقم (${itemIdx + 1}):`}
                                   </span>
                                 </span>
                                 <span className="text-[11px] font-black text-[#996515] bg-[#c5a869]/15 border border-[#c5a869]/30 px-2.5 py-0.5 rounded-full">
@@ -633,7 +675,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                         <div className="flex items-center gap-1.5 flex-wrap">
                           {multiColors.slice(0, quantity).map((cName, idx) => (
                             <span key={idx} className="bg-white px-2 py-0.5 rounded border border-gray-200 text-[#996515]">
-                              {isFr ? `Montre ${idx + 1}:` : `ساعة ${idx + 1}:`}{' '}
+                              {isFr ? `${isAccessory ? 'Pièce' : 'Montre'} ${idx + 1}:` : `${isAccessory ? 'قطعة' : 'ساعة'} ${idx + 1}:`}{' '}
                               <strong className="text-gray-900">{translateColorName(cName, lang)}</strong>
                             </span>
                           ))}
@@ -687,8 +729,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                   href={buildWhatsAppUrl(
                     settings?.whatsappNumber,
                     isFr
-                      ? `Bonjour, je souhaite commander la montre ${product.name} (Réf : ${product.sku}) couleur : ${translateColorName(activeColor?.name || '', lang)}`
-                      : `السلام عليكم، بغيت نطلب ساعة ${product.name} (رمز: ${product.sku}) بلون: ${translateColorName(activeColor?.name || 'الافتراضي', lang)}`
+                      ? `Bonjour, je souhaite commander ${isAccessory ? '' : 'la montre '}${product.name} (Réf : ${product.sku}) couleur : ${translateColorName(activeColor?.name || '', lang)}`
+                      : `السلام عليكم، بغيت نطلب ${isAccessory ? '' : 'ساعة '}${product.name} (رمز: ${product.sku}) بلون: ${translateColorName(activeColor?.name || 'الافتراضي', lang)}`
                   )}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -724,12 +766,12 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                   {isFr ? (
                     <>
                       <strong className="text-gray-900">Vérification avant paiement :</strong> ouvrez le colis
-                      et inspectez la montre devant le livreur.
+                      et inspectez {isAccessory ? 'votre article' : 'la montre'} devant le livreur.
                     </>
                   ) : (
                     <>
-                      <strong className="text-gray-900">معاينة قبل الدفع:</strong> تفتح الطرد وتفحص الساعة
-                      قبل تسليم المبلغ للموزع.
+                      <strong className="text-gray-900">معاينة قبل الدفع:</strong> تفتح الطرد وتفحص{' '}
+                      {isAccessory ? 'المنتج' : 'الساعة'} قبل تسليم المبلغ للموزع.
                     </>
                   )}
                 </span>
@@ -754,8 +796,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
 
             {/* Dedicated 1-Year Warranty Certificate & Free Gift Cards */}
             <div className="space-y-3">
-              <div className="p-3.5 rounded-xl bg-gradient-to-r from-[#fefaf0] to-amber-50/70 border border-[#c5a869]/60 flex items-center gap-3 shadow-xs">
-                <div className="w-9 h-9 rounded-lg bg-[#11131a] text-[#f3d999] flex items-center justify-center flex-shrink-0">
+              <div className="p-3.5 rounded-xl bg-gradient-to-r from-[#fefaf0] to-amber-50/70 border border-[#c5a869]/60 flex items-start gap-3 shadow-xs">
+                <div className="w-9 h-9 rounded-lg bg-[#11131a] text-[#f3d999] flex items-center justify-center flex-shrink-0 mt-0.5">
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div className="text-xs leading-relaxed text-slate-800">
@@ -764,7 +806,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                       ? 'Certificat de garantie officiel d’un an inclus'
                       : 'شهادة ضمان رسمية لمدة سنة كاملة عند الشراء'}
                   </div>
-                  <p className="text-[11px] text-slate-700">
+                  <p className="text-[11px] text-slate-700 mt-0.5">
                     {isFr
                       ? 'À l’achat de ce produit, vous obtenez un certificat de garantie officiel d’un an contre tout défaut de fabrication.'
                       : 'عند شراء هذا المنتج أو أي منتج آخر من المتجر، يحصل الزبون على شهادة ضمان رسمية لمدة سنة ضد أي عطب مصنعي مع رمز تحقق QR.'}
@@ -772,8 +814,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-50 to-[#fefaf0] border border-emerald-300/80 flex items-center gap-3 shadow-xs">
-                <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center flex-shrink-0">
+              <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-50 to-[#fefaf0] border border-emerald-300/80 flex items-start gap-3 shadow-xs">
+                <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 mt-0.5">
                   <Gift className="w-5 h-5" />
                 </div>
                 <div className="text-xs leading-relaxed text-slate-800">
@@ -782,7 +824,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                       ? 'Cadeau gratuit offert avec votre achat'
                       : 'هدية مجانية عند شراء أي منتج'}
                   </div>
-                  <p className="text-[11px] text-slate-700">
+                  <p className="text-[11px] text-slate-700 mt-0.5">
                     {isFr
                       ? 'Pour l’achat de ce produit ou de tout autre article du site, vous recevez un cadeau gratuit avec votre commande.'
                       : 'عند شراء هذا المنتج أو أي منتج آخر من الموقع، سوف يحصل الزبون على هدية مجانية مميزة مرفقة مع طلبيته.'}
@@ -807,11 +849,21 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                 <span>{isFr ? 'Aperçu vidéo en direct' : 'معاينة حية ومباشرة'}</span>
               </div>
               <h2 className="text-2xl sm:text-3xl font-black text-gray-900">
-                {isFr ? 'Découvrez la montre de près 🎬' : 'اكتشف الساعة عن قرب 🎬'}
+                {isFr
+                  ? isAccessory
+                    ? 'Découvrez l’article de près 🎬'
+                    : 'Découvrez la montre de près 🎬'
+                  : isAccessory
+                  ? 'اكتشف المنتج عن قرب 🎬'
+                  : 'اكتشف الساعة عن قرب 🎬'}
               </h2>
               <p className="text-xs sm:text-sm text-gray-600 mt-1">
                 {isFr
-                  ? 'Admirez le mouvement des aiguilles, les reflets du cadran et la finition du bracelet avant d’acheter'
+                  ? isAccessory
+                    ? 'Admirez les finitions, les reflets et les détails réels avant d’acheter'
+                    : 'Admirez le mouvement des aiguilles, les reflets du cadran et la finition du bracelet avant d’acheter'
+                  : isAccessory
+                  ? 'شاهد تفاصيل القطعة ولمعانها الحقيقي وجودة التشطيب قبل الشراء'
                   : 'شاهد حركة العقارب، وانعكاس الضوء على المينا الكريستالية، ودقة تفاصيل السوار قبل الشراء'}
               </p>
             </div>
@@ -874,7 +926,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                 <span>
                   {isFr
                     ? 'Description & Détails'
-                    : product.category?.includes('accessories') || product.categories?.includes('accessories')
+                    : isAccessory
                     ? 'وصف المنتج ومميزاته'
                     : 'وصف الساعة ومميزاتها'}
                 </span>
@@ -1171,9 +1223,6 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
 
             {/* 4. Care & Warranty */}
             {activeTab === 'care' && (() => {
-              const isAccessory =
-                product.category?.includes('accessories') ||
-                Boolean(product.categories?.includes('accessories'));
               return (
                 <div className="max-w-3xl space-y-4 text-xs sm:text-sm text-gray-700 leading-relaxed">
                   <h3 className="text-xl font-bold text-gray-900 mb-2">
@@ -1246,10 +1295,10 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
               </div>
               <h2 className="text-2xl sm:text-3xl font-black text-gray-900">
                 {isFr
-                  ? product.category?.includes('accessories') || product.categories?.includes('accessories')
+                  ? isAccessory
                     ? 'Avis de nos clients sur ce produit ⭐'
                     : 'Avis de nos clients sur cette montre ⭐'
-                  : product.category?.includes('accessories') || product.categories?.includes('accessories')
+                  : isAccessory
                   ? 'شنو قالو زبناءنا على هاد المنتج؟ ⭐'
                   : 'شنو قالو زبناءنا على الساعة؟ ⭐'}
               </h2>
@@ -1346,7 +1395,11 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
             ) : (
               <div className="col-span-2 text-center py-8 text-gray-500 text-xs">
                 {isFr
-                  ? 'Soyez le premier à évaluer cette montre après réception !'
+                  ? isAccessory
+                    ? 'Soyez le premier à évaluer ce produit après réception !'
+                    : 'Soyez le premier à évaluer cette montre après réception !'
+                  : isAccessory
+                  ? 'كن أول من يقيّم هذا المنتج بعد استلامه!'
                   : 'كن أول من يقيّم هذه الساعة بعد استلامها!'}
               </div>
             )}
@@ -1419,7 +1472,11 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
               </h3>
               <p className="text-xs text-gray-600 leading-relaxed">
                 {isFr
-                  ? 'Ouvrez le colis devant le livreur, vérifiez votre montre puis réglez en espèces.'
+                  ? isAccessory
+                    ? 'Ouvrez le colis devant le livreur, vérifiez votre article puis réglez en espèces.'
+                    : 'Ouvrez le colis devant le livreur, vérifiez votre montre puis réglez en espèces.'
+                  : isAccessory
+                  ? 'يسلمك الموزع الطلبية، تفتحها وتتأكد من جودتها ثم تدفع المبلغ المتفق عليه نقداً.'
                   : 'يسلمك الموزع الساعة، تفتحها وتتأكد من جودتها ثم تدفع المبلغ المتفق عليه نقداً.'}
               </p>
             </div>
@@ -1442,11 +1499,13 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
       </div>
 
       {/* ================= STICKY MOBILE ACTION BAR ================= */}
-      <div className="lg:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-gray-200/90 px-3 py-2.5 z-40 shadow-2xl flex items-center justify-between gap-3">
+      <div className="lg:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-gray-200/90 px-3 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] z-40 shadow-2xl flex items-center justify-between gap-2.5">
         <div className="flex items-center gap-2.5 min-w-0">
           <img
-            src={product.images[activeImageIndex] || product.images[0] || '/assets/luxury_watch_hero.jpg'}
+            src={getOptimizedImageUrl(product.images[activeImageIndex] || product.images[0] || '/assets/luxury_watch_hero.jpg', 480)}
             alt={product.name}
+            loading="lazy"
+            decoding="async"
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).src = '/assets/luxury_watch_hero.jpg';
             }}
@@ -1473,7 +1532,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
               settings?.whatsappNumber,
               isFr
                 ? `Bonjour, je souhaite commander ${product.name} (Réf : ${product.sku})`
-                : `السلام عليكم، بغيت نطلب ساعة ${product.name} (رمز: ${product.sku})`
+                : `السلام عليكم، بغيت نطلب ${isAccessory ? '' : 'ساعة '}${product.name} (رمز: ${product.sku})`
             )}
             target="_blank"
             rel="noopener noreferrer"

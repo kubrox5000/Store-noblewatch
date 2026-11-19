@@ -125,6 +125,29 @@ const MainContent: React.FC = () => {
     ? products.find((p) => p.id === activeProductId)
     : null;
 
+  const [hasVisitedHome, setHasVisitedHome] = useState(() => !activeProductId);
+  const homeScrollYRef = React.useRef<number>(0);
+  const prevSelectedIdRef = React.useRef<string | null>(selectedProduct?.id || null);
+
+  useEffect(() => {
+    const currentId = selectedProduct?.id || null;
+    const prevId = prevSelectedIdRef.current;
+
+    if (!currentId) {
+      setHasVisitedHome(true);
+      if (prevId) {
+        const savedY = homeScrollYRef.current;
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: savedY, behavior: 'instant' as ScrollBehavior });
+        });
+      }
+    } else if (!prevId) {
+      homeScrollYRef.current = window.scrollY;
+    }
+
+    prevSelectedIdRef.current = currentId;
+  }, [selectedProduct?.id]);
+
   useEffect(() => {
     if (settings?.trackingPixels) {
       initTrackingPixels(settings.trackingPixels);
@@ -163,7 +186,7 @@ const MainContent: React.FC = () => {
           dir="rtl"
           role="alert"
           aria-live="assertive"
-          className={`fixed bottom-6 right-6 z-[120] max-w-sm rounded-2xl border p-4 shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5 duration-300 ${
+          className={`fixed bottom-20 sm:bottom-6 right-3 left-3 sm:left-auto sm:right-6 z-[120] sm:max-w-sm rounded-2xl border p-3.5 sm:p-4 shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5 duration-300 ${
             toast.type === 'success'
               ? 'bg-emerald-50 border-emerald-400 text-emerald-950'
               : toast.type === 'error'
@@ -183,7 +206,7 @@ const MainContent: React.FC = () => {
 
       {/* Main Body */}
       <main className="flex-1 pb-16 lg:pb-0">
-        {selectedProduct ? (
+        {selectedProduct && (
           <Suspense fallback={<ProductDetailSkeleton />}>
             <ProductDetailPage
               product={selectedProduct}
@@ -192,8 +215,10 @@ const MainContent: React.FC = () => {
               }}
             />
           </Suspense>
-        ) : (
-          <>
+        )}
+
+        {hasVisitedHome && (
+          <div className={selectedProduct ? 'hidden' : ''}>
             <HeroSection />
             <TrustGuarantees />
             <CategoriesSection />
@@ -204,7 +229,7 @@ const MainContent: React.FC = () => {
               <WhyChooseUs />
               <CustomerReviews />
             </Suspense>
-          </>
+          </div>
         )}
       </main>
 
@@ -226,7 +251,7 @@ const MainContent: React.FC = () => {
       {!selectedProduct && (
         <nav
           aria-label={isFr ? 'Navigation rapide mobile' : 'شريط التنقل السريع للهاتف'}
-          className="lg:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-gray-200/90 py-1.5 px-3 z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.07)] flex items-center justify-around"
+          className="lg:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-gray-200/90 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] px-2 z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.07)] flex items-center justify-around"
         >
           {/* Accueil / الرئيسية */}
           <button

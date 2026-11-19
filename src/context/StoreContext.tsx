@@ -39,6 +39,12 @@ export interface ProductReviewStats {
   avgRating: number;
 }
 
+export interface ReviewsSummary {
+  totalCount: number;
+  fiveStarsCount: number;
+  fourStarsCount: number;
+}
+
 interface StoreContextType {
   settings: StoreSettings | null;
   categories: Category[];
@@ -46,6 +52,10 @@ interface StoreContextType {
   orders: Order[];
   reviews: Review[];
   reviewsStatsByProduct: Record<string, ProductReviewStats>;
+  reviewsSummary: ReviewsSummary;
+  hasMoreReviews: boolean;
+  ensureAllReviewsLoaded: () => Promise<void>;
+  loadProductReviews: (productId: string) => Promise<void>;
   cart: CartItem[];
   cartCount: number;
   cartSubtotal: number;
@@ -99,7 +109,7 @@ interface StoreContextType {
   toggleReviewApproval: (id: string, isApproved: boolean) => Promise<boolean>;
   deleteReview: (id: string) => Promise<boolean>;
   updateSettings: (newSettings: Partial<StoreSettings>) => Promise<boolean>;
-  refreshData: () => Promise<void>;
+  refreshData: (opts?: { full?: boolean }) => Promise<void>;
   syncAllToCloud: () => Promise<boolean>;
   resetToDefaultData: () => Promise<void>;
 }
@@ -113,6 +123,8 @@ interface StoreSnapshot {
   categories: Category[];
   products: Product[];
   reviews: Review[];
+  reviewsStatsByProduct?: Record<string, ProductReviewStats>;
+  reviewsSummary?: ReviewsSummary;
 }
 
 const readInitialSnapshot = (): StoreSnapshot => {
@@ -125,6 +137,14 @@ const readInitialSnapshot = (): StoreSnapshot => {
         categories: Array.isArray(parsed.categories) ? parsed.categories : [],
         products: Array.isArray(parsed.products) ? parsed.products : [],
         reviews: Array.isArray(parsed.reviews) ? parsed.reviews : [],
+        reviewsStatsByProduct:
+          parsed.reviewsStatsByProduct && typeof parsed.reviewsStatsByProduct === 'object'
+            ? parsed.reviewsStatsByProduct
+            : undefined,
+        reviewsSummary:
+          parsed.reviewsSummary && typeof parsed.reviewsSummary === 'object'
+            ? parsed.reviewsSummary
+            : undefined,
       };
     }
     const savedProducts = localStorage.getItem('noblewatch_saved_products');
@@ -194,10 +214,19 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [toast, setToast] = useState<ToastState | null>(null);
   const [isLoading, setIsLoading] = useState(() => initialSnapshot.products.length === 0);
+  const [serverReviewsStats, setServerReviewsStats] = useState<Record<string, ProductReviewStats>>(
+    () => initialSnapshot.reviewsStatsByProduct || {}
+  );
+  const [serverReviewsSummary, setServerReviewsSummary] = useState<ReviewsSummary | null>(
+    () => initialSnapshot.reviewsSummary || null
+  );
+  const [hasMoreReviews, setHasMoreReviews] = useState<boolean>(true);
 
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const snapshotTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshPromiseRef = useRef<Promise<void> | null>(null);
+  const allReviewsPromiseRef = useRef<Promise<void> | null>(null);
+  const loadedProductReviewsRef = useRef<Set<string>>(new Set());
 
   const latestRef = useRef({
     settings,
@@ -261,7 +290,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           settings: sets,
           categories: cats,
           products: slimProds,
-          reviews: Array.isArray(revs) ? revs.slice(0, 60) : [],
+          reviews: Array.isArray(revs) ? revs.slice(0, 36) : [],
+          reviewsStatsByProduct: override?.reviewsStatsByProduct ?? serverReviewsStats,
+          reviewsSummary: override?.reviewsSummary ?? serverReviewsSummary ?? undefined,
         })
       );
       localStorage.removeItem('noblewatch_saved_products');
@@ -269,7 +300,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     } catch {
       // ignore quota errors safely
     }
-  }, []);
+  }, [serverReviewsStats, serverReviewsSummary]);
 
   // Non-blocking background snapshot writer (caps cached reviews at 60 so main thread & localStorage stay lightweight)
   const schedulePersistSnapshot = useCallback(
@@ -285,29 +316,48 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     [writeSnapshotNow]
   );
 
-  // O(N) lookup map of approved review counts & averages by productId (replaces 48 x 1,218 filter scans!)
+  // Merge server-precomputed review stats (cover all 1200+ reviews) with locally loaded reviews
   const reviewsStatsByProduct = useMemo(() => {
-    const acc: Record<string, { sum: number; count: number }> = {};
+    const result: Record<string, ProductReviewStats> = { ...serverReviewsStats };
+    if (!hasMoreReviews || Object.keys(serverReviewsStats).length === 0) {
+      const acc: Record<string, { sum: number; count: number }> = {};
+      for (let i = 0; i < reviews.length; i++) {
+        const r = reviews[i];
+        if (!r.isApproved) continue;
+        let bucket = acc[r.productId];
+        if (!bucket) {
+          bucket = { sum: 0, count: 0 };
+          acc[r.productId] = bucket;
+        }
+        bucket.count += 1;
+        bucket.sum += Number(r.rating) || 5;
+      }
+      for (const [productId, b] of Object.entries(acc)) {
+        result[productId] = {
+          count: b.count,
+          avgRating: Number((b.sum / b.count).toFixed(1)),
+        };
+      }
+    }
+    return result;
+  }, [reviews, serverReviewsStats, hasMoreReviews]);
+
+  const reviewsSummary = useMemo<ReviewsSummary>(() => {
+    if (hasMoreReviews && serverReviewsSummary) {
+      return serverReviewsSummary;
+    }
+    let totalCount = 0;
+    let fiveStarsCount = 0;
+    let fourStarsCount = 0;
     for (let i = 0; i < reviews.length; i++) {
       const r = reviews[i];
       if (!r.isApproved) continue;
-      let bucket = acc[r.productId];
-      if (!bucket) {
-        bucket = { sum: 0, count: 0 };
-        acc[r.productId] = bucket;
-      }
-      bucket.count += 1;
-      bucket.sum += Number(r.rating) || 5;
+      totalCount += 1;
+      if (r.rating === 5) fiveStarsCount += 1;
+      else if (r.rating === 4) fourStarsCount += 1;
     }
-    const result: Record<string, ProductReviewStats> = {};
-    for (const [productId, b] of Object.entries(acc)) {
-      result[productId] = {
-        count: b.count,
-        avgRating: Number((b.sum / b.count).toFixed(1)),
-      };
-    }
-    return result;
-  }, [reviews]);
+    return { totalCount, fiveStarsCount, fourStarsCount };
+  }, [reviews, hasMoreReviews, serverReviewsSummary]);
 
   // Sync product navigation with browser History (Back / Forward) & immediate scroll top
   useEffect(() => {
@@ -379,20 +429,92 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return () => clearTimeout(t);
   }, [cart]);
 
-  const refreshData = useCallback(async () => {
-    if (refreshPromiseRef.current) {
-      return refreshPromiseRef.current;
+  const ensureAllReviewsLoaded = useCallback(async () => {
+    if (!hasMoreReviews) return;
+    if (allReviewsPromiseRef.current) {
+      return allReviewsPromiseRef.current;
     }
-
-    const promise = (async () => {
+    const p = (async () => {
       try {
-        const res = await fetch('/api/store-data', {
-          headers: getAdminHeaders(),
-          cache: 'no-store',
+        const res = await fetch('/api/reviews', { cache: 'no-cache' });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json.success && Array.isArray(json.reviews)) {
+          setReviews(json.reviews);
+          setHasMoreReviews(false);
+        }
+      } catch {
+        // ignore network error
+      } finally {
+        allReviewsPromiseRef.current = null;
+      }
+    })();
+    allReviewsPromiseRef.current = p;
+    return p;
+  }, [hasMoreReviews]);
+
+  const loadProductReviews = useCallback(
+    async (productId: string) => {
+      if (!productId || !hasMoreReviews || loadedProductReviewsRef.current.has(productId)) {
+        return;
+      }
+      loadedProductReviewsRef.current.add(productId);
+      try {
+        const res = await fetch(`/api/reviews?productId=${encodeURIComponent(productId)}`, {
+          cache: 'no-cache',
         });
-        if (res.ok) {
-          const json = await res.json();
-          if (json.success) {
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json.success && Array.isArray(json.reviews)) {
+          setReviews((prev) => {
+            const byId = new Map<string, Review>();
+            for (const r of prev) byId.set(r.id, r);
+            for (const r of json.reviews as Review[]) byId.set(r.id, r);
+            return Array.from(byId.values());
+          });
+        }
+      } catch {
+        loadedProductReviewsRef.current.delete(productId);
+      }
+    },
+    [hasMoreReviews]
+  );
+
+  const refreshData = useCallback(
+    async (opts?: { full?: boolean }) => {
+      if (refreshPromiseRef.current && !opts?.full) {
+        return refreshPromiseRef.current;
+      }
+
+      const promise = (async () => {
+        try {
+          const hasAdminToken = Boolean(localStorage.getItem('noblewatch_admin_token'));
+          const useSlim = !opts?.full && !hasAdminToken;
+
+          let json: any = null;
+          if (useSlim) {
+            const w = window as unknown as { __NW_INITIAL_STORE_FETCH__?: Promise<any> };
+            if (w.__NW_INITIAL_STORE_FETCH__) {
+              const prefetched = await w.__NW_INITIAL_STORE_FETCH__;
+              w.__NW_INITIAL_STORE_FETCH__ = undefined;
+              if (prefetched?.success) {
+                json = prefetched;
+              }
+            }
+          }
+
+          if (!json) {
+            const url = useSlim ? '/api/store-data?slim=1' : '/api/store-data';
+            const res = await fetch(url, {
+              headers: getAdminHeaders(),
+              cache: 'no-cache',
+            });
+            if (res.ok) {
+              json = await res.json();
+            }
+          }
+
+          if (json?.success) {
             setSettings(json.data.settings);
             setCategories(json.data.categories);
 
@@ -415,7 +537,17 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             } catch {}
 
             setOrders(serverOrders);
-            setReviews(json.data.reviews || []);
+            const resolvedReviews: Review[] = json.data.reviews || [];
+            setReviews(resolvedReviews);
+            if (json.data.reviewsStatsByProduct) {
+              setServerReviewsStats(json.data.reviewsStatsByProduct);
+            }
+            if (json.data.reviewsSummary) {
+              setServerReviewsSummary(json.data.reviewsSummary);
+            }
+            const moreFlag = Boolean(json.data.hasMoreReviews);
+            setHasMoreReviews(moreFlag);
+
             const resolvedProducts: Product[] = json.data.products || [];
             setProducts(resolvedProducts);
 
@@ -423,25 +555,35 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               settings: json.data.settings,
               categories: json.data.categories,
               products: resolvedProducts,
-              reviews: json.data.reviews || [],
+              reviews: resolvedReviews,
+              reviewsStatsByProduct: json.data.reviewsStatsByProduct,
+              reviewsSummary: json.data.reviewsSummary,
             });
           }
+        } catch (err) {
+          console.error('Failed to fetch store data', err);
+        } finally {
+          setIsLoading(false);
+          refreshPromiseRef.current = null;
         }
-      } catch (err) {
-        console.error('Failed to fetch store data', err);
-      } finally {
-        setIsLoading(false);
-        refreshPromiseRef.current = null;
-      }
-    })();
+      })();
 
-    refreshPromiseRef.current = promise;
-    return promise;
-  }, [getAdminHeaders, handleUnauthorizedAdmin, schedulePersistSnapshot]);
+      refreshPromiseRef.current = promise;
+      return promise;
+    },
+    [getAdminHeaders, handleUnauthorizedAdmin, schedulePersistSnapshot]
+  );
 
   useEffect(() => {
     refreshData();
   }, [refreshData]);
+
+  // Load full dataset (all orders + all reviews) when admin modal opens
+  useEffect(() => {
+    if (isAdminOpen) {
+      refreshData({ full: true });
+    }
+  }, [isAdminOpen, refreshData]);
 
   // Poll orders every 5 seconds when admin is open & authenticated (skip setState if nothing changed!)
   const hasConfirmedOrders = orders.some((o) => o.status === 'تم التأكيد');
@@ -1210,6 +1352,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       orders,
       reviews,
       reviewsStatsByProduct,
+      reviewsSummary,
+      hasMoreReviews,
+      ensureAllReviewsLoaded,
+      loadProductReviews,
       cart,
       cartCount,
       cartSubtotal,
@@ -1265,6 +1411,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       orders,
       reviews,
       reviewsStatsByProduct,
+      reviewsSummary,
+      hasMoreReviews,
+      ensureAllReviewsLoaded,
+      loadProductReviews,
       cart,
       cartCount,
       cartSubtotal,

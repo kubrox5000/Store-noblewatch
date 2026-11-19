@@ -29,7 +29,7 @@ import { MALE_AVATARS, FEMALE_AVATARS, isFemaleName } from '../utils/reviewAvata
 const ITEMS_PER_PAGE = 9;
 
 export const CustomerReviews: React.FC = () => {
-  const { reviews, products, submitReview } = useStore();
+  const { reviews, products, submitReview, reviewsSummary, hasMoreReviews, ensureAllReviewsLoaded } = useStore();
   const { lang, isFr } = useLanguage();
   const [modalOpen, setModalOpen] = useState(false);
   const [author, setAuthor] = useState('');
@@ -53,19 +53,43 @@ export const CustomerReviews: React.FC = () => {
     [products]
   );
 
+  // Lazy-fetch full reviews archive when CustomerReviews section mounts or user interacts immediately
+  React.useEffect(() => {
+    if (!hasMoreReviews) return;
+    const isInteracting =
+      Boolean(searchQuery.trim()) ||
+      selectedCityFilter !== 'all' ||
+      selectedRatingFilter !== 'all' ||
+      selectedProductFilter !== 'all' ||
+      currentPage > 1;
+    if (isInteracting) {
+      ensureAllReviewsLoaded();
+      return;
+    }
+    const t = window.setTimeout(() => {
+      ensureAllReviewsLoaded();
+    }, 800);
+    return () => window.clearTimeout(t);
+  }, [hasMoreReviews, ensureAllReviewsLoaded, searchQuery, selectedCityFilter, selectedRatingFilter, selectedProductFilter, currentPage]);
+
   // Filter approved reviews only
   const approvedReviews = useMemo(() => {
     return reviews.filter((r) => r.isApproved);
   }, [reviews]);
 
   const { totalCount, fiveStarsCount, fourStarsCount, fiveStarPercent, fourStarPercent } = useMemo(() => {
-    const total = approvedReviews.length;
+    const total = hasMoreReviews ? reviewsSummary.totalCount : approvedReviews.length;
     let five = 0;
     let four = 0;
-    for (let i = 0; i < approvedReviews.length; i++) {
-      const r = approvedReviews[i];
-      if (r.rating === 5) five += 1;
-      else if (r.rating === 4) four += 1;
+    if (hasMoreReviews) {
+      five = reviewsSummary.fiveStarsCount;
+      four = reviewsSummary.fourStarsCount;
+    } else {
+      for (let i = 0; i < approvedReviews.length; i++) {
+        const r = approvedReviews[i];
+        if (r.rating === 5) five += 1;
+        else if (r.rating === 4) four += 1;
+      }
     }
     return {
       totalCount: total,
@@ -74,7 +98,7 @@ export const CustomerReviews: React.FC = () => {
       fiveStarPercent: total > 0 ? Math.round((five / total) * 100) : 90,
       fourStarPercent: total > 0 ? Math.round((four / total) * 100) : 10,
     };
-  }, [approvedReviews]);
+  }, [approvedReviews, hasMoreReviews, reviewsSummary]);
 
   // Filtered reviews based on user selections
   const filteredReviews = useMemo(() => {
@@ -152,22 +176,23 @@ export const CustomerReviews: React.FC = () => {
   };
 
   return (
-    <section id="reviews-section" className="py-16 bg-white border-b border-gray-200/80 scroll-mt-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="reviews-section" className="py-10 sm:py-16 bg-white border-b border-gray-200/80 scroll-mt-16 sm:scroll-mt-20">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className={`flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8 ${isFr ? 'text-left' : 'text-right'}`}>
+        <div className={`flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6 sm:mb-8 text-center ${isFr ? 'sm:text-left' : 'sm:text-right'}`}>
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#fefaf0] text-xs font-bold text-[#996515] border border-[#c5a869]/30 mb-2">
-              <Sparkles className="w-3.5 h-3.5 text-[#b8860b]" />
-              <span>{isFr ? 'Expériences réelles de nos clients 🇲🇦' : 'تجارب زبناء المتجر الحقيقية 🇲🇦'}</span>
-            </div>
-            <h2 className="text-3xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-              <span>{isFr ? 'Avis de nos clients au Maroc' : 'آراء زبناءنا بالمغرب'}</span>
-              <span className="text-lg font-mono px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+            <div className="inline-flex items-center justify-center sm:justify-start gap-2 text-xs font-bold text-[#996515] mb-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-[#b8860b] flex-shrink-0" />
+              <span>{isFr ? 'Expériences réelles · Maroc 🇲🇦' : 'تجارب زبناء المتجر الحقيقية 🇲🇦'}</span>
+              <span aria-hidden="true" className="text-[#c5a869]">·</span>
+              <span className="font-mono font-extrabold tabular-nums">
                 {totalCount} {isFr ? 'avis' : 'تقييم'}
               </span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight text-balance">
+              {isFr ? 'Avis de nos clients au Maroc' : 'آراء زبناءنا بالمغرب'}
             </h2>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-xs sm:text-sm text-gray-600 mt-1.5 max-w-md mx-auto sm:mx-0 leading-relaxed text-balance">
               {isFr
                 ? 'Retours authentiques de nos clients satisfaits dans tout le Royaume du Maroc'
                 : 'ملاحظات وتجارب حقيقية بالدارجة المغربية لزبنائنا الكرام من مختلف ربوع المملكة'}
@@ -176,7 +201,7 @@ export const CustomerReviews: React.FC = () => {
 
           <button
             onClick={() => setModalOpen(true)}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 text-xs font-bold shadow-sm hover:shadow transition self-start sm:self-auto cursor-pointer"
+            className="w-full sm:w-auto min-h-[44px] flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white hover:bg-gray-50 active:scale-[0.98] text-gray-900 border border-gray-300 text-xs font-bold shadow-xs hover:shadow transition cursor-pointer shrink-0"
           >
             <MessageSquarePlus className="w-4 h-4 text-[#b8860b]" />
             <span>{isFr ? 'Partagez votre avis' : 'شاركنا رأيك في مشترياتك'}</span>
@@ -184,73 +209,73 @@ export const CustomerReviews: React.FC = () => {
         </div>
 
         {/* Rating Breakdown & Stats Banner */}
-        <div className={`mb-10 p-6 rounded-3xl bg-gradient-to-r from-[#faf8f4] via-[#fcfbf9] to-[#faf8f4] border border-[#c5a869]/25 shadow-sm ${isFr ? 'text-left' : 'text-right'}`}>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
+        <div className={`mb-6 sm:mb-10 p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-[#faf8f4] via-[#fcfbf9] to-[#faf8f4] border border-[#c5a869]/30 shadow-xs ${isFr ? 'text-left' : 'text-right'}`}>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6 items-center">
             <div className={`flex items-center justify-center md:justify-start gap-4 border-b md:border-b-0 border-gray-200/80 pb-4 md:pb-0 ${isFr ? 'md:border-r md:pr-6' : 'md:border-l md:pl-6'}`}>
-              <div className="text-center">
-                <span className="text-5xl font-black text-gray-900 tracking-tight">4.9</span>
-                <span className="text-xs text-gray-500 block font-semibold mt-0.5">
+              <div className="text-center shrink-0">
+                <span className="text-4xl sm:text-5xl font-black text-gray-900 tracking-tight tabular-nums leading-none block">4.9</span>
+                <span className="text-[11px] sm:text-xs text-gray-500 block font-semibold mt-1 tabular-nums">
                   {isFr ? 'sur 5.0' : 'من 5.0'}
                 </span>
               </div>
-              <div className="space-y-1">
+              <div className="flex flex-col items-start space-y-1 min-w-0">
                 <div className="flex items-center gap-1 text-amber-500">
                   {[...Array(5)].map((_, i) => (
                     <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
                   ))}
                 </div>
-                <p className="text-xs font-bold text-gray-700">
+                <p className="text-xs font-bold text-gray-800 tabular-nums">
                   {isFr ? `Basé sur ${totalCount} avis vérifiés` : `بناءً على ${totalCount} تقييم موثق`}
                 </p>
-                <span className="inline-flex items-center gap-1 text-[11px] text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full font-bold border border-emerald-200">
-                  <CheckCircle className="w-3 h-3 text-emerald-600" />
+                <div className="inline-flex items-center gap-1.5 text-[11px] text-emerald-700 font-bold">
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
                   <span>{isFr ? '100% commandes livrées' : '100% طلبات مؤكدة تم تسليمها'}</span>
-                </span>
+                </div>
               </div>
             </div>
 
             {/* Progress Bars */}
-            <div className={`md:col-span-2 space-y-2 border-b md:border-b-0 border-gray-200/80 pb-4 md:pb-0 text-xs ${isFr ? 'md:border-r md:pr-6' : 'md:border-l md:pl-6'}`}>
-              <div className="flex items-center gap-3">
-                <span className={`w-16 font-bold text-gray-700 ${isFr ? 'text-left' : 'text-right'}`}>
+            <div className={`md:col-span-2 space-y-2.5 border-b md:border-b-0 border-gray-200/80 pb-4 md:pb-0 text-xs ${isFr ? 'md:border-r md:pr-6' : 'md:border-l md:pl-6'}`}>
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <span className={`w-12 sm:w-16 font-bold text-gray-700 shrink-0 ${isFr ? 'text-left' : 'text-right'}`}>
                   {isFr ? '5 étoiles' : '5 نجوم'}
                 </span>
-                <div className="flex-1 h-3 rounded-full bg-gray-200 overflow-hidden">
+                <div className="flex-1 h-2.5 sm:h-3 rounded-full bg-gray-200 overflow-hidden">
                   <div
                     className="h-full bg-gradient-to-l from-amber-400 to-[#c5a869] rounded-full transition-all duration-500"
                     style={{ width: `${fiveStarPercent}%` }}
                   />
                 </div>
-                <span className={`w-12 font-mono text-gray-600 font-bold ${isFr ? 'text-right' : 'text-left'}`}>
+                <span className={`w-10 sm:w-12 font-mono text-gray-700 font-bold tabular-nums shrink-0 ${isFr ? 'text-right' : 'text-left'}`}>
                   {fiveStarsCount}
                 </span>
               </div>
 
-              <div className="flex items-center gap-3">
-                <span className={`w-16 font-bold text-gray-700 ${isFr ? 'text-left' : 'text-right'}`}>
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <span className={`w-12 sm:w-16 font-bold text-gray-700 shrink-0 ${isFr ? 'text-left' : 'text-right'}`}>
                   {isFr ? '4 étoiles' : '4 نجوم'}
                 </span>
-                <div className="flex-1 h-3 rounded-full bg-gray-200 overflow-hidden">
+                <div className="flex-1 h-2.5 sm:h-3 rounded-full bg-gray-200 overflow-hidden">
                   <div
                     className="h-full bg-gradient-to-l from-amber-300 to-amber-400 rounded-full transition-all duration-500"
                     style={{ width: `${fourStarPercent}%` }}
                   />
                 </div>
-                <span className={`w-12 font-mono text-gray-600 font-bold ${isFr ? 'text-right' : 'text-left'}`}>
+                <span className={`w-10 sm:w-12 font-mono text-gray-700 font-bold tabular-nums shrink-0 ${isFr ? 'text-right' : 'text-left'}`}>
                   {fourStarsCount}
                 </span>
               </div>
             </div>
 
             {/* Quick Guarantees Badge */}
-            <div className="flex flex-col items-center md:items-start justify-center gap-2 text-xs text-gray-600">
-              <div className="flex items-center gap-2">
-                <Award className="w-4 h-4 text-[#b8860b]" />
-                <span className="font-bold text-gray-900">
+            <div className="flex flex-col items-center md:items-start justify-center gap-1.5 text-xs text-gray-600">
+              <div className="flex items-center gap-1.5">
+                <Award className="w-4 h-4 text-[#b8860b] flex-shrink-0" />
+                <span className="font-bold text-gray-900 tabular-nums">
                   {isFr ? 'Satisfaction : 98,4%' : 'نسبة الرضا: 98.4%'}
                 </span>
               </div>
-              <p className={`text-[11px] text-gray-500 text-center ${isFr ? 'md:text-left' : 'md:text-right'}`}>
+              <p className={`text-[11px] text-gray-500 text-center leading-relaxed ${isFr ? 'md:text-left' : 'md:text-right'}`}>
                 {isFr
                   ? 'Droit de vérification et contrôle devant chez vous avant le paiement'
                   : 'حق المعاينة والفحص عند باب المنزل قبل الدفع نقداً للموزع'}
@@ -260,8 +285,8 @@ export const CustomerReviews: React.FC = () => {
         </div>
 
         {/* Filter & Search Bar */}
-        <div className="mb-8 p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-4">
-          <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+        <div className="mb-6 sm:mb-8 p-3 sm:p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-3 sm:space-y-4">
+          <div className="flex flex-col md:flex-row gap-2.5 sm:gap-3 items-stretch md:items-center justify-between">
             <div className="relative flex-1">
               <input
                 type="text"
@@ -273,7 +298,7 @@ export const CustomerReviews: React.FC = () => {
                 placeholder={
                   isFr
                     ? 'Rechercher dans les avis (ex : livraison, garantie, qualité...)'
-                    : 'ابحث في آراء الزبائن (مثال: التوصيل، الموزع، الضمان، الكرونوغراف، الماء...)'
+                    : 'ابحث في آراء الزبائن (مثال: التوصيل، الموزع، الضمان، الجودة...)'
                 }
                 className={`w-full bg-white border border-gray-200 rounded-xl py-2.5 text-xs sm:text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#c5a869] focus:ring-1 focus:ring-[#c5a869] ${
                   isFr ? 'pl-10 pr-4' : 'pr-10 pl-4'
@@ -296,15 +321,15 @@ export const CustomerReviews: React.FC = () => {
               )}
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500 whitespace-nowrap">{isFr ? 'Ville :' : 'المدينة:'}</span>
+            <div className="grid grid-cols-2 md:flex items-center gap-2">
               <select
                 value={selectedCityFilter}
                 onChange={(e) => {
                   setSelectedCityFilter(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="bg-white border border-gray-200 rounded-xl py-2 px-3 text-xs text-gray-800 focus:outline-none focus:border-[#c5a869]"
+                aria-label={isFr ? 'Ville' : 'المدينة'}
+                className="w-full md:w-auto bg-white border border-gray-200 rounded-xl py-2.5 md:py-2 px-2.5 sm:px-3 text-xs text-gray-800 focus:outline-none focus:border-[#c5a869]"
               >
                 <option value="all">{isFr ? `Toutes les villes (${totalCount})` : `كل المدن (${totalCount})`}</option>
                 {MOROCCAN_CITIES.map((c) => {
@@ -316,19 +341,17 @@ export const CustomerReviews: React.FC = () => {
                   );
                 })}
               </select>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500 whitespace-nowrap">{isFr ? 'Modèle :' : 'الساعة:'}</span>
               <select
                 value={selectedProductFilter}
                 onChange={(e) => {
                   setSelectedProductFilter(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="bg-white border border-gray-200 rounded-xl py-2 px-3 text-xs text-gray-800 focus:outline-none focus:border-[#c5a869] max-w-[160px] truncate"
+                aria-label={isFr ? 'Modèle' : 'المنتج'}
+                className="w-full md:max-w-[180px] bg-white border border-gray-200 rounded-xl py-2.5 md:py-2 px-2.5 sm:px-3 text-xs text-gray-800 focus:outline-none focus:border-[#c5a869] truncate"
               >
-                <option value="all">{isFr ? 'Tous les produits' : 'جميع الساعات والإكسسوارات'}</option>
+                <option value="all">{isFr ? 'Tous les produits' : 'جميع المنتجات'}</option>
                 {products.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name.slice(0, 22)}...
@@ -337,13 +360,13 @@ export const CustomerReviews: React.FC = () => {
               </select>
             </div>
 
-            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-gray-200">
+            <div className="grid grid-cols-3 md:flex items-center gap-1 bg-white p-1 rounded-xl border border-gray-200">
               <button
                 onClick={() => {
                   setSelectedRatingFilter('all');
                   setCurrentPage(1);
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                className={`min-h-[34px] px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition whitespace-nowrap ${
                   selectedRatingFilter === 'all'
                     ? 'bg-amber-100 text-amber-900 shadow-sm'
                     : 'text-gray-600 hover:text-black'
@@ -356,28 +379,28 @@ export const CustomerReviews: React.FC = () => {
                   setSelectedRatingFilter(5);
                   setCurrentPage(1);
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition ${
+                className={`min-h-[34px] px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1 transition whitespace-nowrap ${
                   selectedRatingFilter === 5
                     ? 'bg-amber-100 text-amber-900 shadow-sm'
                     : 'text-gray-600 hover:text-black'
                 }`}
               >
                 <span>{isFr ? '5 ★' : '5 نجوم'}</span>
-                <span className="text-[10px] opacity-75">({fiveStarsCount})</span>
+                <span className="text-[10px] opacity-75 tabular-nums">({fiveStarsCount})</span>
               </button>
               <button
                 onClick={() => {
                   setSelectedRatingFilter(4);
                   setCurrentPage(1);
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition ${
+                className={`min-h-[34px] px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1 transition whitespace-nowrap ${
                   selectedRatingFilter === 4
                     ? 'bg-amber-100 text-amber-900 shadow-sm'
                     : 'text-gray-600 hover:text-black'
                 }`}
               >
                 <span>{isFr ? '4 ★' : '4 نجوم'}</span>
-                <span className="text-[10px] opacity-75">({fourStarsCount})</span>
+                <span className="text-[10px] opacity-75 tabular-nums">({fourStarsCount})</span>
               </button>
             </div>
           </div>
@@ -408,7 +431,7 @@ export const CustomerReviews: React.FC = () => {
 
         {/* Reviews Cards Grid */}
         {currentReviews.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-6">
             {(() => {
               const usedOnPage = new Set<string>();
 
@@ -511,7 +534,7 @@ export const CustomerReviews: React.FC = () => {
 
         {/* Pagination & Count Navigation */}
         {filteredReviews.length > ITEMS_PER_PAGE && (
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-200 pt-6">
+          <div className="mt-7 sm:mt-10 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-200 pt-5 sm:pt-6">
             <div className="text-xs text-gray-500">
               {isFr ? (
                 <>
@@ -635,7 +658,7 @@ export const CustomerReviews: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-gray-700 font-semibold mb-1">
                     {isFr ? 'Ville' : 'المدينة'}

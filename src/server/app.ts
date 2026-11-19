@@ -648,12 +648,64 @@ interface CachedStorePayload {
 }
 const cachedStorePayloads: {
   public?: CachedStorePayload;
+  'public-slim'?: CachedStorePayload;
   admin?: CachedStorePayload;
+  reviewsAll?: CachedStorePayload;
 } = {};
 
-function getOrBuildStorePayload(db: any, isAdminAuthenticated: boolean): CachedStorePayload {
+function computeReviewsMetadata(reviews: any[]) {
+  const acc: Record<string, { sum: number; count: number }> = {};
+  const approved: any[] = [];
+  let fiveStarsCount = 0;
+  let fourStarsCount = 0;
+
+  for (let i = 0; i < reviews.length; i++) {
+    const r = reviews[i];
+    if (!r?.isApproved) continue;
+    approved.push(r);
+    const rating = Number(r.rating) || 5;
+    if (rating === 5) fiveStarsCount += 1;
+    else if (rating === 4) fourStarsCount += 1;
+
+    let bucket = acc[r.productId];
+    if (!bucket) {
+      bucket = { sum: 0, count: 0 };
+      acc[r.productId] = bucket;
+    }
+    bucket.count += 1;
+    bucket.sum += rating;
+  }
+
+  const reviewsStatsByProduct: Record<string, { count: number; avgRating: number }> = {};
+  for (const [productId, b] of Object.entries(acc)) {
+    reviewsStatsByProduct[productId] = {
+      count: b.count,
+      avgRating: Number((b.sum / b.count).toFixed(1)),
+    };
+  }
+
+  return {
+    approved,
+    reviewsStatsByProduct,
+    reviewsSummary: {
+      totalCount: approved.length,
+      fiveStarsCount,
+      fourStarsCount,
+    },
+  };
+}
+
+function getOrBuildStorePayload(
+  db: any,
+  isAdminAuthenticated: boolean,
+  isSlim: boolean = false
+): CachedStorePayload {
   const version = getStoreCacheVersion();
-  const key = isAdminAuthenticated ? 'admin' : 'public';
+  const key: 'admin' | 'public' | 'public-slim' = isAdminAuthenticated
+    ? 'admin'
+    : isSlim
+    ? 'public-slim'
+    : 'public';
   const existing = cachedStorePayloads[key];
   if (existing && existing.version === version) {
     return existing;
@@ -680,15 +732,24 @@ function getOrBuildStorePayload(db: any, isAdminAuthenticated: boolean): CachedS
     orderSecurity: mergedOrderSecurity,
   };
 
+  const allReviews = Array.isArray(db.reviews) ? db.reviews : [];
+  const meta = computeReviewsMetadata(allReviews);
+  const responseReviews =
+    !isAdminAuthenticated && isSlim ? meta.approved.slice(0, 36) : allReviews;
+
   const jsonStr = JSON.stringify({
     success: true,
     isAdminAuthenticated,
+    isSlim: Boolean(!isAdminAuthenticated && isSlim),
     data: {
       settings: mergedSettings,
       categories: db.categories,
       products: db.products,
       orders: cleanOrders,
-      reviews: db.reviews,
+      reviews: responseReviews,
+      reviewsStatsByProduct: meta.reviewsStatsByProduct,
+      reviewsSummary: meta.reviewsSummary,
+      hasMoreReviews: Boolean(!isAdminAuthenticated && isSlim && meta.approved.length > 36),
     },
   });
   const plainBuffer = Buffer.from(jsonStr, 'utf-8');
@@ -715,10 +776,11 @@ app.get('/api/store-data', async (req: Request, res: Response) => {
       req,
       db.settings.adminPasswordHash || 'admin123'
     );
+    const isSlim = !isAdminAuthenticated && String(req.query.slim || '') === '1';
 
-    const payload = getOrBuildStorePayload(db, isAdminAuthenticated);
+    const payload = getOrBuildStorePayload(db, isAdminAuthenticated, isSlim);
     res.setHeader('ETag', payload.etag);
-    res.setHeader('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+    res.setHeader('Cache-Control', 'private, no-cache, must-revalidate');
     res.setHeader('Vary', 'Authorization, Accept-Encoding');
 
     if (req.headers['if-none-match'] === payload.etag) {
@@ -735,6 +797,71 @@ app.get('/api/store-data', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching store-data:', error);
     return res.status(500).json({ success: false, message: 'تعذر تحميل بيانات المتجر من قاعدة البيانات' });
+  }
+});
+
+// 1b. Lazy-loaded full or per-product reviews endpoint (keeps initial /api/store-data ultra-fast)
+app.get('/api/reviews', async (req: Request, res: Response) => {
+  try {
+    const db = await getStoreSnapshot();
+    const productId = typeof req.query.productId === 'string' ? req.query.productId.trim() : '';
+    const version = getStoreCacheVersion();
+
+    if (productId) {
+      const etag = `"nw-rev-${version}-${productId}"`;
+      res.setHeader('ETag', etag);
+      res.setHeader('Cache-Control', 'public, no-cache, must-revalidate');
+      res.setHeader('Vary', 'Accept-Encoding');
+      if (req.headers['if-none-match'] === etag) {
+        return res.status(304).end();
+      }
+      const list = (db.reviews || []).filter(
+        (r: any) => r.isApproved && r.productId === productId
+      );
+      const plainBuffer = Buffer.from(JSON.stringify({ success: true, reviews: list }), 'utf-8');
+      const acceptEncoding = String(req.headers['accept-encoding'] || '');
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      if (acceptEncoding.includes('gzip') && !IS_SERVERLESS) {
+        res.setHeader('Content-Encoding', 'gzip');
+        return res.send(zlib.gzipSync(plainBuffer));
+      }
+      return res.send(plainBuffer);
+    }
+
+    let cached = cachedStorePayloads.reviewsAll;
+    if (!cached || cached.version !== version) {
+      const approved = (db.reviews || []).filter((r: any) => r.isApproved);
+      const plainBuffer = Buffer.from(
+        JSON.stringify({ success: true, reviews: approved }),
+        'utf-8'
+      );
+      const gzipBuffer = IS_SERVERLESS ? plainBuffer : zlib.gzipSync(plainBuffer);
+      cached = {
+        version,
+        etag: `"nw-rev-all-${version}"`,
+        plainBuffer,
+        gzipBuffer,
+      };
+      cachedStorePayloads.reviewsAll = cached;
+    }
+
+    res.setHeader('ETag', cached.etag);
+    res.setHeader('Cache-Control', 'public, no-cache, must-revalidate');
+    res.setHeader('Vary', 'Accept-Encoding');
+    if (req.headers['if-none-match'] === cached.etag) {
+      return res.status(304).end();
+    }
+
+    const acceptEncoding = String(req.headers['accept-encoding'] || '');
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    if (acceptEncoding.includes('gzip') && !IS_SERVERLESS) {
+      res.setHeader('Content-Encoding', 'gzip');
+      return res.send(cached.gzipBuffer);
+    }
+    return res.send(cached.plainBuffer);
+  } catch (error) {
+    console.error('Error fetching reviews:', error);
+    return res.status(500).json({ success: false, message: 'تعذر تحميل التقييمات' });
   }
 });
 

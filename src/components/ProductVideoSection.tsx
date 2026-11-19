@@ -37,6 +37,7 @@ import {
   getProductColors,
   calculateTierOffers,
   getBundlePriceForQuantity,
+  getOptimizedImageUrl,
 } from '../utils/constants';
 import {
   translateColorName,
@@ -260,77 +261,74 @@ export const ProductVideoSection: React.FC = () => {
   if (allVideos.length === 0) return null;
 
   return (
-    <section id="videos-section" className="py-16 bg-[#f8f9fb] border-b border-gray-200/80 scroll-mt-20">
-      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${isFr ? 'text-left' : 'text-right'}`}>
+    <section id="videos-section" className="py-10 sm:py-16 bg-[#f8f9fb] border-b border-gray-200/80 scroll-mt-16 sm:scroll-mt-20">
+      <div className={`max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 ${isFr ? 'text-left' : 'text-right'}`}>
         {/* ================= 1. SECTION HEADER ================= */}
-        <div className="mb-8">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#fefaf0] text-xs font-bold text-[#996515] border border-[#c5a869]/30 mb-3 shadow-xs">
-            <Film className="w-4 h-4 text-[#b8860b]" />
-            <span>{isFr ? 'Aperçu réel en vidéo 🎥' : 'معاينة حقيقية بالفيديو 🎥'}</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-[11px] font-mono font-bold text-gray-500">
-              {isFr ? `(${allVideos.length} vidéos HD disponibles)` : `(${allVideos.length} فيديو متوفر بجودة HD)`}
+        <div className={`mb-6 sm:mb-8 text-center ${isFr ? 'md:text-left' : 'md:text-right'}`}>
+          <div className="inline-flex items-center gap-2 text-xs font-bold text-[#996515] mb-1.5 sm:mb-2">
+            <Film className="w-4 h-4 text-[#b8860b] flex-shrink-0" />
+            <span>{isFr ? 'Aperçu réel en vidéo' : 'معاينة حقيقية بالفيديو'}</span>
+            <span aria-hidden="true" className="text-[#c5a869]">·</span>
+            <span className="font-mono font-extrabold tabular-nums">
+              {isFr ? `${allVideos.length} vidéos HD` : `${allVideos.length} فيديو HD`}
             </span>
           </div>
 
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
-              <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight flex flex-wrap items-center gap-2.5">
-                <span>
-                  {isFr ? 'Découvrez nos montres et accessoires de près' : 'شاهد الساعات والإكسسوارات عن قرب'}
-                </span>
-                <span className="text-xs font-black text-[#996515] px-3 py-1 rounded-full bg-amber-50 border border-amber-200 shadow-xs">
-                  {isFr ? 'Vidéos Haute Définition HD' : 'فيديوهات عالية الدقة HD'}
-                </span>
-              </h2>
-              <p className="text-sm text-gray-600 mt-2 max-w-3xl leading-relaxed">
-                {isFr
-                  ? 'Des vidéos réalistes sous plusieurs angles mettant en valeur le cadran, l’éclat de l’acier, le cuir premium et les finitions avant votre achat.'
-                  : 'فيديوهات واقعية من زوايا متعددة تبرز تفاصيل المينا، لمعان الفولاذ، فخامة الجلد، وبريق الأحجار قبل اتخاذ قرار الشراء'}
-              </p>
-            </div>
-          </div>
+          <h2 className="text-2xl sm:text-4xl font-black text-gray-900 tracking-tight text-balance">
+            {isFr ? 'Découvrez nos montres et accessoires de près' : 'شاهد الساعات والإكسسوارات عن قرب'}
+          </h2>
+          <p className="text-xs sm:text-sm text-gray-600 mt-2 max-w-2xl mx-auto md:mx-0 leading-relaxed text-balance">
+            {isFr
+              ? 'Des vidéos réalistes sous plusieurs angles mettant en valeur le cadran, l’éclat de l’acier, le cuir premium et les finitions avant votre achat.'
+              : 'فيديوهات واقعية من زوايا متعددة تبرز تفاصيل المينا، لمعان الفولاذ، فخامة الجلد، وبريق الأحجار قبل اتخاذ قرار الشراء'}
+          </p>
         </div>
 
         {/* ================= 2. MAIN CATEGORY FILTER TABS ================= */}
-        <div className="mb-10 bg-white/80 backdrop-blur-xs p-4 sm:p-6 rounded-3xl border border-gray-200/90 shadow-sm">
-          <div className="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-gray-100">
+        <div className="mb-6 sm:mb-10 bg-white p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-gray-200/90 shadow-sm">
+          <div className="flex items-center justify-between gap-3 mb-3 pb-2.5 border-b border-gray-100">
             <div className="flex items-center gap-2 text-xs font-black text-gray-900">
-              <Filter className="w-4 h-4 text-[#b8860b]" />
-              <span>{isFr ? 'Filtrer les vidéos par catégorie :' : 'تصفح الفيديوهات حسب الأقسام الرئيسية:'}</span>
+              <Filter className="w-4 h-4 text-[#b8860b] flex-shrink-0" />
+              <span>{isFr ? 'Filtrer par catégorie' : 'تصفح الفيديوهات حسب الأقسام'}</span>
             </div>
             <span className="text-[11px] text-[#996515] font-bold hidden sm:inline-block">
               {isFr ? 'Sélectionnez une catégorie pour afficher les vidéos' : 'اختر القسم لعرض جميع الفيديوهات المطابقة فوراً'}
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
-            {CATEGORY_FILTERS.map((cat) => {
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-stretch sm:items-center gap-2 sm:gap-2.5">
+            {CATEGORY_FILTERS.map((cat, idx) => {
               const count = filterCounts[cat.id];
               const isSelected = selectedFilterId === cat.id;
               const IconComp = cat.icon || Sparkles;
+              const isAllTab = idx === 0;
 
               return (
                 <button
                   key={cat.id}
+                  type="button"
                   onClick={() => {
                     setSelectedFilterId(cat.id);
                     setVisibleVideosCount(INITIAL_VIDEO_LIMIT);
                   }}
-                  className={`px-3.5 sm:px-4 py-2.5 rounded-2xl text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-2 shadow-xs ${
+                  className={`min-h-[42px] px-3 sm:px-4 py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all duration-200 cursor-pointer flex items-center justify-between sm:justify-start gap-1.5 sm:gap-2 border ${
+                    isAllTab ? 'col-span-2 sm:col-span-1' : ''
+                  } ${
                     isSelected
-                      ? 'gold-gradient-bg text-black font-black shadow-md ring-2 ring-[#c5a869]/60 scale-102'
-                      : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-[#c5a869]/40 hover:text-gray-900'
+                      ? 'gold-gradient-bg text-black font-black border-[#c5a869] shadow-sm'
+                      : 'bg-gray-50/80 sm:bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-[#c5a869]/40 hover:text-gray-900'
                   }`}
                 >
-                  <IconComp className={`w-3.5 h-3.5 ${isSelected ? 'text-black' : 'text-[#b8860b]'}`} />
-                  <span className="whitespace-nowrap">{isFr ? cat.labelFr : cat.label}</span>
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <IconComp className={`w-3.5 h-3.5 flex-shrink-0 ${isSelected ? 'text-black' : 'text-[#b8860b]'}`} />
+                    <span className="truncate">{isFr ? cat.labelFr : cat.label}</span>
+                  </span>
                   <span
-                    className={`font-mono text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                      isSelected ? 'bg-black/15 text-black' : 'bg-gray-100 text-gray-600'
+                    className={`font-mono text-[10px] px-1.5 py-0.5 rounded-full font-bold tabular-nums flex-shrink-0 ${
+                      isSelected ? 'bg-black/15 text-black' : 'bg-white sm:bg-gray-100 text-gray-600'
                     }`}
                   >
-                    ({count})
+                    {count}
                   </span>
                 </button>
               );
@@ -339,7 +337,7 @@ export const ProductVideoSection: React.FC = () => {
         </div>
 
         {/* ================= 3. VIDEOS GRID ================= */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {visibleVideos.map((item, idx) => {
             const isAcc = isAccessory(item.product);
 
@@ -362,7 +360,7 @@ export const ProductVideoSection: React.FC = () => {
                   className="relative aspect-video bg-black cursor-pointer overflow-hidden group/thumb"
                 >
                   <img
-                    src={item.video.poster || item.product.images[0] || '/assets/luxury_watch_hero.jpg'}
+                    src={getOptimizedImageUrl(item.video.poster || item.product.images[0] || '/assets/luxury_watch_hero.jpg', 480)}
                     alt={item.video.title}
                     loading="lazy"
                     decoding="async"
@@ -452,7 +450,7 @@ export const ProductVideoSection: React.FC = () => {
                   <div className="p-3 rounded-2xl bg-gray-50 border border-gray-200/80 space-y-2.5">
                     <div className="flex items-center gap-3">
                       <img
-                        src={item.product.images[0]}
+                        src={getOptimizedImageUrl(item.product.images[0], 480)}
                         alt={item.product.name}
                         loading="lazy"
                         decoding="async"
@@ -541,9 +539,9 @@ export const ProductVideoSection: React.FC = () => {
 
       {/* ================= HIGH-TECH VIDEO MODAL PLAYER ================= */}
       {activePlayingVideo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
           <div
-            className={`relative w-full max-w-4xl rounded-3xl bg-[#0c0e14] border border-white/10 shadow-2xl overflow-hidden my-4 flex flex-col max-h-[92vh] ${
+            className={`relative w-full max-w-4xl rounded-2xl sm:rounded-3xl bg-[#0c0e14] border border-white/10 shadow-2xl overflow-y-auto max-h-[94dvh] flex flex-col ${
               isFr ? 'text-left' : 'text-right'
             }`}
           >
@@ -658,7 +656,7 @@ export const ProductVideoSection: React.FC = () => {
                       }`}
                       title={isFr ? `Angle ${i + 1}` : `زاوية ${i + 1}`}
                     >
-                      <img src={img} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                      <img src={getOptimizedImageUrl(img, 480)} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                     </button>
                   ))}
                   {videoError && (
@@ -862,7 +860,7 @@ export const ProductVideoSection: React.FC = () => {
                   <div className="p-4 sm:p-5 bg-[#12151f] flex flex-col md:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-3 w-full md:w-auto">
                       <img
-                        src={currentModalPreviewImage}
+                        src={getOptimizedImageUrl(currentModalPreviewImage, 480)}
                         alt={activePlayingVideo.product.name}
                         onError={(e) => {
                           (e.currentTarget as HTMLImageElement).src = '/assets/luxury_watch_hero.jpg';

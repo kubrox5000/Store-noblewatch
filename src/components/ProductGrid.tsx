@@ -71,15 +71,15 @@ export const ProductGrid: React.FC = () => {
   );
 
   return (
-    <section id="products-section" className="py-12 bg-white border-b border-gray-200/80 scroll-mt-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="products-section" className="py-8 sm:py-12 bg-white border-b border-gray-200/80 scroll-mt-16 sm:scroll-mt-20">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className={`mb-8 text-center ${isFr ? 'sm:text-left' : 'sm:text-right'}`}>
+        <div className={`mb-5 sm:mb-8 text-center ${isFr ? 'sm:text-left' : 'sm:text-right'}`}>
           <div className="inline-flex items-center gap-1.5 text-xs text-[#996515] font-bold mb-1">
             <Sparkles className="w-3.5 h-3.5 text-[#b8860b]" />
             <span>{isFr ? 'Collection Exclusive 2026' : 'تشكيلة حصرية 2026'}</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
+          <h2 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight text-balance">
             {searchQuery
               ? isFr
                 ? `Résultats pour : "${searchQuery}"`
@@ -88,15 +88,27 @@ export const ProductGrid: React.FC = () => {
               ? 'Produits vedettes'
               : 'منتجات مميزة'}
           </h2>
-          <p className="text-xs sm:text-sm text-gray-600 mt-1">
-            {isFr
-              ? 'Découvrez les modèles de montres de luxe les plus demandés au Maroc'
-              : 'إكتشف أفضل موديلات الساعات الفاخرة الأكثر طلباً في المغرب'}
+          <p className="text-xs sm:text-sm text-gray-600 mt-1.5 max-w-md sm:max-w-none mx-auto sm:mx-0 text-balance leading-relaxed">
+            {selectedCategory === 'women-accessories'
+              ? isFr
+                ? 'Découvrez notre collection élégante de bijoux et parures pour femme au Maroc'
+                : 'اكتشفي أرقى تشكيلة من المجوهرات والأطقم النسائية الفاخرة في المغرب'
+              : selectedCategory === 'men-accessories'
+              ? isFr
+                ? 'Découvrez nos bracelets et accessoires de luxe pour homme au Maroc'
+                : 'اكتشف أفضل تشكيلة من الأساور والإكسسوارات الرجالية الفاخرة في المغرب'
+              : isFr
+              ? 'Découvrez les modèles de montres et bijoux de luxe les plus demandés au Maroc'
+              : 'إكتشف أفضل موديلات الساعات الفاخرة والمجوهرات الأكثر طلباً في المغرب'}
           </p>
         </div>
 
-        {/* Quick Category Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-6 no-scrollbar">
+        {/* Category Filter Tabs (Clean centered wrap on mobile, single row on desktop) */}
+        <div
+          className={`flex flex-wrap items-center justify-center ${
+            isFr ? 'sm:justify-start' : 'sm:justify-start'
+          } gap-2 pb-1 mb-5 sm:mb-7`}
+        >
           {[
             { id: 'all', label: isFr ? 'Tous les modèles' : 'جميع المعروضات' },
             { id: 'men', label: isFr ? '👔 Montres Homme' : '👔 ساعات رجالية' },
@@ -108,11 +120,12 @@ export const ProductGrid: React.FC = () => {
             return (
               <button
                 key={cat.id}
+                type="button"
                 onClick={() => startTransition(() => setSelectedCategory(cat.id))}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                className={`min-h-[38px] sm:min-h-[40px] px-3.5 sm:px-4 py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all whitespace-nowrap shrink-0 cursor-pointer border ${
                   active
-                    ? 'gold-gradient-bg text-black shadow-md shadow-[#c5a869]/20 scale-105'
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                    ? 'gold-gradient-bg text-black border-[#c5a869] shadow-sm font-black'
+                    : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200/80'
                 }`}
               >
                 {cat.label}
@@ -123,7 +136,7 @@ export const ProductGrid: React.FC = () => {
 
         {/* Product Cards Grid */}
         {isLoading && products.length === 0 ? (
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-6">
             {Array.from({ length: 4 }).map((_, idx) => (
               <div
                 key={idx}
@@ -141,9 +154,9 @@ export const ProductGrid: React.FC = () => {
           </div>
         ) : displayedProducts.length > 0 ? (
           <>
-            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-6">
               {displayedProducts.map((product, idx) => (
-                <ProductCard key={product.id} product={product} priority={idx < 4} />
+                <ProductCard key={product.id} product={product} priority={idx < 8} />
               ))}
             </div>
             {displayedProducts.length < filteredProducts.length && (

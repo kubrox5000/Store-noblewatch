@@ -70,12 +70,12 @@ export const HowToOrderSection: React.FC = () => {
       id="how-to-order-section"
       aria-labelledby="how-to-order-heading"
       dir={isFr ? 'ltr' : 'rtl'}
-      className="py-12 sm:py-14 bg-gradient-to-b from-white via-[#fcfbf8] to-white border-b border-gray-200/80 scroll-mt-20"
+      className="py-8 sm:py-14 bg-gradient-to-b from-white via-[#fcfbf8] to-white border-b border-gray-200/80 scroll-mt-16 sm:scroll-mt-20"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="text-center max-w-2xl mx-auto mb-9 sm:mb-10">
-          <p className="text-xs font-bold text-[#996515] tracking-wide mb-2">
+        <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-10">
+          <p className="text-[11px] sm:text-xs font-bold text-[#996515] tracking-wide mb-1.5 sm:mb-2">
             {isFr
               ? '4 étapes simples · Sans carte bancaire · Paiement à la livraison'
               : '4 خطوات بسيطة · بدون بطاقة بنكية · الدفع عند الاستلام'}
@@ -86,44 +86,44 @@ export const HowToOrderSection: React.FC = () => {
           >
             {isFr ? 'Comment commander votre produit ?' : 'كيفاش تطلب المنتوج ديالك؟'}
           </h2>
-          <p className="text-xs sm:text-sm text-gray-600 mt-2 leading-relaxed">
+          <p className="text-xs sm:text-sm text-gray-600 mt-1.5 sm:mt-2 leading-relaxed text-balance">
             {isFr
               ? 'Une expérience d’achat claire, rapide et 100 % sécurisée partout au Maroc.'
               : 'طريقة الطلب ساهلة وواضحة بزاف: كتطلب عبر الموقع أو الواتساب وكتفحص طلبيتك قبل ما تخلّص.'}
           </p>
-          <div className="w-12 h-1 bg-[#c5a869] mx-auto mt-3 rounded-full" />
+          <div className="w-12 h-1 bg-[#c5a869] mx-auto mt-2.5 sm:mt-3 rounded-full" />
         </div>
 
-        {/* 4 Steps Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+        {/* 4 Steps Grid (2x2 on mobile, 4 columns on desktop) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-5">
           {steps.map((step) => {
             const Icon = step.icon;
             return (
               <div
                 key={step.num}
-                className={`group relative rounded-2xl bg-white border border-gray-200/90 hover:border-[#c5a869] p-5 sm:p-6 transition-all duration-200 shadow-xs hover:shadow-md flex flex-col justify-between ${
+                className={`group relative rounded-2xl bg-white border border-gray-200/90 hover:border-[#c5a869] p-3.5 sm:p-6 transition-all duration-200 shadow-xs hover:shadow-md flex flex-col justify-between ${
                   isFr ? 'text-left' : 'text-right'
                 }`}
               >
                 <div>
-                  <div className="flex items-center justify-between gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-[#fefaf0] group-hover:bg-[#c5a869] text-[#996515] group-hover:text-black flex items-center justify-center transition-colors duration-200 border border-[#c5a869]/30">
-                      <Icon className="w-6 h-6" />
+                  <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
+                    <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-[#fefaf0] group-hover:bg-[#c5a869] text-[#996515] group-hover:text-black flex items-center justify-center transition-colors duration-200 border border-[#c5a869]/30">
+                      <Icon className="w-4 h-4 sm:w-6 sm:h-6" />
                     </div>
-                    <span className="font-mono text-2xl sm:text-3xl font-black text-[#c5a869]/45 group-hover:text-[#996515] tabular-nums transition-colors duration-200 select-none">
+                    <span className="font-mono text-xl sm:text-3xl font-black text-[#c5a869]/45 group-hover:text-[#996515] tabular-nums transition-colors duration-200 select-none">
                       {step.num}
                     </span>
                   </div>
 
-                  <h3 className="text-base font-extrabold text-gray-900 mb-2 leading-snug">
+                  <h3 className="text-xs sm:text-base font-extrabold text-gray-900 mb-1 sm:mb-2 leading-snug">
                     {step.title}
                   </h3>
-                  <p className="text-xs sm:text-[13px] text-gray-600 leading-relaxed">
+                  <p className="text-[11px] sm:text-[13px] text-gray-600 leading-relaxed">
                     {step.desc}
                   </p>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-gray-100 text-[11px] font-bold text-[#996515]">
+                <div className="mt-3 sm:mt-4 pt-2 sm:pt-3 border-t border-gray-100 text-[10px] sm:text-[11px] font-bold text-[#996515]">
                   {step.num === '01' && (isFr ? 'Catalogue 100 % authentique' : 'اختيار حر للساعات والأساور')}
                   {step.num === '02' && (isFr ? 'Aucune carte requise' : 'بدون تسجيل حساب أو بطاقة')}
                   {step.num === '03' && (isFr ? 'Livraison 0 DH · Maroc' : 'توصيل مجاني لجميع المدن')}

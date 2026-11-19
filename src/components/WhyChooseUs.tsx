@@ -6,26 +6,26 @@ export const WhyChooseUs: React.FC = () => {
   const { isFr } = useLanguage();
 
   return (
-    <section className="relative overflow-hidden py-16 bg-gradient-to-b from-[#fbfaf7] via-white to-[#fbfaf7] border-b border-gray-200/80">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-        <div className="inline-block px-4 py-1 rounded-full bg-white text-xs font-bold text-[#996515] border border-[#c5a869]/40 shadow-sm mb-3">
+    <section className="relative overflow-hidden py-10 sm:py-16 bg-gradient-to-b from-[#fbfaf7] via-white to-[#fbfaf7] border-b border-gray-200/80">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 relative z-10 text-center">
+        <div className="inline-block px-4 py-1 rounded-full bg-white text-[11px] sm:text-xs font-bold text-[#996515] border border-[#c5a869]/40 shadow-sm mb-2.5 sm:mb-3">
           {isFr ? 'Confiance & Qualité Marocaine Authentique 🇲🇦' : 'ثقة وجودة مغربية خالصة 🇲🇦'}
         </div>
 
-        <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight mb-3">
+        <h2 className="text-2xl sm:text-4xl font-black text-gray-900 tracking-tight mb-2.5 sm:mb-3 text-balance">
           {isFr ? (
             <>
-              Pourquoi choisir <span className="gold-gradient-text font-serif italic text-4xl">Noblewatch</span> ?
+              Pourquoi choisir <span className="gold-gradient-text font-serif italic text-3xl sm:text-4xl">Noblewatch</span> ?
             </>
           ) : (
             <>
-              لماذا تختار <span className="gold-gradient-text font-serif italic text-4xl">Noblewatch</span>؟
+              لماذا تختار <span className="gold-gradient-text font-serif italic text-3xl sm:text-4xl">Noblewatch</span>؟
             </>
           )}
         </h2>
-        <div className="w-16 h-1 bg-[#c5a869] mx-auto mb-10 rounded-full"></div>
+        <div className="w-16 h-1 bg-[#c5a869] mx-auto mb-7 sm:mb-10 rounded-full"></div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-6">
           <div className="p-3.5 sm:p-6 rounded-2xl bg-white border border-gray-200 hover:border-[#c5a869] transition group shadow-sm hover:shadow-md text-center flex flex-col justify-between">
             <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-[#fefaf0] text-[#b8860b] group-hover:bg-[#c5a869] group-hover:text-black flex items-center justify-center mx-auto mb-3 transition shadow-inner">
               <HeartHandshake className="w-5 h-5 sm:w-7 sm:h-7" />

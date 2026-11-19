@@ -60,6 +60,14 @@ export function formatPrice(amount: number, currencyOrLang: string = 'MAD', lang
   return `${amount.toLocaleString(isFr ? 'fr-MA' : 'ar-MA')} ${currencyLabel}`;
 }
 
+export function getOptimizedImageUrl(url?: string, width?: number): string {
+  if (!url || !width) return url || '';
+  if (url.startsWith('/assets/') && /\.(jpg|jpeg|png|webp)$/i.test(url) && !url.includes('?')) {
+    return `${url}?w=${width}`;
+  }
+  return url;
+}
+
 export function normalizeMoroccanPhone(phone: string): string {
   let cleaned = (phone || '').replace(/[\s\-\.\(\)\+]/g, '');
   if (cleaned.startsWith('00212')) {

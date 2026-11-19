@@ -63,7 +63,7 @@ export const Header: React.FC = () => {
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
       {/* 1. Top Announcement Bar */}
-      <div className="bg-gradient-to-r from-[#997838] via-[#c5a869] to-[#997838] text-black text-xs font-semibold py-1.5 px-4 text-center tracking-wide flex items-center justify-between">
+      <div className="bg-gradient-to-r from-[#997838] via-[#c5a869] to-[#997838] text-black text-[11px] sm:text-xs font-semibold py-1 sm:py-1.5 px-3 sm:px-4 text-center tracking-wide flex items-center justify-between">
         <div className="hidden sm:flex items-center gap-2 text-xs">
           <span className="flex items-center gap-1 font-bold">
             <span className="inline-block w-2 h-2 rounded-full bg-emerald-800 animate-pulse"></span>
@@ -97,36 +97,36 @@ export const Header: React.FC = () => {
       </div>
 
       {/* 2. Main Navigation Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20 gap-3 sm:gap-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-14 sm:h-20 gap-2 sm:gap-4">
           {/* Mobile Toggle + Brand Logo */}
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-lg text-gray-700 hover:text-black hover:bg-gray-100"
+              className="lg:hidden min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl text-gray-700 hover:text-black hover:bg-gray-100 active:scale-95 transition"
               aria-label={isFr ? 'Menu' : 'القائمة'}
             >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {mobileMenuOpen ? <X className="w-5 h-5 sm:w-6 sm:h-6" /> : <Menu className="w-5 h-5 sm:w-6 sm:h-6" />}
             </button>
 
             {/* Brand Logo */}
             <button
               onClick={() => handleNavClick(undefined, 'home')}
-              className={`flex items-center gap-2.5 group cursor-pointer ${isFr ? 'text-left' : 'text-right'}`}
+              className={`flex items-center gap-2 sm:gap-2.5 group cursor-pointer min-w-0 ${isFr ? 'text-left' : 'text-right'}`}
             >
-              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full p-0.5 bg-gradient-to-br from-[#dfb76c] via-[#c5a869] to-[#9d7e35] shadow-md flex-shrink-0 group-hover:scale-105 transition-transform">
+              <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-full p-0.5 bg-gradient-to-br from-[#dfb76c] via-[#c5a869] to-[#9d7e35] shadow-md flex-shrink-0 group-hover:scale-105 transition-transform">
                 <img
                   src="/favicon.svg"
                   alt="Noblewatch Logo"
                   className="w-full h-full rounded-full object-contain"
                 />
               </div>
-              <div>
-                <div className="text-2xl sm:text-3xl font-serif font-black tracking-tight text-gray-900 group-hover:text-[#b8860b] transition-colors leading-none">
-                  <span className="gold-gradient-text font-serif italic tracking-tighter text-3xl sm:text-4xl">N</span>
+              <div className="min-w-0">
+                <div className="text-xl sm:text-3xl font-serif font-black tracking-tight text-gray-900 group-hover:text-[#b8860b] transition-colors leading-none whitespace-nowrap">
+                  <span className="gold-gradient-text font-serif italic tracking-tighter text-2xl sm:text-4xl">N</span>
                   <span className="tracking-wide">oblewatch</span>
                 </div>
-                <div className="flex items-center gap-1.5 mt-1">
+                <div className="hidden sm:flex items-center gap-1.5 mt-1">
                   <span className="text-[9px] tracking-widest text-[#996515] uppercase font-mono px-1.5 py-0.2 border border-[#c5a869]/40 bg-[#fefaf0] rounded">
                     GENEVE • MAROC
                   </span>
@@ -177,7 +177,7 @@ export const Header: React.FC = () => {
               onClick={toggleLang}
               aria-label={isFr ? 'Passer en arabe' : 'تغيير اللغة إلى الفرنسية'}
               title={isFr ? 'العربية' : 'Français'}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-full text-xs font-extrabold text-gray-800 bg-[#fefaf0] hover:bg-[#f7eccb] border border-[#c5a869]/60 shadow-xs transition cursor-pointer"
+              className="min-h-[38px] flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-xs font-extrabold text-gray-800 bg-[#fefaf0] hover:bg-[#f7eccb] border border-[#c5a869]/60 shadow-xs transition cursor-pointer shrink-0"
             >
               <Globe className="w-3.5 h-3.5 text-[#996515]" />
               <span className="font-mono tracking-wide">{isFr ? 'العربية' : 'FR'}</span>
@@ -186,10 +186,10 @@ export const Header: React.FC = () => {
             {/* Mobile Search Toggle */}
             <button
               onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
-              className="md:hidden p-2 rounded-full text-gray-600 hover:text-black hover:bg-gray-100"
+              className="md:hidden min-w-[38px] min-h-[38px] flex items-center justify-center rounded-full text-gray-600 hover:text-black hover:bg-gray-100 active:scale-95 transition"
               title={isFr ? 'Rechercher' : 'بحث'}
             >
-              <Search className="w-5 h-5" />
+              <Search className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
             {/* Direct Order Tracking Button */}
@@ -231,13 +231,13 @@ export const Header: React.FC = () => {
             {/* Cart Trigger with Counter */}
             <button
               onClick={() => setIsCartOpen(true)}
-              className="relative flex items-center justify-center p-2.5 rounded-full bg-white border border-gray-300 text-gray-800 hover:border-[#c5a869] transition group shadow-sm hover:shadow cursor-pointer"
+              className="relative min-w-[38px] min-h-[38px] flex items-center justify-center p-2 sm:p-2.5 rounded-full bg-white border border-gray-300 text-gray-800 hover:border-[#c5a869] transition group shadow-sm hover:shadow cursor-pointer"
               title={isFr ? 'Panier' : 'سلة المشتريات'}
             >
-              <ShoppingBag className="w-5 h-5 text-[#b8860b] group-hover:scale-110 transition-transform" />
+              <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 text-[#b8860b] group-hover:scale-110 transition-transform" />
               {cartCount > 0 && (
                 <span
-                  className={`absolute -top-1.5 bg-[#c5a869] text-black text-[11px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-white shadow-md ${
+                  className={`absolute -top-1.5 bg-[#c5a869] text-black text-[10px] sm:text-[11px] font-black w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center border-2 border-white shadow-md ${
                     isFr ? '-right-1.5' : '-left-1.5'
                   }`}
                 >
@@ -355,7 +355,7 @@ export const Header: React.FC = () => {
 
       {/* Mobile Drawer Navigation */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-6 space-y-4 shadow-xl animate-in slide-in-from-top-4 duration-200">
+        <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-4 space-y-3.5 shadow-xl max-h-[calc(100dvh-5.5rem)] overflow-y-auto animate-in slide-in-from-top-4 duration-200">
           {/* Mobile Language Selector Strip */}
           <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#fefaf0] border border-[#c5a869]/40">
             <span className="text-xs font-bold text-gray-800 flex items-center gap-2">
