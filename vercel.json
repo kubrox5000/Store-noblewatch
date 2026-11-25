@@ -2,6 +2,44 @@
   "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "headers": [
+    {
+      "source": "/img-cache/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/uploads/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/videos/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/((?!index$).*)",
@@ -20,7 +58,7 @@
       "destination": "/api/index?__vercel_path=/robots.txt"
     },
     {
-      "source": "/((?!api/|assets/|videos/|uploads/|store-public\\.json|reviews-public\\.json|favicon\\.svg|favicon\\.ico).*)",
+      "source": "/((?!api/|assets/|img-cache/|videos/|uploads/|store-public\\.json|reviews-public\\.json|favicon\\.svg|favicon\\.ico).*)",
       "destination": "/index.html"
     }
   ]

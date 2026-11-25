@@ -28,6 +28,7 @@ import {
   Activity,
   Award,
   ChevronDown,
+  Loader2,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -77,6 +78,14 @@ const CATEGORY_FILTERS: CategoryFilterDef[] = [
 const INITIAL_VIDEO_LIMIT = 6;
 const VIDEO_LIMIT_STEP = 9;
 
+const warmedVideoUrls = new Set<string>();
+const warmUpVideoUrl = (url?: string) => {
+  if (!url || typeof window === 'undefined' || warmedVideoUrls.has(url)) return;
+  if (url.startsWith('blob:') || url.startsWith('data:')) return;
+  warmedVideoUrls.add(url);
+  fetch(url, { headers: { Range: 'bytes=0-262143' } }).catch(() => {});
+};
+
 const isAccessoryProduct = (p: Product) =>
   p.category === 'accessories' ||
   p.category === 'men-accessories' ||
@@ -118,22 +127,42 @@ export const ProductVideoSection: React.FC = () => {
   const [selectedQuantity, setSelectedQuantity] = useState(1);
   const [videoMultiColors, setVideoMultiColors] = useState<string[]>([]);
   const [activePlaySrc, setActivePlaySrc] = useState<string>('');
+  const [isVideoBuffering, setIsVideoBuffering] = useState<boolean>(true);
+  const activeBlobUrlRef = useRef<string | null>(null);
 
   React.useEffect(() => {
+    if (activeBlobUrlRef.current) {
+      URL.revokeObjectURL(activeBlobUrlRef.current);
+      activeBlobUrlRef.current = null;
+    }
     if (activePlayingVideo) {
       let mounted = true;
       const targetUrl = activePlayingVideo.video.url;
+      setIsVideoBuffering(true);
       setActivePlaySrc(targetUrl);
       getCachedVideoBlobUrl(targetUrl).then((blobUrl) => {
-        if (mounted && blobUrl) {
+        if (!mounted || !blobUrl) {
+          if (blobUrl) URL.revokeObjectURL(blobUrl);
+          return;
+        }
+        // Only switch to IndexedDB blob if network playback has not already buffered frames
+        if (!videoRef.current || videoRef.current.readyState < 2) {
+          activeBlobUrlRef.current = blobUrl;
           setActivePlaySrc(blobUrl);
+        } else {
+          URL.revokeObjectURL(blobUrl);
         }
       });
       return () => {
         mounted = false;
+        if (activeBlobUrlRef.current) {
+          URL.revokeObjectURL(activeBlobUrlRef.current);
+          activeBlobUrlRef.current = null;
+        }
       };
     } else {
       setActivePlaySrc('');
+      setIsVideoBuffering(false);
     }
   }, [activePlayingVideo]);
 
@@ -357,6 +386,8 @@ export const ProductVideoSection: React.FC = () => {
                 {/* Video Thumbnail Canvas */}
                 <div
                   onClick={() => handleOpenVideo(item)}
+                  onMouseEnter={() => warmUpVideoUrl(item.video.url)}
+                  onTouchStart={() => warmUpVideoUrl(item.video.url)}
                   className="relative aspect-video bg-black cursor-pointer overflow-hidden group/thumb"
                 >
                   <img
@@ -581,22 +612,56 @@ export const ProductVideoSection: React.FC = () => {
             {/* Video Stage & Angles */}
             <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden group">
               {!videoError ? (
-                <video
-                  ref={videoRef}
-                  controls={false}
-                  autoPlay
-                  playsInline
-                  loop
-                  muted={isMuted}
-                  src={activePlaySrc || activePlayingVideo.video.url}
-                  poster={activePlayingVideo.video.poster || activePlayingVideo.product.images[0]}
-                  onError={() => setVideoError(true)}
-                  className="w-full h-full object-contain"
-                />
+                <>
+                  {isVideoBuffering && (
+                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/60 pointer-events-none">
+                      <img
+                        src={getOptimizedImageUrl(
+                          activePlayingVideo.video.poster || activePlayingVideo.product.images[0] || '/assets/luxury_watch_hero.jpg',
+                          480
+                        )}
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-contain opacity-45 blur-[1px]"
+                      />
+                      <div className="relative flex flex-col items-center gap-2 px-4 py-2.5 rounded-2xl bg-black/75 border border-[#c5a869]/40 backdrop-blur-md">
+                        <Loader2 className="w-7 h-7 text-[#c5a869] animate-spin" />
+                        <span className="text-[11px] font-bold text-[#fcedb4]">
+                          {isFr ? 'Chargement rapide de la vidéo...' : 'جاري تشغيل الفيديو...'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  <video
+                    ref={videoRef}
+                    controls={false}
+                    autoPlay
+                    playsInline
+                    loop
+                    preload="auto"
+                    muted={isMuted}
+                    src={activePlaySrc || activePlayingVideo.video.url}
+                    poster={getOptimizedImageUrl(
+                      activePlayingVideo.video.poster || activePlayingVideo.product.images[0] || '/assets/luxury_watch_hero.jpg',
+                      480
+                    )}
+                    onLoadedData={() => setIsVideoBuffering(false)}
+                    onCanPlay={() => setIsVideoBuffering(false)}
+                    onPlaying={() => setIsVideoBuffering(false)}
+                    onWaiting={() => setIsVideoBuffering(true)}
+                    onError={() => {
+                      setIsVideoBuffering(false);
+                      setVideoError(true);
+                    }}
+                    className="w-full h-full object-contain"
+                  />
+                </>
               ) : (
                 <div className="relative w-full h-full flex items-center justify-center bg-[#07080b]">
                   <img
-                    src={activePlayingVideo.product.images[activeAngleIndex] || activePlayingVideo.product.images[0]}
+                    src={getOptimizedImageUrl(
+                      activePlayingVideo.product.images[activeAngleIndex] || activePlayingVideo.product.images[0] || '/assets/luxury_watch_hero.jpg',
+                      1000
+                    )}
                     alt={activePlayingVideo.product.name}
                     className="w-full h-full object-contain transition-all duration-700 scale-100 group-hover:scale-105"
                   />

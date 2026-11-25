@@ -63,7 +63,9 @@ export function formatPrice(amount: number, currencyOrLang: string = 'MAD', lang
 export function getOptimizedImageUrl(url?: string, width?: number): string {
   if (!url || !width) return url || '';
   if (url.startsWith('/assets/') && /\.(jpg|jpeg|png|webp)$/i.test(url) && !url.includes('?')) {
-    return `${url}?w=${width}`;
+    const rel = url.slice('/assets/'.length);
+    const variant = width <= 560 ? 'thumb.webp' : 'full.webp';
+    return `/img-cache/${rel}.${variant}`;
   }
   return url;
 }

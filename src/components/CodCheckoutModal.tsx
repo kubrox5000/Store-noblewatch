@@ -21,6 +21,7 @@ import { useLanguage } from '../context/LanguageContext';
 import {
   MOROCCAN_CITIES,
   formatPrice,
+  getOptimizedImageUrl,
   normalizeMoroccanPhone,
   isFakeMoroccanPhonePattern,
   isFakeCustomerName,
@@ -594,8 +595,9 @@ export const CodCheckoutModal: React.FC = () => {
             {/* Product summary card */}
             <div className="flex items-center gap-4 p-3.5 rounded-2xl bg-gray-50 border border-gray-200">
               <img
-                src={currentPreviewImage}
+                src={getOptimizedImageUrl(currentPreviewImage, 480)}
                 alt={product.name}
+                decoding="async"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = '/assets/watches_and_accessories_hero.jpg';
                 }}

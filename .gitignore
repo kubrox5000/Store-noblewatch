@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+public/img-cache/
+public/.webp-cache/
+public/assets/aistudio/

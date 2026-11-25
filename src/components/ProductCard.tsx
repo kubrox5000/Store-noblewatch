@@ -59,9 +59,9 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product, pr
       onClick={() => setActiveProductId(product.id)}
       onMouseEnter={() => {
         setIsHovered(true);
-        prefetchProductDetail(fullDisplayImage);
+        prefetchProductDetail(getOptimizedImageUrl(fullDisplayImage, 1000));
       }}
-      onTouchStart={() => prefetchProductDetail(fullDisplayImage)}
+      onTouchStart={() => prefetchProductDetail(getOptimizedImageUrl(fullDisplayImage, 1000))}
       onMouseLeave={() => setIsHovered(false)}
       className="perf-card group relative rounded-2xl bg-white border border-gray-200/90 hover:border-[#c5a869] transition-all duration-300 shadow-sm hover:shadow-xl flex flex-col justify-between overflow-hidden cursor-pointer"
     >
@@ -93,7 +93,13 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product, pr
           src={displayImage}
           alt={product.name}
           onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = '/assets/luxury_watch_hero.jpg';
+            const el = e.currentTarget as HTMLImageElement;
+            if (!el.dataset.fallback && fullDisplayImage && el.src !== fullDisplayImage) {
+              el.dataset.fallback = '1';
+              el.src = fullDisplayImage;
+            } else {
+              el.src = '/assets/luxury_watch_hero.jpg';
+            }
           }}
           className={`w-full h-full object-cover rounded-xl transition-transform duration-500 ${
             isHovered ? 'scale-105' : 'scale-100'

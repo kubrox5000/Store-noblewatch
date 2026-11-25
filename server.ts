@@ -14,9 +14,24 @@ import zlib from 'zlib';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-const WEBP_CACHE_DIR = path.join(__dirname, 'public', '.webp-cache');
+const WEBP_CACHE_DIR = path.join(__dirname, 'public', 'img-cache');
 
-// Fast WebP + responsive thumbnail (?w=480) negotiation for /assets/*
+// Serve pre-generated WebP cache directly with long-lived immutable caching
+app.use(
+  '/img-cache',
+  express.static(WEBP_CACHE_DIR, {
+    maxAge: '1y',
+    immutable: true,
+    etag: true,
+    lastModified: true,
+    setHeaders: (res) => {
+      res.setHeader('Content-Type', 'image/webp');
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    },
+  })
+);
+
+// Fast WebP + responsive thumbnail (?w=480) negotiation fallback for /assets/*
 app.use('/assets', (req: Request, res: Response, next) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') return next();
   const accept = String(req.headers.accept || '');

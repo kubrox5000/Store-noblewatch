@@ -3,6 +3,7 @@ import { ShoppingBag, Sparkles, ShieldCheck, Truck, Gift } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useLanguage } from '../context/LanguageContext';
 import { localizeSettingText } from '../i18n/storefront';
+import { getOptimizedImageUrl } from '../utils/constants';
 
 export const HeroSection: React.FC = () => {
   const { settings, setSelectedCategory } = useStore();
@@ -163,10 +164,17 @@ export const HeroSection: React.FC = () => {
 
               <div className="relative rounded-2xl overflow-hidden border border-gray-200 shadow-xl sm:shadow-2xl bg-white">
                 <img
-                  src={settings?.heroImage || '/assets/watches_and_accessories_hero.jpg'}
+                  src={getOptimizedImageUrl(settings?.heroImage || '/assets/watches_and_accessories_hero.jpg', 1000)}
                   alt={isFr ? 'Collection de montres et accessoires Noblewatch' : 'تشكيلة ساعات وإكسسوارات Noblewatch الفاخرة'}
                   fetchPriority="high"
                   decoding="async"
+                  onError={(e) => {
+                    const el = e.currentTarget as HTMLImageElement;
+                    if (!el.dataset.fallback) {
+                      el.dataset.fallback = '1';
+                      el.src = settings?.heroImage || '/assets/watches_and_accessories_hero.jpg';
+                    }
+                  }}
                   className="w-full h-64 sm:h-96 lg:h-[460px] object-cover hover:scale-105 transition-transform duration-700"
                 />
 

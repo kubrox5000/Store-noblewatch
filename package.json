@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx server.ts",
     "start": "tsx server.ts",
-    "build": "node scripts/build-vercel-assets.mjs && vite build",
+    "build": "node scripts/optimize-images.mjs && node scripts/build-vercel-assets.mjs && vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
@@ -33,6 +33,7 @@
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "serverless-http": "^4.0.0",
+    "sharp": "^0.35.5",
     "tsx": "^4.21.0",
     "vite": "^8.3.0",
     "xlsx": "^0.18.5"

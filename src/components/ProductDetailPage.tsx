@@ -271,12 +271,19 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
               onClick={() => setIsZoomed(!isZoomed)}
             >
               <img
-                src={product.images[activeImageIndex] || product.images[0]}
+                src={getOptimizedImageUrl(product.images[activeImageIndex] || product.images[0] || '/assets/watches_and_accessories_hero.jpg', 1000)}
                 alt={product.name}
                 fetchPriority="high"
                 decoding="async"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/assets/watches_and_accessories_hero.jpg';
+                  const el = e.currentTarget as HTMLImageElement;
+                  const orig = product.images[activeImageIndex] || product.images[0];
+                  if (!el.dataset.fallback && orig && el.src !== orig) {
+                    el.dataset.fallback = '1';
+                    el.src = orig;
+                  } else {
+                    el.src = '/assets/watches_and_accessories_hero.jpg';
+                  }
                 }}
                 className={`w-full h-full object-contain rounded-xl transition-all duration-300 ${
                   isZoomed ? 'scale-150' : 'group-hover:scale-105'
@@ -316,6 +323,16 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                     setActiveImageIndex(idx);
                     setIsZoomed(false);
                   }}
+                  onMouseEnter={() => {
+                    const pre = new Image();
+                    pre.decoding = 'async';
+                    pre.src = getOptimizedImageUrl(img, 1000);
+                  }}
+                  onTouchStart={() => {
+                    const pre = new Image();
+                    pre.decoding = 'async';
+                    pre.src = getOptimizedImageUrl(img, 1000);
+                  }}
                   className={`relative aspect-square rounded-xl bg-white overflow-hidden border-2 transition-all p-1 ${
                     activeImageIndex === idx
                       ? 'border-[#c5a869] ring-2 ring-[#c5a869]/30 scale-105 shadow-sm'
@@ -328,7 +345,13 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                     loading="lazy"
                     decoding="async"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = '/assets/watches_and_accessories_hero.jpg';
+                      const el = e.currentTarget as HTMLImageElement;
+                      if (!el.dataset.fallback && img && el.src !== img) {
+                        el.dataset.fallback = '1';
+                        el.src = img;
+                      } else {
+                        el.src = '/assets/watches_and_accessories_hero.jpg';
+                      }
                     }}
                     className="w-full h-full object-cover rounded-lg"
                   />
@@ -877,7 +900,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                   <div className="relative aspect-video w-full bg-black flex items-center justify-center">
                     <video
                       src={vid.url}
-                      poster={vid.poster}
+                      poster={getOptimizedImageUrl(vid.poster || product.images[0] || '/assets/luxury_watch_hero.jpg', 480)}
                       controls
                       playsInline
                       preload="metadata"

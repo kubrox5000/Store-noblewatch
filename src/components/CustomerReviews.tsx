@@ -761,7 +761,7 @@ export const CustomerReviews: React.FC = () => {
 
                 {customerPhoto ? (
                   <div className="relative w-20 h-20 rounded-xl overflow-hidden border-2 border-[#c5a869]">
-                    <img src={customerPhoto} alt="Client" className="w-full h-full object-cover" />
+                    <img src={customerPhoto} alt="Client" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                   </div>
                 ) : (
                   <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:bg-gray-100 cursor-pointer text-xs text-gray-600 transition">

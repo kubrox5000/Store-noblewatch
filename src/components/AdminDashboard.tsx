@@ -93,6 +93,7 @@ import {
   exportOrdersToOzonExpressXlsx,
   generateCustomerShippedMessage,
   getWhatsAppCustomerShippedUrl,
+  getOptimizedImageUrl,
 } from '../utils/constants';
 import { ImageUploader } from './ImageUploader';
 import { AdminProductModal } from './AdminProductModal';
@@ -1930,8 +1931,10 @@ export const AdminDashboard: React.FC = () => {
                           >
                             <div className="flex items-center gap-3">
                               <img
-                                src={p.images[0] || '/assets/luxury_watch_hero.jpg'}
+                                src={getOptimizedImageUrl(p.images[0] || '/assets/luxury_watch_hero.jpg', 480)}
                                 alt={p.name}
+                                loading="lazy"
+                                decoding="async"
                                 onError={(e) => {
                                   (e.currentTarget as HTMLImageElement).src = '/assets/luxury_watch_hero.jpg';
                                 }}
@@ -2096,8 +2099,10 @@ export const AdminDashboard: React.FC = () => {
                     <div className="p-5 rounded-2xl bg-gradient-to-r from-[#1c1810] via-[#171923] to-[#151822] border border-[#c5a869]/30 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-xl">
                       <div className="flex items-center gap-4">
                         <img
-                          src={selectedProductStats.product.images[0] || '/assets/luxury_watch_hero.jpg'}
+                          src={getOptimizedImageUrl(selectedProductStats.product.images[0] || '/assets/luxury_watch_hero.jpg', 480)}
                           alt={selectedProductStats.product.name}
+                          loading="lazy"
+                          decoding="async"
                           onError={(e) => {
                             (e.currentTarget as HTMLImageElement).src = '/assets/luxury_watch_hero.jpg';
                           }}
@@ -2223,9 +2228,10 @@ export const AdminDashboard: React.FC = () => {
                                   >
                                     <div className="flex items-center gap-2.5 min-w-0">
                                       <img
-                                        src={p.images?.[0] || '/assets/luxury_watch_hero.jpg'}
+                                        src={getOptimizedImageUrl(p.images?.[0] || '/assets/luxury_watch_hero.jpg', 480)}
                                         alt={p.name}
                                         loading="lazy"
+                                        decoding="async"
                                         onError={(e) => {
                                           (e.currentTarget as HTMLImageElement).src =
                                             '/assets/luxury_watch_hero.jpg';
@@ -2755,8 +2761,10 @@ export const AdminDashboard: React.FC = () => {
                                 >
                                   <td className="p-3 font-bold text-white flex items-center gap-2.5">
                                     <img
-                                      src={row.product.images[0] || '/assets/luxury_watch_hero.jpg'}
+                                      src={getOptimizedImageUrl(row.product.images[0] || '/assets/luxury_watch_hero.jpg', 480)}
                                       alt={row.product.name}
+                                      loading="lazy"
+                                      decoding="async"
                                       onError={(e) => {
                                         (e.currentTarget as HTMLImageElement).src = '/assets/luxury_watch_hero.jpg';
                                       }}
@@ -4449,7 +4457,7 @@ export const AdminDashboard: React.FC = () => {
                     >
                       <div className="flex gap-3">
                         <img
-                          src={p.images[0] || '/assets/luxury_watch_hero.jpg'}
+                          src={getOptimizedImageUrl(p.images[0] || '/assets/luxury_watch_hero.jpg', 480)}
                           alt={p.name}
                           loading="lazy"
                           decoding="async"

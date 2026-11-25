@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Order } from '../types';
-import { buildWhatsAppUrl, formatPrice, formatPhoneForWhatsApp } from '../utils/constants';
+import { buildWhatsAppUrl, formatPrice, formatPhoneForWhatsApp, getOptimizedImageUrl } from '../utils/constants';
 import { translateColorName } from '../i18n/storefront';
 import {
   CheckCircle2,
@@ -386,8 +386,10 @@ export const CustomerOrderActionModal: React.FC = () => {
                     >
                       <div className="flex items-center gap-2.5">
                         <img
-                          src={it.image || '/assets/watches_and_accessories_hero.jpg'}
+                          src={getOptimizedImageUrl(it.image || '/assets/watches_and_accessories_hero.jpg', 480)}
                           alt={it.name}
+                          loading="lazy"
+                          decoding="async"
                           onError={(e) => {
                             (e.currentTarget as HTMLImageElement).src =
                               '/assets/watches_and_accessories_hero.jpg';
