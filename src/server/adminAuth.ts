@@ -86,6 +86,7 @@ export function isAllowedAdminEmail(email: string | undefined | null): {
     const isProd =
       process.env.NODE_ENV === 'production' ||
       Boolean(process.env.NETLIFY) ||
+      Boolean(process.env.VERCEL) ||
       Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
     if (isProd) {
       return {

@@ -1,0 +1,33 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "functions": {
+    "api/index.ts": {
+      "includeFiles": "data/store.json",
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index?__vercel_path=/api/$1"
+    },
+    {
+      "source": "/uploads/(.*)",
+      "destination": "/api/index?__vercel_path=/uploads/$1"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/index?__vercel_path=/sitemap.xml"
+    },
+    {
+      "source": "/robots.txt",
+      "destination": "/api/index?__vercel_path=/robots.txt"
+    },
+    {
+      "source": "/((?!api/|assets/|videos/|uploads/|favicon\\.svg|favicon\\.ico).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from './index.ts';
 import {
@@ -30,6 +31,8 @@ import {
 } from './braceletsCatalog.ts';
 import { WOMEN_JEWELRY_CATALOG } from './womenJewelryCatalog.ts';
 
+const __repoDir = path.dirname(fileURLToPath(import.meta.url));
+
 function normalizeMoroccanCityName(city: string): string {
   const trimmed = String(city || '').trim();
   if (!trimmed) return '';
@@ -43,6 +46,8 @@ function resolveSeedFile(): string {
   const candidates = [
     path.resolve(process.cwd(), 'data/store.json'),
     path.resolve(process.cwd(), '../data/store.json'),
+    path.resolve(__repoDir, '../../data/store.json'),
+    path.resolve(__repoDir, '../data/store.json'),
   ];
   for (const c of candidates) {
     try {
@@ -52,6 +57,10 @@ function resolveSeedFile(): string {
     }
   }
   return candidates[0];
+}
+
+export function hasDatabaseConfig(): boolean {
+  return Boolean(process.env.DATABASE_URL?.trim() || process.env.SQL_HOST?.trim());
 }
 
 const IS_SERVERLESS = Boolean(
@@ -267,6 +276,7 @@ let schemaEnsured = false;
 
 export async function ensureDatabaseSchema(): Promise<void> {
   if (schemaEnsured) return;
+  if (!hasDatabaseConfig()) return;
 
   try {
     const regCheck = await db.execute(sql`
@@ -885,7 +895,145 @@ async function seedDatabaseIfEmpty(): Promise<void> {
   return seedPromise;
 }
 
+let cachedFallbackSnapshot: StoreDatabaseSnapshot | null = null;
+
+function buildFallbackCatalogProducts(rawSeedProducts: any[]): Product[] {
+  const seen = new Set<string>();
+  const combined: Product[] = [];
+
+  const pushUnique = (item: any) => {
+    if (!item || !item.id || seen.has(item.id)) return;
+    seen.add(item.id);
+    combined.push({
+      ...item,
+      price: Number(item.price) || 0,
+      wholesalePrice: Number(item.wholesalePrice || 0),
+      shippingCostPerOrder: Number(item.shippingCostPerOrder || 0),
+      originalPrice: Number(item.originalPrice) || Number(item.price) || 0,
+      discountPercent: Number(item.discountPercent || 0),
+      rating: Number(item.rating || 5),
+      reviewCount: Number(item.reviewCount || 0),
+      stock: Number(item.stock ?? 10),
+      isNew: Boolean(item.isNew),
+      isSpecialOffer: Boolean(item.isSpecialOffer),
+      isPublished: item.isPublished !== undefined ? Boolean(item.isPublished) : true,
+      colors: Array.isArray(item.colors) ? item.colors : [],
+      images: Array.isArray(item.images) ? item.images : [],
+      videos: Array.isArray(item.videos) ? item.videos : [],
+      specs: item.specs || {},
+      boxContents: Array.isArray(item.boxContents) ? item.boxContents : [],
+      features: Array.isArray(item.features) ? item.features : [],
+    } as Product);
+  };
+
+  for (const p of rawSeedProducts) pushUnique(p);
+  for (const p of MEN_BRACELETS_CATALOG) pushUnique(p);
+  for (const p of LACOSTE_BRACELETS_CATALOG) pushUnique(p);
+  for (const p of WOMEN_JEWELRY_CATALOG) pushUnique(p);
+
+  return combined;
+}
+
+export function loadSeedSnapshotFallback(): StoreDatabaseSnapshot {
+  if (cachedFallbackSnapshot) {
+    return cachedFallbackSnapshot;
+  }
+
+  let json: any = {};
+  const seedFilePath = resolveSeedFile();
+  try {
+    if (fs.existsSync(seedFilePath)) {
+      json = JSON.parse(fs.readFileSync(seedFilePath, 'utf-8'));
+    }
+  } catch (err) {
+    console.warn('Could not read fallback store.json:', err);
+  }
+
+  const s = json.settings || {};
+  const products = buildFallbackCatalogProducts(Array.isArray(json.products) ? json.products : []);
+  const rawCats: Category[] = Array.isArray(json.categories) && json.categories.length > 0
+    ? json.categories
+    : [
+        { id: 'all', name: 'جميع الساعات', slug: 'all', count: 0 },
+        { id: 'men', name: 'ساعات رجالية', slug: 'men', count: 0 },
+        { id: 'women', name: 'ساعات نسائية', slug: 'women', count: 0 },
+        { id: 'men-accessories', name: 'إكسسوارات رجالية', slug: 'men-accessories', count: 0 },
+        { id: 'women-accessories', name: 'إكسسوارات نسائية', slug: 'women-accessories', count: 0 },
+      ];
+
+  const categories: Category[] = rawCats.map((c) => {
+    if (c.id === 'all' || c.slug === 'all') {
+      return { ...c, count: products.filter((p) => p.isPublished).length };
+    }
+    const count = products.filter(
+      (p) =>
+        p.isPublished &&
+        (p.category === c.id || (Array.isArray(p.categories) && p.categories.includes(c.id)))
+    ).length;
+    return { ...c, count };
+  });
+
+  const reviews: Review[] = Array.isArray(json.reviews)
+    ? json.reviews.map((r: any) => ({
+        id: String(r.id),
+        productId: String(r.productId),
+        author: String(r.author || ''),
+        city: normalizeMoroccanCityName(r.city || 'المغرب'),
+        rating: Number(r.rating || 5),
+        date: String(r.date || ''),
+        comment: String(r.comment || ''),
+        isVerified: r.isVerified !== undefined ? Boolean(r.isVerified) : true,
+        isApproved: r.isApproved !== undefined ? Boolean(r.isApproved) : true,
+        customerPhoto: r.customerPhoto || undefined,
+      }))
+    : [];
+
+  cachedFallbackSnapshot = {
+    settings: {
+      storeName: s.storeName || 'Noblewatch',
+      tagline: s.tagline || '',
+      announcementText: s.announcementText || '',
+      currency: s.currency || 'د.م.',
+      whatsappNumber: s.whatsappNumber || '',
+      contactPhone: s.contactPhone || '',
+      contactEmail: s.contactEmail || '',
+      city: s.city || 'الدار البيضاء',
+      heroTitle: s.heroTitle || '',
+      heroSubtitle: s.heroSubtitle || '',
+      heroBadge: s.heroBadge || '',
+      heroImage: s.heroImage || '/assets/watches_and_accessories_hero.jpg',
+      heroCtaText: s.heroCtaText || 'اكتشف المجموعة الآن',
+      heroSecondaryText: s.heroSecondaryText || 'تواصل عبر واتساب',
+      freeShippingThreshold: Number(s.freeShippingThreshold) || 0,
+      adminPasswordHash: s.adminPasswordHash || 'admin123',
+      socialLinks: s.socialLinks || {},
+      orderSecurity: { ...DEFAULT_ORDER_SECURITY, ...(s.orderSecurity || {}) },
+      trackingPixels: { ...DEFAULT_TRACKING_PIXELS, ...(s.trackingPixels || {}) },
+      promoCodes: Array.isArray(s.promoCodes) ? s.promoCodes : DEFAULT_PROMO_CODES,
+      faqs: Array.isArray(s.faqs) ? s.faqs : [],
+      policies: s.policies || {
+        privacy: '',
+        terms: '',
+        shipping: '',
+        returns: '',
+        warranty: '',
+      },
+    },
+    categories,
+    products,
+    orders: Array.isArray(json.orders) ? json.orders : [],
+    reviews,
+    securityLogs: Array.isArray(json.securityLogs) ? json.securityLogs : [],
+    deletedOrderIds: Array.isArray(json.deletedOrderIds) ? json.deletedOrderIds : [],
+  };
+
+  return cachedFallbackSnapshot;
+}
+
 export async function getStoreSnapshot(): Promise<StoreDatabaseSnapshot> {
+  if (!hasDatabaseConfig()) {
+    return loadSeedSnapshotFallback();
+  }
   if (!IS_SERVERLESS && cachedSnapshot) {
     return cachedSnapshot;
   }
@@ -964,8 +1112,8 @@ export async function getStoreSnapshot(): Promise<StoreDatabaseSnapshot> {
 
     return snapshot;
   } catch (error) {
-    console.error('Database query failed in getStoreSnapshot:', error);
-    throw new Error('Failed to load store data from database.', { cause: error });
+    console.error('Database query failed in getStoreSnapshot, falling back to store.json:', error);
+    return loadSeedSnapshotFallback();
   }
 }
 
@@ -1656,6 +1804,7 @@ export async function getMediaAssetDb(filename: string): Promise<{
   buffer: Buffer;
   size: number;
 } | null> {
+  if (!hasDatabaseConfig()) return null;
   await ensureDatabaseSchema();
   const rows = await db
     .select()

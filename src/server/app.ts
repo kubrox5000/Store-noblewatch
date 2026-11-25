@@ -22,6 +22,7 @@ import {
   getMediaAssetDb,
   getStoreCacheVersion,
   getStoreSnapshot,
+  hasDatabaseConfig,
   insertSecurityLogDb,
   listMediaAssetsDb,
   saveMediaAssetDb,
@@ -604,15 +605,21 @@ ${urlEntries.join('\n')}
 
 // ----------------- API ROUTES ----------------- //
 
-// 0. Health Check (verify Neon DB + deployment health)
+// 0. Health Check (verify Neon/Postgres DB + deployment health)
 app.get('/api/health', async (_req: Request, res: Response) => {
   try {
-    await ensureDatabaseSchema();
+    const dbConfigured = hasDatabaseConfig();
+    if (dbConfigured) {
+      await ensureDatabaseSchema();
+    }
     const db = await getStoreSnapshot();
     return res.json({
       ok: true,
+      mode: dbConfigured ? 'postgres' : 'json-fallback',
+      hasDatabaseConfig: dbConfigured,
       serverless: IS_SERVERLESS,
       productsCount: db.products.length,
+      reviewsCount: db.reviews.length,
       categoriesCount: db.categories.length,
     });
   } catch (err: any) {
@@ -2568,12 +2575,10 @@ app.use('/uploads', async (req: Request, res: Response) => {
   const cleanPath = req.path.split('?')[0];
   const safeName = path.basename(cleanPath);
 
-  if (!IS_SERVERLESS) {
-    const filePath = path.join(UPLOADS_DIR, safeName);
-    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-      return res.sendFile(filePath);
-    }
+  const filePath = path.join(UPLOADS_DIR, safeName);
+  if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    return res.sendFile(filePath);
   }
 
   const memCached = mediaMemoryCache.get(safeName);
