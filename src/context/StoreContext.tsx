@@ -436,10 +436,24 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
     const p = (async () => {
       try {
-        const res = await fetch('/api/reviews', { cache: 'no-cache' });
-        if (!res.ok) return;
-        const json = await res.json();
-        if (json.success && Array.isArray(json.reviews)) {
+        let json: any = null;
+        try {
+          const res = await fetch('/api/reviews', { cache: 'no-cache' });
+          if (res.ok) {
+            json = await res.json();
+          }
+        } catch {
+          // try static fallback below
+        }
+
+        if (!json?.success || !Array.isArray(json.reviews)) {
+          const fallbackRes = await fetch('/reviews-public.json', { cache: 'no-cache' });
+          if (fallbackRes.ok) {
+            json = await fallbackRes.json();
+          }
+        }
+
+        if (json?.success && Array.isArray(json.reviews)) {
           setReviews(json.reviews);
           setHasMoreReviews(false);
         }
@@ -460,16 +474,38 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       }
       loadedProductReviewsRef.current.add(productId);
       try {
-        const res = await fetch(`/api/reviews?productId=${encodeURIComponent(productId)}`, {
-          cache: 'no-cache',
-        });
-        if (!res.ok) return;
-        const json = await res.json();
-        if (json.success && Array.isArray(json.reviews)) {
+        let matchedReviews: Review[] | null = null;
+        try {
+          const res = await fetch(`/api/reviews?productId=${encodeURIComponent(productId)}`, {
+            cache: 'no-cache',
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json?.success && Array.isArray(json.reviews)) {
+              matchedReviews = json.reviews;
+            }
+          }
+        } catch {
+          // try static fallback below
+        }
+
+        if (!matchedReviews) {
+          const fallbackRes = await fetch('/reviews-public.json', { cache: 'no-cache' });
+          if (fallbackRes.ok) {
+            const fallbackJson = await fallbackRes.json();
+            if (fallbackJson?.success && Array.isArray(fallbackJson.reviews)) {
+              matchedReviews = (fallbackJson.reviews as Review[]).filter(
+                (r) => r.productId === productId
+              );
+            }
+          }
+        }
+
+        if (matchedReviews) {
           setReviews((prev) => {
             const byId = new Map<string, Review>();
             for (const r of prev) byId.set(r.id, r);
-            for (const r of json.reviews as Review[]) byId.set(r.id, r);
+            for (const r of matchedReviews!) byId.set(r.id, r);
             return Array.from(byId.values());
           });
         }
@@ -497,20 +533,41 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             if (w.__NW_INITIAL_STORE_FETCH__) {
               const prefetched = await w.__NW_INITIAL_STORE_FETCH__;
               w.__NW_INITIAL_STORE_FETCH__ = undefined;
-              if (prefetched?.success) {
+              if (prefetched?.success && Array.isArray(prefetched?.data?.products) && prefetched.data.products.length > 0) {
                 json = prefetched;
               }
             }
           }
 
           if (!json) {
-            const url = useSlim ? '/api/store-data?slim=1' : '/api/store-data';
-            const res = await fetch(url, {
-              headers: getAdminHeaders(),
-              cache: 'no-cache',
-            });
-            if (res.ok) {
-              json = await res.json();
+            try {
+              const url = useSlim ? '/api/store-data?slim=1' : '/api/store-data';
+              const res = await fetch(url, {
+                headers: getAdminHeaders(),
+                cache: 'no-cache',
+              });
+              if (res.ok) {
+                const candidate = await res.json();
+                if (candidate?.success) {
+                  json = candidate;
+                }
+              }
+            } catch {
+              // ignore and try static fallback below
+            }
+          }
+
+          if (!json?.success || !Array.isArray(json?.data?.products) || json.data.products.length === 0) {
+            try {
+              const fallbackRes = await fetch('/store-public.json', { cache: 'no-cache' });
+              if (fallbackRes.ok) {
+                const fallbackJson = await fallbackRes.json();
+                if (fallbackJson?.success && Array.isArray(fallbackJson?.data?.products)) {
+                  json = fallbackJson;
+                }
+              }
+            } catch {
+              // ignore
             }
           }
 

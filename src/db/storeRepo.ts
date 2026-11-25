@@ -48,6 +48,8 @@ function resolveSeedFile(): string {
     path.resolve(process.cwd(), '../data/store.json'),
     path.resolve(__repoDir, '../../data/store.json'),
     path.resolve(__repoDir, '../data/store.json'),
+    path.resolve(process.cwd(), 'public/store-public.json'),
+    path.resolve(process.cwd(), 'dist/store-public.json'),
   ];
   for (const c of candidates) {
     try {
@@ -943,7 +945,8 @@ export function loadSeedSnapshotFallback(): StoreDatabaseSnapshot {
   const seedFilePath = resolveSeedFile();
   try {
     if (fs.existsSync(seedFilePath)) {
-      json = JSON.parse(fs.readFileSync(seedFilePath, 'utf-8'));
+      const parsed = JSON.parse(fs.readFileSync(seedFilePath, 'utf-8'));
+      json = parsed?.data && Array.isArray(parsed.data.products) ? parsed.data : parsed;
     }
   } catch (err) {
     console.warn('Could not read fallback store.json:', err);

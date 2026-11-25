@@ -3,14 +3,14 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/index.ts": {
+    "api/index.js": {
       "includeFiles": "data/store.json",
       "maxDuration": 30
     }
   },
   "rewrites": [
     {
-      "source": "/api/(.*)",
+      "source": "/api/((?!index$).*)",
       "destination": "/api/index?__vercel_path=/api/$1"
     },
     {
@@ -26,7 +26,7 @@
       "destination": "/api/index?__vercel_path=/robots.txt"
     },
     {
-      "source": "/((?!api/|assets/|videos/|uploads/|favicon\\.svg|favicon\\.ico).*)",
+      "source": "/((?!api/|assets/|videos/|uploads/|store-public\\.json|reviews-public\\.json|favicon\\.svg|favicon\\.ico).*)",
       "destination": "/index.html"
     }
   ]

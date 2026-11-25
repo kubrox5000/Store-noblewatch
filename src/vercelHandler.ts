@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { app } from '../src/server/app.ts';
+import { app } from './server/app.ts';
 
 export default function handler(req: Request, res: Response) {
   try {
