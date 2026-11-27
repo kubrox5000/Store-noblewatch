@@ -61,8 +61,8 @@ export const HowToOrderSection: React.FC = () => {
   const whatsappUrl = buildWhatsAppUrl(
     settings?.whatsappNumber,
     isFr
-      ? 'Bonjour, je souhaite obtenir de l’aide pour passer ma commande sur Noblewatch.'
-      : 'السلام عليكم، بغيت مساعدة باش نطلب المنتوج ديالي من متجر Noblewatch'
+      ? 'Bonjour, je souhaite obtenir de l’aide pour passer ma commande sur Luxwatch.'
+      : 'السلام عليكم، بغيت مساعدة باش نطلب المنتوج ديالي من متجر Luxwatch'
   );
 
   return (

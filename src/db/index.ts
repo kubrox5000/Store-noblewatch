@@ -1,3 +1,4 @@
+import '../server/loadEnv.ts';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool, PoolConfig } from 'pg';
 import * as schema from './schema.ts';

@@ -103,15 +103,15 @@ export const PromoCodeVoucherModal: React.FC<PromoCodeVoucherModalProps> = ({
   const [copiedMsg, setCopiedMsg] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
 
-  const storeName = settings?.storeName || 'Noblewatch';
+  const storeName = settings?.storeName || 'Luxwatch';
   const storeCity = normalizeMoroccanCityName(settings?.city || 'الدار البيضاء') || 'الدار البيضاء';
-  const storeEmail = settings?.contactEmail || 'contact@noblewatch.ma';
+  const storeEmail = settings?.contactEmail || 'contact@luxwatch.ma';
   const storePhone = sanitizePhoneText(settings?.whatsappNumber || settings?.contactPhone) || '+212612345678';
   const storeUrl = useMemo(() => {
     if (typeof window !== 'undefined' && window.location?.origin) {
       return window.location.origin;
     }
-    return 'https://noblewatch.ma';
+    return 'https://luxwatch.ma';
   }, []);
 
   const isFr = voucherLang === 'fr';
@@ -457,7 +457,7 @@ export const PromoCodeVoucherModal: React.FC<PromoCodeVoucherModalProps> = ({
             'La remise s’applique immédiatement + Livraison gratuite, Cadeau offert & Garantie 1 an.',
           ]
         : [
-            'اختر منتجك المفضل من متجر Noblewatch واضغط على زر «اطلب الآن».',
+            'اختر منتجك المفضل من متجر Luxwatch واضغط على زر «اطلب الآن».',
             `في صفحة تأكيد الطلب، أدخل الرمز (${promo.code}) في خانة رمز التخفيض واضغط «تطبيق».`,
             'يتم خصم القيمة فوراً من السعر الإجمالي مع توصيل مجاني، هدية مجانية وضمان لمدة سنة.',
           ];
@@ -584,7 +584,7 @@ export const PromoCodeVoucherModal: React.FC<PromoCodeVoucherModalProps> = ({
 
       const pngUrl = canvas.toDataURL('image/png', 1.0);
       const link = document.createElement('a');
-      link.download = `Noblewatch-Promo-${promo.code}.png`;
+      link.download = `Luxwatch-Promo-${promo.code}.png`;
       link.href = pngUrl;
       document.body.appendChild(link);
       link.click();
@@ -844,7 +844,7 @@ export const PromoCodeVoucherModal: React.FC<PromoCodeVoucherModalProps> = ({
                         'Le montant est réduit instantanément avec livraison gratuite, cadeau offert et garantie 1 an.',
                       ]
                     : [
-                        'اختر ساعتك أو إكسسوارك المفضل من متجر Noblewatch واضغط على «اطلب الآن».',
+                        'اختر ساعتك أو إكسسوارك المفضل من متجر Luxwatch واضغط على «اطلب الآن».',
                         `في صفحة تأكيد طلب الشراء، أدخل الرمز (${promo.code}) في خانة رمز التخفيض واضغط «تطبيق».`,
                         'يُخصم مبلغ التخفيض فوراً مع توصيل مجاني، هدية مجانية وشهادة ضمان لمدة سنة.',
                       ]

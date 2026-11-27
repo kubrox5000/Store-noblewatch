@@ -63,6 +63,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
   const [activeTab, setActiveTab] = useState<'desc' | 'care'>('desc');
   const [isZoomed, setIsZoomed] = useState(false);
   const [reviewsLimit, setReviewsLimit] = useState(6);
+  const [loadedMainUrls, setLoadedMainUrls] = useState<Record<string, boolean>>({});
 
   // Admin inline exclusive features management
   const [editingFeatureIdx, setEditingFeatureIdx] = useState<number | null>(null);
@@ -88,18 +89,18 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
     setSelectedColorIndex(0);
     setIsZoomed(false);
 
-    // Preload next gallery angles in background for instant thumbnail switching
+    // Preload next optimized gallery angles in background for instant thumbnail switching
     const preloadTimer = window.setTimeout(() => {
       if (Array.isArray(product.images)) {
         product.images.slice(1, 5).forEach((src) => {
           if (src) {
             const img = new Image();
             img.decoding = 'async';
-            img.src = src;
+            img.src = getOptimizedImageUrl(src, 1000);
           }
         });
       }
-    }, 120);
+    }, 80);
     return () => window.clearTimeout(preloadTimer);
   }, [product.id, loadProductReviews]);
 
@@ -178,8 +179,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
       navigator.share({
         title: product.name,
         text: isFr
-          ? `${product.name} - Boutique Noblewatch Maroc`
-          : `${product.name} - متجر Noblewatch المغربي`,
+          ? `${product.name} - Boutique Luxwatch Maroc`
+          : `${product.name} - متجر Luxwatch المغربي`,
         url: window.location.href,
       }).catch(() => {});
     } else {
@@ -265,54 +266,82 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-12">
           {/* Gallery Column */}
           <div className="lg:col-span-7 space-y-4">
-            {/* Main Stage Image with Zoom */}
-            <div
-              className="relative w-full aspect-square sm:aspect-[4/3] lg:aspect-square rounded-2xl bg-white border border-gray-200 overflow-hidden group shadow-md flex items-center justify-center p-4 cursor-zoom-in"
-              onClick={() => setIsZoomed(!isZoomed)}
-            >
-              <img
-                src={getOptimizedImageUrl(product.images[activeImageIndex] || product.images[0] || '/assets/watches_and_accessories_hero.jpg', 1000)}
-                alt={product.name}
-                fetchPriority="high"
-                decoding="async"
-                onError={(e) => {
-                  const el = e.currentTarget as HTMLImageElement;
-                  const orig = product.images[activeImageIndex] || product.images[0];
-                  if (!el.dataset.fallback && orig && el.src !== orig) {
-                    el.dataset.fallback = '1';
-                    el.src = orig;
-                  } else {
-                    el.src = '/assets/watches_and_accessories_hero.jpg';
-                  }
-                }}
-                className={`w-full h-full object-contain rounded-xl transition-all duration-300 ${
-                  isZoomed ? 'scale-150' : 'group-hover:scale-105'
-                }`}
-              />
+            {/* Main Stage Image with Instant Cached-Thumb Backdrop & Zoom */}
+            {(() => {
+              const rawMainSrc =
+                product.images[activeImageIndex] ||
+                product.images[0] ||
+                '/assets/watches_and_accessories_hero.jpg';
+              const fullMainSrc = getOptimizedImageUrl(rawMainSrc, 1000);
+              const thumbMainSrc = getOptimizedImageUrl(rawMainSrc, 480);
+              const isFullLoaded = Boolean(loadedMainUrls[fullMainSrc]);
 
-              {/* Floating badges */}
-              <div className={`absolute top-4 flex flex-col gap-2 ${isFr ? 'left-4' : 'right-4'}`}>
-                {product.discountPercent > 0 && (
-                  <span className="px-3 py-1 rounded-full bg-rose-600 text-white font-black text-xs shadow-md">
-                    {isFr ? `-${product.discountPercent}%` : `خصم ${product.discountPercent}%`}
-                  </span>
-                )}
-                {product.isNew && (
-                  <span className="px-2.5 py-0.5 rounded-full bg-[#c5a869] text-black font-extrabold text-[11px] shadow">
-                    {isFr ? 'Nouveau modèle' : 'موديل حديث'}
-                  </span>
-                )}
-              </div>
+              return (
+                <div
+                  className="relative w-full aspect-square sm:aspect-[4/3] lg:aspect-square rounded-2xl bg-white border border-gray-200 overflow-hidden group shadow-md flex items-center justify-center p-4 cursor-zoom-in"
+                  onClick={() => setIsZoomed(!isZoomed)}
+                >
+                  {thumbMainSrc !== fullMainSrc && !isFullLoaded && (
+                    <img
+                      src={thumbMainSrc}
+                      alt=""
+                      aria-hidden="true"
+                      className={`absolute inset-4 w-[calc(100%-2rem)] h-[calc(100%-2rem)] object-contain rounded-xl pointer-events-none transition-transform duration-300 ${
+                        isZoomed ? 'scale-150' : 'group-hover:scale-105'
+                      }`}
+                    />
+                  )}
+                  <img
+                    src={fullMainSrc}
+                    alt={product.name}
+                    width={1000}
+                    height={1000}
+                    fetchPriority="high"
+                    decoding="async"
+                    onLoad={() =>
+                      setLoadedMainUrls((prev) =>
+                        prev[fullMainSrc] ? prev : { ...prev, [fullMainSrc]: true }
+                      )
+                    }
+                    onError={(e) => {
+                      const el = e.currentTarget as HTMLImageElement;
+                      if (!el.dataset.fallback && rawMainSrc && el.src !== rawMainSrc) {
+                        el.dataset.fallback = '1';
+                        el.src = rawMainSrc;
+                      } else {
+                        el.src = '/assets/watches_and_accessories_hero.jpg';
+                      }
+                    }}
+                    className={`relative z-10 w-full h-full object-contain rounded-xl transition-all duration-200 ${
+                      isZoomed ? 'scale-150' : 'group-hover:scale-105'
+                    }`}
+                  />
 
-              <div
-                className={`absolute bottom-4 p-2 rounded-xl bg-white/90 backdrop-blur-md text-gray-800 text-xs border border-gray-200 flex items-center gap-1.5 shadow-sm ${
-                  isFr ? 'right-4' : 'left-4'
-                }`}
-              >
-                <Maximize2 className="w-3.5 h-3.5 text-[#b8860b]" />
-                <span>{isFr ? 'Cliquez pour zoomer' : 'اضغط للتكبير والتفاصيل'}</span>
-              </div>
-            </div>
+                  {/* Floating badges */}
+                  <div className={`absolute top-4 z-20 flex flex-col gap-2 ${isFr ? 'left-4' : 'right-4'}`}>
+                    {product.discountPercent > 0 && (
+                      <span className="px-3 py-1 rounded-full bg-rose-600 text-white font-black text-xs shadow-md">
+                        {isFr ? `-${product.discountPercent}%` : `خصم ${product.discountPercent}%`}
+                      </span>
+                    )}
+                    {product.isNew && (
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#c5a869] text-black font-extrabold text-[11px] shadow">
+                        {isFr ? 'Nouveau modèle' : 'موديل حديث'}
+                      </span>
+                    )}
+                  </div>
+
+                  <div
+                    className={`absolute bottom-4 z-20 p-2 rounded-xl bg-white/90 backdrop-blur-md text-gray-800 text-xs border border-gray-200 flex items-center gap-1.5 shadow-sm ${
+                      isFr ? 'right-4' : 'left-4'
+                    }`}
+                  >
+                    <Maximize2 className="w-3.5 h-3.5 text-[#b8860b]" />
+                    <span>{isFr ? 'Cliquez pour zoomer' : 'اضغط للتكبير والتفاصيل'}</span>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Thumbnails Row */}
             <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 sm:gap-3">
@@ -1258,11 +1287,11 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                   <p>
                     {isFr
                       ? isAccessory
-                        ? "Chaque accessoire Noblewatch est fabriqué avec des matériaux sélectionnés (cuir véritable, acier inoxydable 316L et pierres naturelles). Pour préserver son éclat pendant des années :"
-                        : "Chaque montre Noblewatch est fabriquée en acier inoxydable de haute qualité avec un placage durable. Pour préserver son éclat pendant des années :"
+                        ? "Chaque accessoire Luxwatch est fabriqué avec des matériaux sélectionnés (cuir véritable, acier inoxydable 316L et pierres naturelles). Pour préserver son éclat pendant des années :"
+                        : "Chaque montre Luxwatch est fabriquée en acier inoxydable de haute qualité avec un placage durable. Pour préserver son éclat pendant des années :"
                       : isAccessory
-                      ? 'كل إكسسوار في Noblewatch مصنوع من خامات منتقاة بعناية (الجلد الطبيعي، الفولاذ المقاوم للصدأ 316L، والأحجار الطبيعية). للحفاظ على جودته ولمعانه:'
-                      : 'ساعة Noblewatch مصنوعة من أجود أنواع الفولاذ المقاوم للصدأ ومطلية بتقنيات كهربائية متقدمة. للحفاظ على لمعانها لعشرات السنين:'}
+                      ? 'كل إكسسوار في Luxwatch مصنوع من خامات منتقاة بعناية (الجلد الطبيعي، الفولاذ المقاوم للصدأ 316L، والأحجار الطبيعية). للحفاظ على جودته ولمعانه:'
+                      : 'ساعة Luxwatch مصنوعة من أجود أنواع الفولاذ المقاوم للصدأ ومطلية بتقنيات كهربائية متقدمة. للحفاظ على لمعانها لعشرات السنين:'}
                   </p>
                   <ul className={`list-disc list-inside space-y-2 text-gray-700 ${isFr ? 'pl-2' : 'pr-2'}`}>
                     {isFr ? (

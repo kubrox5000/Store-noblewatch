@@ -69,7 +69,7 @@ export const Footer: React.FC = () => {
     setIsSubscribed(true);
     showToast(
       isFr
-        ? '🎉 Bienvenue dans le Club Noblewatch VIP ! Votre code promo -10% : NOBLE10.'
+        ? '🎉 Bienvenue dans le Club Luxwatch VIP ! Votre code promo -10% : NOBLE10.'
         : '🎉 مرحباً بك في نادي النخبة! تم تفعيل كود الخصم: NOBLE10 (خصم 10% على طلبيتك القادمة).',
       'success'
     );
@@ -120,7 +120,7 @@ export const Footer: React.FC = () => {
 
   return (
     <footer
-      className={`bg-[#08090d] text-gray-300 border-t border-white/10 selection:bg-[#c5a869] selection:text-black ${
+      className={`perf-section bg-[#08090d] text-gray-300 border-t border-white/10 selection:bg-[#c5a869] selection:text-black ${
         isFr ? 'text-left' : 'text-right'
       }`}
     >
@@ -133,12 +133,12 @@ export const Footer: React.FC = () => {
           <div className={`max-w-2xl text-center space-y-2 ${isFr ? 'lg:text-left' : 'lg:text-right'}`}>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#c5a869]/15 border border-[#c5a869]/30 text-xs font-semibold text-[#f7dfa5]">
               <Sparkles className="w-3.5 h-3.5 text-[#c5a869]" />
-              <span>{isFr ? 'Club Privilège Noblewatch VIP' : 'نادي النخبة Noblewatch VIP'}</span>
+              <span>{isFr ? 'Club Privilège Luxwatch VIP' : 'نادي النخبة Luxwatch VIP'}</span>
             </div>
             <h3 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white">
               {isFr
-                ? 'Rejoignez la communauté Noblewatch et profitez de nos offres privées à prix symbolique'
-                : 'إنضم إلى مجوعة زبناء Noblewatch و أحصل على منتوجات بتمن رمزي'}
+                ? 'Rejoignez la communauté Luxwatch et profitez de nos offres privées à prix symbolique'
+                : 'إنضم إلى مجوعة زبناء Luxwatch و أحصل على منتوجات بتمن رمزي'}
             </h3>
           </div>
 
@@ -359,13 +359,13 @@ export const Footer: React.FC = () => {
               <div className="w-9 h-9 rounded-full p-0.5 bg-gradient-to-br from-[#dfb76c] via-[#c5a869] to-[#9d7e35] shadow-md flex-shrink-0 group-hover:scale-105 transition-transform">
                 <img
                   src="/favicon.svg"
-                  alt="Noblewatch Logo"
+                  alt="Luxwatch Logo"
                   className="w-full h-full rounded-full object-contain"
                 />
               </div>
               <div className="flex items-center">
-                <span className="gold-gradient-text italic group-hover:scale-105 transition-transform">N</span>
-                <span>oblewatch</span>
+                <span className="gold-gradient-text italic group-hover:scale-105 transition-transform">L</span>
+                <span>uxwatch</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-[#c5a869] mx-1 inline-block"></span>
               </div>
             </button>
@@ -396,8 +396,8 @@ export const Footer: React.FC = () => {
                   href={buildWhatsAppUrl(
                     settings?.whatsappNumber || settings?.socialLinks?.whatsapp,
                     isFr
-                      ? 'Bonjour, je souhaite contacter le service client Noblewatch.'
-                      : 'السلام عليكم، أريد التواصل مع خدمة العملاء في متجر Noblewatch'
+                      ? 'Bonjour, je souhaite contacter le service client Luxwatch.'
+                      : 'السلام عليكم، أريد التواصل مع خدمة العملاء في متجر Luxwatch'
                   )}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -409,7 +409,7 @@ export const Footer: React.FC = () => {
                 </a>
 
                 <a
-                  href={safeSocialUrl(settings?.socialLinks?.instagram, 'https://instagram.com/noblewatch.ma')}
+                  href={safeSocialUrl(settings?.socialLinks?.instagram, 'https://instagram.com/luxwatch.ma')}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Instagram"
@@ -420,7 +420,7 @@ export const Footer: React.FC = () => {
                 </a>
 
                 <a
-                  href={safeSocialUrl(settings?.socialLinks?.facebook, 'https://facebook.com/noblewatch.ma')}
+                  href={safeSocialUrl(settings?.socialLinks?.facebook, 'https://facebook.com/luxwatch.ma')}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Facebook"
@@ -431,7 +431,7 @@ export const Footer: React.FC = () => {
                 </a>
 
                 <a
-                  href={safeSocialUrl(settings?.socialLinks?.tiktok, 'https://tiktok.com/@noblewatch.ma')}
+                  href={safeSocialUrl(settings?.socialLinks?.tiktok, 'https://tiktok.com/@luxwatch.ma')}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="TikTok"
@@ -444,7 +444,7 @@ export const Footer: React.FC = () => {
                 </a>
 
                 <a
-                  href={safeSocialUrl(settings?.socialLinks?.youtube, 'https://youtube.com/@noblewatch')}
+                  href={safeSocialUrl(settings?.socialLinks?.youtube, 'https://youtube.com/@luxwatch')}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="YouTube"
@@ -623,8 +623,8 @@ export const Footer: React.FC = () => {
                 href={buildWhatsAppUrl(
                   settings?.whatsappNumber,
                   isFr
-                    ? 'Bonjour, je souhaite obtenir des informations sur les montres et accessoires Noblewatch.'
-                    : 'السلام عليكم، أريد الاستفسار عن ساعات وإكسسوارات متجر Noblewatch'
+                    ? 'Bonjour, je souhaite obtenir des informations sur les montres et accessoires Luxwatch.'
+                    : 'السلام عليكم، أريد الاستفسار عن ساعات وإكسسوارات متجر Luxwatch'
                 )}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -650,10 +650,10 @@ export const Footer: React.FC = () => {
                     {isFr ? 'E-mail officiel :' : 'البريد الإلكتروني الرسمي:'}
                   </span>
                   <a
-                    href={`mailto:${settings?.contactEmail || 'contact@noblewatch.ma'}`}
+                    href={`mailto:${settings?.contactEmail || 'contact@luxwatch.ma'}`}
                     className="text-gray-300 hover:text-white transition font-mono text-[11px] underline underline-offset-2"
                   >
-                    {settings?.contactEmail || 'contact@noblewatch.ma'}
+                    {settings?.contactEmail || 'contact@luxwatch.ma'}
                   </a>
                 </div>
               </div>
@@ -713,7 +713,7 @@ export const Footer: React.FC = () => {
           <div className="flex flex-wrap items-center justify-center gap-2 text-[11px]">
             <span className="px-2.5 py-1.5 rounded-lg bg-[#c5a869]/10 border border-[#c5a869]/30 text-[#f7dfa5] font-semibold inline-flex items-center gap-1.5 whitespace-nowrap">
               <Zap className="w-3 h-3 text-[#c5a869]" />
-              <span>Noblewatch Express</span>
+              <span>Luxwatch Express</span>
             </span>
             <span className="px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/10 text-gray-300 inline-flex items-center gap-1.5 whitespace-nowrap">
               <Package className="w-3 h-3 text-gray-400" />
@@ -753,11 +753,11 @@ export const Footer: React.FC = () => {
           <p className="text-gray-500">
             {isFr ? (
               <>
-                Tous droits réservés &copy; {currentYear} <strong className="text-white font-serif">Noblewatch</strong> Maroc — Montres & Accessoires de Luxe.
+                Tous droits réservés &copy; {currentYear} <strong className="text-white font-serif">Luxwatch</strong> Maroc — Montres & Accessoires de Luxe.
               </>
             ) : (
               <>
-                جميع الحقوق محفوظة &copy; {currentYear} متجر <strong className="text-white font-serif">Noblewatch</strong> المغربي للساعات والإكسسوارات الفاخرة.
+                جميع الحقوق محفوظة &copy; {currentYear} متجر <strong className="text-white font-serif">Luxwatch</strong> المغربي للساعات والإكسسوارات الفاخرة.
               </>
             )}
           </p>

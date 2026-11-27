@@ -19,9 +19,9 @@ export const PoliciesModal: React.FC = () => {
       content: localizeSettingText(
         settings?.policies?.privacy,
         [
-          'نلتزم في Noblewatch بحماية خصوصية عملائنا الكرام. جميع المعلومات الشخصية المدخلة كالإسم ورقم الهاتف والعنوان تستخدم فقط لغرض توصيل الطلبيات والتواصل المباشر ولا تتم مشاركتها مع أي طرف ثالث تحت أي ظرف.',
+          'نلتزم في Luxwatch بحماية خصوصية عملائنا الكرام. جميع المعلومات الشخصية المدخلة كالإسم ورقم الهاتف والعنوان تستخدم فقط لغرض توصيل الطلبيات والتواصل المباشر ولا تتم مشاركتها مع أي طرف ثالث تحت أي ظرف.',
         ],
-        'Chez Noblewatch, nous protégeons strictement la confidentialité de nos clients. Toutes les informations fournies (nom, téléphone, adresse) sont utilisées uniquement pour la livraison de vos commandes et ne sont jamais partagées avec des tiers.',
+        'Chez Luxwatch, nous protégeons strictement la confidentialité de nos clients. Toutes les informations fournies (nom, téléphone, adresse) sont utilisées uniquement pour la livraison de vos commandes et ne sont jamais partagées avec des tiers.',
         lang
       ),
     },
@@ -33,9 +33,9 @@ export const PoliciesModal: React.FC = () => {
       content: localizeSettingText(
         settings?.policies?.terms,
         [
-          'باستخدامك لموقع Noblewatch، توافق على شروط الخدمة. نحرص على تقديم مواصفات حقيقية وصور واقعية لكل منتج. يحق للعميل معاينة وفحص الطرد قبل تسليم المبلغ للموزع.',
+          'باستخدامك لموقع Luxwatch، توافق على شروط الخدمة. نحرص على تقديم مواصفات حقيقية وصور واقعية لكل منتج. يحق للعميل معاينة وفحص الطرد قبل تسليم المبلغ للموزع.',
         ],
-        'En utilisant Noblewatch, vous acceptez nos conditions de service. Nous présentons des fiches détaillées et des photos fidèles de chaque modèle. Le client a le droit total de vérifier le colis avant de régler le livreur.',
+        'En utilisant Luxwatch, vous acceptez nos conditions de service. Nous présentons des fiches détaillées et des photos fidèles de chaque modèle. Le client a le droit total de vérifier le colis avant de régler le livreur.',
         lang
       ),
     },
@@ -75,9 +75,9 @@ export const PoliciesModal: React.FC = () => {
       content: localizeSettingText(
         settings?.policies?.warranty,
         [
-          'عند شراء أي منتج من متجر Noblewatch، يحصل الزبون على شهادة ضمان رسمية لمدة سنة كاملة (12 شهراً) ضد أي عطب مصنعي في المحرك أو التصنيع. يشمل الضمان إصلاح أو استبدال المنتج مجاناً، مع إمكانية التحقق من صحة الشهادة عبر رمز QR.',
+          'عند شراء أي منتج من متجر Luxwatch، يحصل الزبون على شهادة ضمان رسمية لمدة سنة كاملة (12 شهراً) ضد أي عطب مصنعي في المحرك أو التصنيع. يشمل الضمان إصلاح أو استبدال المنتج مجاناً، مع إمكانية التحقق من صحة الشهادة عبر رمز QR.',
         ],
-        'Pour chaque produit acheté chez Noblewatch, vous recevez un certificat de garantie officiel d’un an (12 mois) couvrant tout défaut de fabrication du mouvement. La réparation ou le remplacement est gratuit, avec vérification instantanée par QR code.',
+        'Pour chaque produit acheté chez Luxwatch, vous recevez un certificat de garantie officiel d’un an (12 mois) couvrant tout défaut de fabrication du mouvement. La réparation ou le remplacement est gratuit, avec vérification instantanée par QR code.',
         lang
       ),
     },

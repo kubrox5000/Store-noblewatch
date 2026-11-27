@@ -462,7 +462,7 @@ export function generateCustomerConfirmationMessage(
       selectedColors?: string[];
     }>;
   },
-  storeName: string = 'Noblewatch'
+  storeName: string = 'Luxwatch'
 ): string {
   const itemsText = (order.items || [])
     .map((it, idx) => {
@@ -481,7 +481,7 @@ export function generateCustomerConfirmationMessage(
   const origin =
     typeof window !== 'undefined' && window.location.origin
       ? window.location.origin
-      : 'https://noblewatch.ma';
+      : 'https://luxwatch.ma';
   const confirmUrl = `${origin}/#confirm-order?id=${encodeURIComponent(order.id)}`;
 
   return sanitizeWhatsAppText(
@@ -509,7 +509,7 @@ export function generateCustomerConfirmationMessage(
 /**
  * Get direct WhatsApp link to customer phone with prefilled confirmation message
  */
-export function getWhatsAppCustomerOrderUrl(order: any, storeName = 'Noblewatch'): string {
+export function getWhatsAppCustomerOrderUrl(order: any, storeName = 'Luxwatch'): string {
   const msg = generateCustomerConfirmationMessage(order, storeName);
   return buildWhatsAppUrl(order.phone, msg);
 }
@@ -534,7 +534,7 @@ export function generateCustomerShippedMessage(
       selectedColors?: string[];
     }>;
   },
-  storeName: string = 'Noblewatch'
+  storeName: string = 'Luxwatch'
 ): string {
   const itemsText = (order.items || [])
     .map((it, idx) => {
@@ -552,7 +552,7 @@ export function generateCustomerShippedMessage(
   const origin =
     typeof window !== 'undefined' && window.location.origin
       ? window.location.origin
-      : 'https://noblewatch.ma';
+      : 'https://luxwatch.ma';
   const trackUrl = `${origin}/#track?order=${encodeURIComponent(order.orderNumber)}`;
 
   return sanitizeWhatsAppText(
@@ -579,7 +579,7 @@ export function generateCustomerShippedMessage(
 /**
  * Get direct WhatsApp link with the professional 24h shipping notification message
  */
-export function getWhatsAppCustomerShippedUrl(order: any, storeName = 'Noblewatch'): string {
+export function getWhatsAppCustomerShippedUrl(order: any, storeName = 'Luxwatch'): string {
   const msg = generateCustomerShippedMessage(order, storeName);
   return buildWhatsAppUrl(order.phone, msg);
 }

@@ -1,5 +1,4 @@
-import dotenv from 'dotenv';
-dotenv.config({ override: true });
+import './src/server/loadEnv.ts';
 import express, { Request, Response } from 'express';
 import { createServer as createViteServer } from 'vite';
 import fs from 'fs';
@@ -155,7 +154,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Noblewatch luxury store server running at http://0.0.0.0:${PORT}`);
+    console.log(`🚀 Luxwatch luxury store server running at http://0.0.0.0:${PORT}`);
     // Pre-warm DB snapshot & RAM cache immediately on boot so first request is instant
     getStoreSnapshot().catch((err) => {
       console.error('Warmup error:', err);

@@ -172,7 +172,7 @@ export const WarrantyVerificationModal: React.FC = () => {
     }
   };
 
-  const storeName = settings?.storeName || 'Noblewatch';
+  const storeName = settings?.storeName || 'Luxwatch';
   const issueDate = currentOrder?.date ? new Date(currentOrder.date) : new Date();
   const validIssueDate = Number.isNaN(issueDate.getTime()) ? new Date() : issueDate;
   const expiryDate = new Date(validIssueDate.getTime());

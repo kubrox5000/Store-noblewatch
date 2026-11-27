@@ -41,7 +41,7 @@ function buildInitialForm(p: Partial<Product>): Partial<Product> {
     videos: Array.isArray(p.videos) ? p.videos.map((v) => ({ ...v })) : [],
     features: Array.isArray(p.features) ? [...p.features] : [],
     specs: {
-      brand: 'Noblewatch',
+      brand: 'Luxwatch',
       model: '',
       movement: '',
       caseMaterial: '',

@@ -174,8 +174,8 @@ export const CustomerOrderActionModal: React.FC = () => {
               </h3>
               <p className="text-[11px] text-[#996515] font-semibold">
                 {isFr
-                  ? `Boutique ${settings?.storeName || 'Noblewatch'} — Montres & Accessoires de luxe 🇲🇦`
-                  : `متجر ${settings?.storeName || 'Noblewatch'} للساعات والإكسسوارات الفاخرة 🇲🇦`}
+                  ? `Boutique ${settings?.storeName || 'Luxwatch'} — Montres & Accessoires de luxe 🇲🇦`
+                  : `متجر ${settings?.storeName || 'Luxwatch'} للساعات والإكسسوارات الفاخرة 🇲🇦`}
               </p>
             </div>
           </div>

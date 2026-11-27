@@ -29,14 +29,14 @@ export const WarrantyCertificateModal: React.FC<WarrantyCertificateModalProps> =
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copiedLink, setCopiedLink] = useState(false);
 
-  const storeName = settings?.storeName || 'Noblewatch';
+  const storeName = settings?.storeName || 'Luxwatch';
   const certificateSerial = `NW-WR-${order.orderNumber}`;
 
   const warrantyUrl = useMemo(() => {
     const origin =
       typeof window !== 'undefined' && window.location?.origin
         ? window.location.origin
-        : 'https://noblewatch.ma';
+        : 'https://luxwatch.ma';
     return `${origin}/#warranty?id=${encodeURIComponent(order.orderNumber)}`;
   }, [order.orderNumber]);
 
@@ -424,35 +424,36 @@ export const WarrantyCertificateModal: React.FC<WarrantyCertificateModalProps> =
                   <circle cx="60" cy="60" r="35" fill="#11131a" />
                   <text
                     x="60"
-                    y="52"
+                    y="50"
                     textAnchor="middle"
                     fill="#f3d999"
-                    fontSize="11"
+                    fontSize="10.5"
                     fontWeight="bold"
-                    fontFamily="serif"
+                    fontFamily="'Cairo', sans-serif"
                   >
-                    1 YEAR
+                    سنة واحدة
                   </text>
                   <text
                     x="60"
-                    y="66"
+                    y="65"
                     textAnchor="middle"
                     fill="#ffffff"
-                    fontSize="8.5"
+                    fontSize="10"
                     fontWeight="bold"
-                    fontFamily="monospace"
+                    fontFamily="'Cairo', sans-serif"
                   >
-                    WARRANTY
+                    ضمان رسمي
                   </text>
                   <text
                     x="60"
                     y="79"
                     textAnchor="middle"
                     fill="#c5a869"
-                    fontSize="7"
+                    fontSize="8.5"
                     fontWeight="bold"
+                    fontFamily="'Cairo', sans-serif"
                   >
-                    CERTIFIED
+                    معتمد
                   </text>
                 </svg>
                 <span className="text-[10px] font-extrabold text-[#7a5410] mt-1">
@@ -469,7 +470,7 @@ export const WarrantyCertificateModal: React.FC<WarrantyCertificateModalProps> =
                 <svg
                   viewBox="0 0 220 70"
                   className="w-40 h-14 print:w-36 print:h-11 text-slate-900"
-                  aria-label="التوقيع الرسمي لمتجر Noblewatch"
+                  aria-label="التوقيع الرسمي لمتجر Luxwatch"
                 >
                   <path
                     d="M18 52 C26 22, 34 12, 38 46 C42 26, 55 15, 62 42 C66 28, 78 24, 86 38 C95 48, 108 18, 118 36 C125 46, 138 22, 148 34 C156 42, 174 28, 198 30"
@@ -498,7 +499,7 @@ export const WarrantyCertificateModal: React.FC<WarrantyCertificateModalProps> =
                   المدير العام وقسم الجودة — {storeName}
                 </div>
                 <span className="text-[9px] text-slate-500 font-mono" dir="ltr">
-                  {settings?.city || 'Casablanca, Maroc'} • {settings?.contactEmail || 'contact@noblewatch.ma'}
+                  {settings?.city || 'Casablanca, Maroc'} • {settings?.contactEmail || 'contact@luxwatch.ma'}
                 </span>
               </div>
             </div>

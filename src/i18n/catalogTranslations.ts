@@ -177,8 +177,8 @@ const REVIEW_COMMENTS_AR_TO_FR: Record<string, string> = {
     'Service excellent et rapide : j’ai commandé hier soir et ce matin à 11h le livreur était déjà chez moi à Rabat.',
   'ما شاء الله، إتقان فالصنع، اللون ثابت ما كيتغيرش واخا تغسل يدك بالما والصابون، ننصح بيها أي واحد.':
     'Superbe qualité de fabrication ! La couleur reste intacte même en se lavant les mains à l’eau et au savon. Je recommande vivement.',
-  'كنت خايف من السلعة ديال لانتيرنيت، ولكن صراحة Noblewatch رجعات ليا الثقة، معقولين وسلعتهم أصلية ونقية.':
-    'J’avais des doutes sur les achats en ligne, mais Noblewatch m’a vraiment redonné confiance : équipe sérieuse et produits authentiques et soignés.',
+  'كنت خايف من السلعة ديال لانتيرنيت، ولكن صراحة Luxwatch رجعات ليا الثقة، معقولين وسلعتهم أصلية ونقية.':
+    'J’avais des doutes sur les achats en ligne, mais Luxwatch m’a vraiment redonné confiance : équipe sérieuse et produits authentiques et soignés.',
   'شريت بزاف د الساعات من قبل، ولكن هادي بصح تفاجأت بجمال التفاصيل ديالها، كولشي فيها كيبان مصنوع بإتقان.':
     'J’ai acheté beaucoup de montres auparavant, mais celle-ci m’a bluffé par la finesse de ses détails : tout respire le savoir-faire.',
   'التعامل د الموزع كان قمة فالأخلاق، خلاني حتى حليت الكولية وفحصت الساعة على راحتي عاد خلصتو كاش.':

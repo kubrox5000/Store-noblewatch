@@ -34,7 +34,7 @@ db.products.forEach((product, idx) => {
       videoTitle1 = 'معاينة واقعية لصندوق الساعات: الملمس المخملي، قفل الأمان والتشطيب';
       videoTitle2 = 'طريقة ترتيب الساعات وحمايتها من الخدوش داخل الصندوق الملكي';
     } else if (product.id.includes('cufflinks')) {
-      videoTitle1 = 'معاينة لمعان أزرار الأكمام المذهبة ونقش Noblewatch الدقيق';
+      videoTitle1 = 'معاينة لمعان أزرار الأكمام المذهبة ونقش Luxwatch الدقيق';
       videoTitle2 = 'تجربة تثبيت أزرار الأكمام على القميص وثبات القفل الملكي';
     } else if (product.id.includes('wallet')) {
       videoTitle1 = 'استعراض ملمس الجلد الطبيعي واختبار تقنية حجب RFID الذكية';

@@ -83,8 +83,8 @@ export const Header: React.FC = () => {
             href={buildWhatsAppUrl(
               settings?.whatsappNumber,
               isFr
-                ? 'Bonjour, je souhaite obtenir des renseignements sur les montres et accessoires Noblewatch.'
-                : 'السلام عليكم، بغيت نستفسر على ساعات وإكسسوارات Noblewatch'
+                ? 'Bonjour, je souhaite obtenir des renseignements sur les montres et accessoires Luxwatch.'
+                : 'السلام عليكم، بغيت نستفسر على ساعات وإكسسوارات Luxwatch'
             )}
             target="_blank"
             rel="noopener noreferrer"
@@ -117,14 +117,16 @@ export const Header: React.FC = () => {
               <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-full p-0.5 bg-gradient-to-br from-[#dfb76c] via-[#c5a869] to-[#9d7e35] shadow-md flex-shrink-0 group-hover:scale-105 transition-transform">
                 <img
                   src="/favicon.svg"
-                  alt="Noblewatch Logo"
+                  alt="Luxwatch Logo"
+                  width={44}
+                  height={44}
                   className="w-full h-full rounded-full object-contain"
                 />
               </div>
               <div className="min-w-0">
                 <div className="text-xl sm:text-3xl font-serif font-black tracking-tight text-gray-900 group-hover:text-[#b8860b] transition-colors leading-none whitespace-nowrap">
-                  <span className="gold-gradient-text font-serif italic tracking-tighter text-2xl sm:text-4xl">N</span>
-                  <span className="tracking-wide">oblewatch</span>
+                  <span className="gold-gradient-text font-serif italic tracking-tighter text-2xl sm:text-4xl">L</span>
+                  <span className="tracking-wide">uxwatch</span>
                 </div>
                 <div className="hidden sm:flex items-center gap-1.5 mt-1">
                   <span className="text-[9px] tracking-widest text-[#996515] uppercase font-mono px-1.5 py-0.2 border border-[#c5a869]/40 bg-[#fefaf0] rounded">
@@ -480,8 +482,8 @@ export const Header: React.FC = () => {
               href={buildWhatsAppUrl(
                 settings?.whatsappNumber,
                 isFr
-                  ? 'Bonjour, je souhaite contacter le service client Noblewatch.'
-                  : 'السلام عليكم، أريد التواصل مع خدمة العملاء في Noblewatch'
+                  ? 'Bonjour, je souhaite contacter le service client Luxwatch.'
+                  : 'السلام عليكم، أريد التواصل مع خدمة العملاء في Luxwatch'
               )}
               target="_blank"
               rel="noopener noreferrer"

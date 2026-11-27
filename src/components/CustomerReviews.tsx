@@ -176,7 +176,7 @@ export const CustomerReviews: React.FC = () => {
   };
 
   return (
-    <section id="reviews-section" className="py-10 sm:py-16 bg-white border-b border-gray-200/80 scroll-mt-16 sm:scroll-mt-20">
+    <section id="reviews-section" className="perf-section py-10 sm:py-16 bg-white border-b border-gray-200/80 scroll-mt-16 sm:scroll-mt-20">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className={`flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6 sm:mb-8 text-center ${isFr ? 'sm:text-left' : 'sm:text-right'}`}>

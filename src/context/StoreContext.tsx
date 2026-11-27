@@ -29,10 +29,28 @@ const isFrenchActive = () => {
   }
 };
 
-interface ToastState {
+export interface ToastState {
   message: string;
   type: 'success' | 'error' | 'info';
 }
+
+type ToastListener = (toast: ToastState | null) => void;
+const toastListeners = new Set<ToastListener>();
+let currentToastState: ToastState | null = null;
+let globalToastTimer: ReturnType<typeof setTimeout> | null = null;
+
+export const subscribeToast = (listener: ToastListener): (() => void) => {
+  toastListeners.add(listener);
+  listener(currentToastState);
+  return () => {
+    toastListeners.delete(listener);
+  };
+};
+
+const emitToast = (next: ToastState | null) => {
+  currentToastState = next;
+  toastListeners.forEach((fn) => fn(next));
+};
 
 export interface ProductReviewStats {
   count: number;
@@ -79,7 +97,6 @@ interface StoreContextType {
   setSearchQuery: (q: string) => void;
   selectedCategory: string;
   setSelectedCategory: (cat: string) => void;
-  toast: ToastState | null;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   isLoading: boolean;
   addToCart: (product: Product, quantity?: number, color?: string, selectedColors?: string[], bundleLabel?: string) => void;
@@ -114,7 +131,15 @@ interface StoreContextType {
   resetToDefaultData: () => Promise<void>;
 }
 
+interface StoreCardContextType {
+  reviewsStatsByProduct: Record<string, ProductReviewStats>;
+  setActiveProductId: (id: string | null) => void;
+  setCheckoutProduct: (val: { product: Product; color: string; quantity: number; selectedColors?: string[] } | null) => void;
+  addToCart: (product: Product, quantity?: number, color?: string, selectedColors?: string[], bundleLabel?: string) => void;
+}
+
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
+const StoreCardContext = createContext<StoreCardContextType | undefined>(undefined);
 
 const STORE_SNAPSHOT_KEY = 'noblewatch_store_snapshot_v1';
 
@@ -212,7 +237,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   });
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [toast, setToast] = useState<ToastState | null>(null);
   const [isLoading, setIsLoading] = useState(() => initialSnapshot.products.length === 0);
   const [serverReviewsStats, setServerReviewsStats] = useState<Record<string, ProductReviewStats>>(
     () => initialSnapshot.reviewsStatsByProduct || {}
@@ -222,8 +246,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   );
   const [hasMoreReviews, setHasMoreReviews] = useState<boolean>(true);
 
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const snapshotTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const snapshotIdleRef = useRef<number | null>(null);
   const refreshPromiseRef = useRef<Promise<void> | null>(null);
   const allReviewsPromiseRef = useRef<Promise<void> | null>(null);
   const loadedProductReviewsRef = useRef<Set<string>>(new Set());
@@ -251,13 +275,13 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, []);
 
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
-    if (toastTimerRef.current) {
-      clearTimeout(toastTimerRef.current);
+    if (globalToastTimer) {
+      clearTimeout(globalToastTimer);
     }
-    setToast({ message, type });
-    toastTimerRef.current = setTimeout(() => {
-      setToast(null);
-      toastTimerRef.current = null;
+    emitToast({ message, type });
+    globalToastTimer = setTimeout(() => {
+      emitToast(null);
+      globalToastTimer = null;
     }, 4000);
   }, []);
 
@@ -302,16 +326,35 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, [serverReviewsStats, serverReviewsSummary]);
 
-  // Non-blocking background snapshot writer (caps cached reviews at 60 so main thread & localStorage stay lightweight)
+  // Non-blocking idle-scheduled background snapshot writer (caps cached reviews at 36 so main thread & localStorage stay lightweight)
   const schedulePersistSnapshot = useCallback(
     (override?: Partial<StoreSnapshot>) => {
       if (snapshotTimerRef.current) {
         clearTimeout(snapshotTimerRef.current);
-      }
-      snapshotTimerRef.current = setTimeout(() => {
         snapshotTimerRef.current = null;
-        writeSnapshotNow(override);
-      }, 80);
+      }
+      const w = window as unknown as {
+        requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+        cancelIdleCallback?: (id: number) => void;
+      };
+      if (snapshotIdleRef.current !== null && typeof w.cancelIdleCallback === 'function') {
+        w.cancelIdleCallback(snapshotIdleRef.current);
+        snapshotIdleRef.current = null;
+      }
+      if (typeof w.requestIdleCallback === 'function') {
+        snapshotIdleRef.current = w.requestIdleCallback(
+          () => {
+            snapshotIdleRef.current = null;
+            writeSnapshotNow(override);
+          },
+          { timeout: 1200 }
+        );
+      } else {
+        snapshotTimerRef.current = setTimeout(() => {
+          snapshotTimerRef.current = null;
+          writeSnapshotNow(override);
+        }, 180);
+      }
     },
     [writeSnapshotNow]
   );
@@ -516,6 +559,60 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     [hasMoreReviews]
   );
 
+  const applyStorePayload = useCallback(
+    (json: any, opts?: { skipPersist?: boolean }) => {
+      if (!json?.success || !json?.data) return;
+      setSettings(json.data.settings);
+      setCategories(json.data.categories);
+
+      if (localStorage.getItem('noblewatch_admin_token') && json.isAdminAuthenticated === false) {
+        handleUnauthorizedAdmin();
+      }
+
+      let serverOrders = Array.isArray(json.data.orders) ? json.data.orders : [];
+      try {
+        const rawDel = localStorage.getItem('noblewatch_deleted_order_ids');
+        if (rawDel) {
+          const deletedIds: string[] = JSON.parse(rawDel);
+          if (Array.isArray(deletedIds) && deletedIds.length > 0) {
+            const delSet = new Set(deletedIds);
+            serverOrders = serverOrders.filter(
+              (o: any) => !delSet.has(o.id) && !delSet.has(o.orderNumber)
+            );
+          }
+        }
+      } catch {}
+
+      setOrders(serverOrders);
+      const resolvedReviews: Review[] = json.data.reviews || [];
+      setReviews(resolvedReviews);
+      if (json.data.reviewsStatsByProduct) {
+        setServerReviewsStats(json.data.reviewsStatsByProduct);
+      }
+      if (json.data.reviewsSummary) {
+        setServerReviewsSummary(json.data.reviewsSummary);
+      }
+      const moreFlag = Boolean(json.data.hasMoreReviews);
+      setHasMoreReviews(moreFlag);
+
+      const resolvedProducts: Product[] = json.data.products || [];
+      setProducts(resolvedProducts);
+      setIsLoading(false);
+
+      if (!opts?.skipPersist) {
+        schedulePersistSnapshot({
+          settings: json.data.settings,
+          categories: json.data.categories,
+          products: resolvedProducts,
+          reviews: resolvedReviews,
+          reviewsStatsByProduct: json.data.reviewsStatsByProduct,
+          reviewsSummary: json.data.reviewsSummary,
+        });
+      }
+    },
+    [handleUnauthorizedAdmin, schedulePersistSnapshot]
+  );
+
   const refreshData = useCallback(
     async (opts?: { full?: boolean }) => {
       if (refreshPromiseRef.current && !opts?.full) {
@@ -527,19 +624,23 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           const hasAdminToken = Boolean(localStorage.getItem('noblewatch_admin_token'));
           const useSlim = !opts?.full && !hasAdminToken;
 
-          let json: any = null;
-          if (useSlim) {
-            const w = window as unknown as { __NW_INITIAL_STORE_FETCH__?: Promise<any> };
-            if (w.__NW_INITIAL_STORE_FETCH__) {
+          const w = window as unknown as {
+            __NW_INITIAL_STORE_FETCH__?: Promise<any>;
+            __NW_STATIC_STORE_FETCH__?: Promise<any>;
+          };
+
+          const fetchLive = async (): Promise<any> => {
+            if (useSlim && w.__NW_INITIAL_STORE_FETCH__) {
               const prefetched = await w.__NW_INITIAL_STORE_FETCH__;
               w.__NW_INITIAL_STORE_FETCH__ = undefined;
-              if (prefetched?.success && Array.isArray(prefetched?.data?.products) && prefetched.data.products.length > 0) {
-                json = prefetched;
+              if (
+                prefetched?.success &&
+                Array.isArray(prefetched?.data?.products) &&
+                prefetched.data.products.length > 0
+              ) {
+                return prefetched;
               }
             }
-          }
-
-          if (!json) {
             try {
               const url = useSlim ? '/api/store-data?slim=1' : '/api/store-data';
               const res = await fetch(url, {
@@ -548,74 +649,89 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               });
               if (res.ok) {
                 const candidate = await res.json();
-                if (candidate?.success) {
-                  json = candidate;
-                }
+                if (candidate?.success) return candidate;
               }
             } catch {
-              // ignore and try static fallback below
+              // fallback handled below
             }
-          }
+            return null;
+          };
 
-          if (!json?.success || !Array.isArray(json?.data?.products) || json.data.products.length === 0) {
+          const fetchStatic = async (): Promise<any> => {
+            if (w.__NW_STATIC_STORE_FETCH__) {
+              const prefetched = await w.__NW_STATIC_STORE_FETCH__;
+              w.__NW_STATIC_STORE_FETCH__ = undefined;
+              if (prefetched?.success && Array.isArray(prefetched?.data?.products)) {
+                return prefetched;
+              }
+            }
             try {
-              const fallbackRes = await fetch('/store-public.json', { cache: 'no-cache' });
+              const fallbackRes = await fetch('/store-public.json');
               if (fallbackRes.ok) {
                 const fallbackJson = await fallbackRes.json();
                 if (fallbackJson?.success && Array.isArray(fallbackJson?.data?.products)) {
-                  json = fallbackJson;
+                  return fallbackJson;
                 }
               }
             } catch {
               // ignore
             }
+            return null;
+          };
+
+          const isColdEmptyStore = latestRef.current.products.length === 0 && useSlim;
+
+          if (isColdEmptyStore) {
+            // Cold first-time visitor: race live API (160ms budget) against edge CDN static snapshot
+            const livePromise = fetchLive();
+            const staticPromise = fetchStatic();
+            const timedLive = await Promise.race([
+              livePromise.then((res) => ({ kind: 'live' as const, data: res })),
+              new Promise<{ kind: 'timeout' }>((resolve) =>
+                setTimeout(() => resolve({ kind: 'timeout' }), 160)
+              ),
+            ]);
+
+            if (
+              timedLive.kind === 'live' &&
+              timedLive.data?.success &&
+              Array.isArray(timedLive.data?.data?.products) &&
+              timedLive.data.data.products.length > 0
+            ) {
+              applyStorePayload(timedLive.data);
+              return;
+            }
+
+            // Live API is cold-starting/slow: render static edge CDN snapshot immediately
+            const staticJson = await staticPromise;
+            if (staticJson?.success && staticJson.data?.products?.length > 0) {
+              applyStorePayload(staticJson, { skipPersist: true });
+            }
+
+            // Silently reconcile with live DB response once it settles
+            const liveJson = await livePromise;
+            if (
+              liveJson?.success &&
+              Array.isArray(liveJson?.data?.products) &&
+              liveJson.data.products.length > 0
+            ) {
+              applyStorePayload(liveJson);
+            }
+            return;
+          }
+
+          let json = await fetchLive();
+          if (
+            !json?.success ||
+            !Array.isArray(json?.data?.products) ||
+            json.data.products.length === 0
+          ) {
+            const staticJson = await fetchStatic();
+            if (staticJson) json = staticJson;
           }
 
           if (json?.success) {
-            setSettings(json.data.settings);
-            setCategories(json.data.categories);
-
-            if (localStorage.getItem('noblewatch_admin_token') && json.isAdminAuthenticated === false) {
-              handleUnauthorizedAdmin();
-            }
-
-            let serverOrders = Array.isArray(json.data.orders) ? json.data.orders : [];
-            try {
-              const rawDel = localStorage.getItem('noblewatch_deleted_order_ids');
-              if (rawDel) {
-                const deletedIds: string[] = JSON.parse(rawDel);
-                if (Array.isArray(deletedIds) && deletedIds.length > 0) {
-                  const delSet = new Set(deletedIds);
-                  serverOrders = serverOrders.filter(
-                    (o: any) => !delSet.has(o.id) && !delSet.has(o.orderNumber)
-                  );
-                }
-              }
-            } catch {}
-
-            setOrders(serverOrders);
-            const resolvedReviews: Review[] = json.data.reviews || [];
-            setReviews(resolvedReviews);
-            if (json.data.reviewsStatsByProduct) {
-              setServerReviewsStats(json.data.reviewsStatsByProduct);
-            }
-            if (json.data.reviewsSummary) {
-              setServerReviewsSummary(json.data.reviewsSummary);
-            }
-            const moreFlag = Boolean(json.data.hasMoreReviews);
-            setHasMoreReviews(moreFlag);
-
-            const resolvedProducts: Product[] = json.data.products || [];
-            setProducts(resolvedProducts);
-
-            schedulePersistSnapshot({
-              settings: json.data.settings,
-              categories: json.data.categories,
-              products: resolvedProducts,
-              reviews: resolvedReviews,
-              reviewsStatsByProduct: json.data.reviewsStatsByProduct,
-              reviewsSummary: json.data.reviewsSummary,
-            });
+            applyStorePayload(json);
           }
         } catch (err) {
           console.error('Failed to fetch store data', err);
@@ -628,7 +744,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       refreshPromiseRef.current = promise;
       return promise;
     },
-    [getAdminHeaders, handleUnauthorizedAdmin, schedulePersistSnapshot]
+    [applyStorePayload, getAdminHeaders]
   );
 
   useEffect(() => {
@@ -1436,7 +1552,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       setSearchQuery,
       selectedCategory,
       setSelectedCategory,
-      toast,
       showToast,
       isLoading,
       addToCart,
@@ -1486,7 +1601,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       activePolicyModal,
       searchQuery,
       selectedCategory,
-      toast,
       showToast,
       isLoading,
       addToCart,
@@ -1513,13 +1627,35 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     ]
   );
 
-  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
+  const cardContextValue = useMemo<StoreCardContextType>(
+    () => ({
+      reviewsStatsByProduct,
+      setActiveProductId,
+      setCheckoutProduct,
+      addToCart,
+    }),
+    [reviewsStatsByProduct, setActiveProductId, addToCart]
+  );
+
+  return (
+    <StoreCardContext.Provider value={cardContextValue}>
+      <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
+    </StoreCardContext.Provider>
+  );
 };
 
 export const useStore = () => {
   const context = useContext(StoreContext);
   if (!context) {
     throw new Error('useStore must be used within a StoreProvider');
+  }
+  return context;
+};
+
+export const useStoreCardActions = () => {
+  const context = useContext(StoreCardContext);
+  if (!context) {
+    throw new Error('useStoreCardActions must be used within a StoreProvider');
   }
   return context;
 };

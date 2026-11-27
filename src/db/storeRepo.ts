@@ -169,7 +169,7 @@ function buildSettingsObject(row: typeof storeSettingsTable.$inferSelect | undef
   const cleanWhatsApp = stripBidi(row?.whatsappNumber);
   const rawSocial = ((row?.socialLinks as any) || {}) as Record<string, string>;
   return {
-    storeName: row?.storeName || 'Noblewatch',
+    storeName: row?.storeName || 'Luxwatch',
     tagline: row?.tagline || '',
     announcementText: row?.announcementText || '',
     currency: row?.currency || 'د.م.',
@@ -329,7 +329,7 @@ export async function ensureDatabaseSchema(): Promise<void> {
       await db.execute(sql`
         CREATE TABLE IF NOT EXISTS store_settings (
           id integer PRIMARY KEY,
-          store_name text NOT NULL DEFAULT 'Noblewatch',
+          store_name text NOT NULL DEFAULT 'Luxwatch',
           tagline text NOT NULL DEFAULT '',
           announcement_text text NOT NULL DEFAULT '',
           currency text NOT NULL DEFAULT 'د.م.',
@@ -706,7 +706,7 @@ async function seedDatabaseIfEmpty(): Promise<void> {
           .insert(storeSettingsTable)
           .values({
             id: 1,
-            storeName: 'Noblewatch',
+            storeName: 'Luxwatch',
             orderSecurity: DEFAULT_ORDER_SECURITY,
           })
           .onConflictDoNothing();
@@ -722,7 +722,7 @@ async function seedDatabaseIfEmpty(): Promise<void> {
         .insert(storeSettingsTable)
         .values({
           id: 1,
-          storeName: s.storeName || 'Noblewatch',
+          storeName: s.storeName || 'Luxwatch',
           tagline: s.tagline || '',
           announcementText: s.announcementText || '',
           currency: s.currency || 'د.م.',
@@ -993,7 +993,7 @@ export function loadSeedSnapshotFallback(): StoreDatabaseSnapshot {
 
   cachedFallbackSnapshot = {
     settings: {
-      storeName: s.storeName || 'Noblewatch',
+      storeName: s.storeName || 'Luxwatch',
       tagline: s.tagline || '',
       announcementText: s.announcementText || '',
       currency: s.currency || 'د.م.',

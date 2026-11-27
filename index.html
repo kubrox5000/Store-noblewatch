@@ -3,19 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Noblewatch | متجر الساعات والإكسسوارات الفاخرة بالمغرب</title>
+    <title>Luxwatch | متجر الساعات والإكسسوارات الفاخرة بالمغرب</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="shortcut icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
     <meta
       name="description"
-      content="تسوق أرقى ساعات اليد الفاخرة والإكسسوارات للرجال والنساء بالمغرب مع Noblewatch. جودة أصلية، ضمان سنة، توصيل مجاني 0 درهم والدفع عند الاستلام."
+      content="تسوق أرقى ساعات اليد الفاخرة والإكسسوارات للرجال والنساء بالمغرب مع Luxwatch. جودة أصلية، ضمان سنة، توصيل مجاني 0 درهم والدفع عند الاستلام."
     />
     <meta
       name="keywords"
-      content="ساعات فاخرة المغرب, ساعات يد رجالية, ساعات نسائية, إكسسوارات رجالية, إكسسوارات نسائية, الدفع عند الاستلام المغرب, Noblewatch, montres de luxe Maroc, paiement à la livraison"
+      content="ساعات فاخرة المغرب, ساعات يد رجالية, ساعات نسائية, إكسسوارات رجالية, إكسسوارات نسائية, الدفع عند الاستلام المغرب, Luxwatch, montres de luxe Maroc, paiement à la livraison"
     />
-    <meta name="author" content="Noblewatch" />
+    <meta name="author" content="Luxwatch" />
     <meta
       name="robots"
       content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
@@ -23,23 +23,23 @@
 
     <!-- OpenGraph Social Metadata -->
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Noblewatch" />
+    <meta property="og:site_name" content="Luxwatch" />
     <meta property="og:locale" content="ar_MA" />
     <meta property="og:locale:alternate" content="fr_MA" />
-    <meta property="og:title" content="Noblewatch | متجر الساعات والإكسسوارات الفاخرة بالمغرب" />
+    <meta property="og:title" content="Luxwatch | متجر الساعات والإكسسوارات الفاخرة بالمغرب" />
     <meta
       property="og:description"
-      content="تسوق أرقى ساعات اليد الفاخرة والإكسسوارات للرجال والنساء بالمغرب مع Noblewatch. جودة أصلية، ضمان سنة، توصيل مجاني 0 درهم والدفع عند الاستلام."
+      content="تسوق أرقى ساعات اليد الفاخرة والإكسسوارات للرجال والنساء بالمغرب مع Luxwatch. جودة أصلية، ضمان سنة، توصيل مجاني 0 درهم والدفع عند الاستلام."
     />
     <meta property="og:image" content="/assets/watches_and_accessories_hero.jpg" />
-    <meta property="og:image:alt" content="تشكيلة ساعات وإكسسوارات Noblewatch الفاخرة بالمغرب" />
+    <meta property="og:image:alt" content="تشكيلة ساعات وإكسسوارات Luxwatch الفاخرة بالمغرب" />
 
     <!-- Twitter / X Social Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Noblewatch | متجر الساعات والإكسسوارات الفاخرة بالمغرب" />
+    <meta name="twitter:title" content="Luxwatch | متجر الساعات والإكسسوارات الفاخرة بالمغرب" />
     <meta
       name="twitter:description"
-      content="تسوق أرقى ساعات اليد الفاخرة والإكسسوارات للرجال والنساء بالمغرب مع Noblewatch. ضمان سنة، توصيل مجاني والدفع عند الاستلام."
+      content="تسوق أرقى ساعات اليد الفاخرة والإكسسوارات للرجال والنساء بالمغرب مع Luxwatch. ضمان سنة، توصيل مجاني والدفع عند الاستلام."
     />
     <meta name="twitter:image" content="/assets/watches_and_accessories_hero.jpg" />
     <meta name="theme-color" content="#121214" />
@@ -51,8 +51,8 @@
         "@graph": [
           {
             "@type": "OnlineStore",
-            "name": "Noblewatch",
-            "description": "متجر Noblewatch الرسمي للساعات الفاخرة والإكسسوارات في المغرب مع التوصيل المجاني والدفع عند الاستلام بعد المعاينة.",
+            "name": "Luxwatch",
+            "description": "متجر Luxwatch الرسمي للساعات الفاخرة والإكسسوارات في المغرب مع التوصيل المجاني والدفع عند الاستلام بعد المعاينة.",
             "image": "/assets/watches_and_accessories_hero.jpg",
             "logo": "/favicon.svg",
             "areaServed": {
@@ -64,7 +64,7 @@
           },
           {
             "@type": "WebSite",
-            "name": "Noblewatch",
+            "name": "Luxwatch",
             "inLanguage": ["ar-MA", "fr-MA"]
           }
         ]
@@ -103,6 +103,21 @@
               .catch(function () {
                 return null;
               });
+
+            var hasSnapshot = false;
+            try {
+              hasSnapshot = Boolean(localStorage.getItem('noblewatch_store_snapshot_v1'));
+            } catch (err) {}
+
+            if (!hasSnapshot) {
+              window.__NW_STATIC_STORE_FETCH__ = fetch('/store-public.json')
+                .then(function (r) {
+                  return r.ok ? r.json() : null;
+                })
+                .catch(function () {
+                  return null;
+                });
+            }
           }
         } catch (e) {}
       })();

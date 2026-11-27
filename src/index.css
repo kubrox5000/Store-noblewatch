@@ -28,6 +28,11 @@
   contain-intrinsic-size: 380px 480px;
 }
 
+.perf-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 650px;
+}
+
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;

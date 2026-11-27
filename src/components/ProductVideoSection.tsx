@@ -79,11 +79,14 @@ const INITIAL_VIDEO_LIMIT = 6;
 const VIDEO_LIMIT_STEP = 9;
 
 const warmedVideoUrls = new Set<string>();
-const warmUpVideoUrl = (url?: string) => {
+const warmUpVideoUrl = (url?: string, bytes = 262143) => {
   if (!url || typeof window === 'undefined' || warmedVideoUrls.has(url)) return;
   if (url.startsWith('blob:') || url.startsWith('data:')) return;
   warmedVideoUrls.add(url);
-  fetch(url, { headers: { Range: 'bytes=0-262143' } }).catch(() => {});
+  fetch(url, {
+    credentials: 'same-origin',
+    headers: { Range: `bytes=0-${bytes}` },
+  }).catch(() => {});
 };
 
 const isAccessoryProduct = (p: Product) =>
@@ -145,8 +148,8 @@ export const ProductVideoSection: React.FC = () => {
           if (blobUrl) URL.revokeObjectURL(blobUrl);
           return;
         }
-        // Only switch to IndexedDB blob if network playback has not already buffered frames
-        if (!videoRef.current || videoRef.current.readyState < 2) {
+        // Only switch to IndexedDB blob if network video has not started loading at all
+        if (!videoRef.current || videoRef.current.readyState === 0) {
           activeBlobUrlRef.current = blobUrl;
           setActivePlaySrc(blobUrl);
         } else {
@@ -223,6 +226,34 @@ export const ProductVideoSection: React.FC = () => {
     [displayedVideos, visibleVideosCount]
   );
 
+  const sectionRef = useRef<HTMLElement | null>(null);
+  React.useEffect(() => {
+    const el = sectionRef.current;
+    if (!el || visibleVideos.length === 0 || typeof IntersectionObserver === 'undefined') return;
+    let cancelled = false;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        observer.disconnect();
+        const topUrls = visibleVideos
+          .slice(0, 3)
+          .map((item) => item.video.url)
+          .filter(Boolean);
+        topUrls.forEach((u, i) => {
+          window.setTimeout(() => {
+            if (!cancelled) warmUpVideoUrl(u, 65535);
+          }, i * 180);
+        });
+      },
+      { rootMargin: '450px' }
+    );
+    observer.observe(el);
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
+  }, [visibleVideos]);
+
   const isAccessory = isAccessoryProduct;
 
   const handleOpenVideo = (item: VideoItem) => {
@@ -265,7 +296,6 @@ export const ProductVideoSection: React.FC = () => {
   const handleViewDetails = (productId: string) => {
     setActivePlayingVideo(null);
     setActiveProductId(productId);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const togglePlay = () => {
@@ -290,7 +320,11 @@ export const ProductVideoSection: React.FC = () => {
   if (allVideos.length === 0) return null;
 
   return (
-    <section id="videos-section" className="py-10 sm:py-16 bg-[#f8f9fb] border-b border-gray-200/80 scroll-mt-16 sm:scroll-mt-20">
+    <section
+      ref={sectionRef}
+      id="videos-section"
+      className="perf-section py-10 sm:py-16 bg-[#f8f9fb] border-b border-gray-200/80 scroll-mt-16 sm:scroll-mt-20"
+    >
       <div className={`max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 ${isFr ? 'text-left' : 'text-right'}`}>
         {/* ================= 1. SECTION HEADER ================= */}
         <div className={`mb-6 sm:mb-8 text-center ${isFr ? 'md:text-left' : 'md:text-right'}`}>
@@ -645,7 +679,12 @@ export const ProductVideoSection: React.FC = () => {
                       480
                     )}
                     onLoadedData={() => setIsVideoBuffering(false)}
-                    onCanPlay={() => setIsVideoBuffering(false)}
+                    onCanPlay={() => {
+                      setIsVideoBuffering(false);
+                      if (isPlaying && videoRef.current?.paused) {
+                        videoRef.current.play().catch(() => {});
+                      }
+                    }}
                     onPlaying={() => setIsVideoBuffering(false)}
                     onWaiting={() => setIsVideoBuffering(true)}
                     onError={() => {
@@ -667,7 +706,7 @@ export const ProductVideoSection: React.FC = () => {
                   />
                   <div className="absolute inset-0 bg-radial from-transparent via-black/20 to-black/80 pointer-events-none" />
                   <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 pointer-events-none">
-                    <span className="gold-gradient-text font-serif italic text-sm font-bold">Noblewatch</span>
+                    <span className="gold-gradient-text font-serif italic text-sm font-bold">Luxwatch</span>
                     <span className="text-[10px] text-gray-300">
                       {isFr ? 'Aperçu 360°' : 'معاينة استعراضية 360°'}
                     </span>
@@ -676,8 +715,8 @@ export const ProductVideoSection: React.FC = () => {
               )}
 
               <div className="absolute top-4 left-4 hidden sm:flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 pointer-events-none z-10">
-                <span className="gold-gradient-text font-serif italic text-sm font-bold">N</span>
-                <span className="text-[10px] text-gray-300 tracking-wide font-sans">Noblewatch Studios</span>
+                <span className="gold-gradient-text font-serif italic text-sm font-bold">L</span>
+                <span className="text-[10px] text-gray-300 tracking-wide font-sans">Luxwatch Studios</span>
               </div>
 
               <div className="absolute bottom-4 inset-x-4 flex items-center justify-between gap-3 bg-black/75 backdrop-blur-md p-2.5 rounded-2xl border border-white/15 z-20">

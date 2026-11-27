@@ -78,7 +78,7 @@ export function applyDynamicSeo({
   const isFr = lang === 'fr';
   const origin = window.location.origin;
   const basePath = `${origin}${window.location.pathname}`;
-  const storeName = 'Noblewatch';
+  const storeName = 'Luxwatch';
 
   const approvedReviews = reviews.filter((r) => r.isApproved);
 
@@ -241,11 +241,11 @@ export function applyDynamicSeo({
   // Homepage SEO
   const canonicalUrl = basePath;
   const title = isFr
-    ? 'Noblewatch | Montres & Accessoires de Luxe au Maroc'
-    : 'Noblewatch | متجر الساعات والإكسسوارات الفاخرة بالمغرب';
+    ? 'Luxwatch | Montres & Accessoires de Luxe au Maroc'
+    : 'Luxwatch | متجر الساعات والإكسسوارات الفاخرة بالمغرب';
   const description = isFr
-    ? 'Découvrez nos montres de luxe et accessoires homme & femme au Maroc avec Noblewatch. Garantie 1 an, livraison gratuite 0 DH et paiement à la livraison.'
-    : 'تسوق أرقى ساعات اليد الفاخرة والإكسسوارات للرجال والنساء بالمغرب مع Noblewatch. جودة أصلية، ضمان سنة، توصيل مجاني 0 درهم والدفع عند الاستلام.';
+    ? 'Découvrez nos montres de luxe et accessoires homme & femme au Maroc avec Luxwatch. Garantie 1 an, livraison gratuite 0 DH et paiement à la livraison.'
+    : 'تسوق أرقى ساعات اليد الفاخرة والإكسسوارات للرجال والنساء بالمغرب مع Luxwatch. جودة أصلية، ضمان سنة، توصيل مجاني 0 درهم والدفع عند الاستلام.';
   const heroImage = toAbsoluteUrl(
     settings?.heroImage || '/assets/watches_and_accessories_hero.jpg',
     origin
@@ -262,7 +262,7 @@ export function applyDynamicSeo({
   upsertMetaTag(
     'property',
     'og:image:alt',
-    isFr ? 'Collection montres et accessoires Noblewatch Maroc' : 'تشكيلة ساعات وإكسسوارات Noblewatch الفاخرة بالمغرب'
+    isFr ? 'Collection montres et accessoires Luxwatch Maroc' : 'تشكيلة ساعات وإكسسوارات Luxwatch الفاخرة بالمغرب'
   );
   upsertMetaTag('property', 'og:locale', isFr ? 'fr_MA' : 'ar_MA');
   upsertMetaTag('name', 'twitter:title', title);

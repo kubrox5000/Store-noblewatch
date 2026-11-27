@@ -787,7 +787,12 @@ app.get('/api/store-data', async (req: Request, res: Response) => {
 
     const payload = getOrBuildStorePayload(db, isAdminAuthenticated, isSlim);
     res.setHeader('ETag', payload.etag);
-    res.setHeader('Cache-Control', 'private, no-cache, must-revalidate');
+    if (!isAdminAuthenticated && isSlim && !req.headers.authorization) {
+      res.setHeader('Cache-Control', 'public, max-age=15, s-maxage=30, stale-while-revalidate=300');
+      res.setHeader('CDN-Cache-Control', 'public, s-maxage=30, stale-while-revalidate=300');
+    } else {
+      res.setHeader('Cache-Control', 'private, no-cache, must-revalidate');
+    }
     res.setHeader('Vary', 'Authorization, Accept-Encoding');
 
     if (req.headers['if-none-match'] === payload.etag) {
@@ -817,7 +822,8 @@ app.get('/api/reviews', async (req: Request, res: Response) => {
     if (productId) {
       const etag = `"nw-rev-${version}-${productId}"`;
       res.setHeader('ETag', etag);
-      res.setHeader('Cache-Control', 'public, no-cache, must-revalidate');
+      res.setHeader('Cache-Control', 'public, max-age=15, s-maxage=60, stale-while-revalidate=300');
+      res.setHeader('CDN-Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
       res.setHeader('Vary', 'Accept-Encoding');
       if (req.headers['if-none-match'] === etag) {
         return res.status(304).end();
@@ -853,7 +859,8 @@ app.get('/api/reviews', async (req: Request, res: Response) => {
     }
 
     res.setHeader('ETag', cached.etag);
-    res.setHeader('Cache-Control', 'public, no-cache, must-revalidate');
+    res.setHeader('Cache-Control', 'public, max-age=15, s-maxage=60, stale-while-revalidate=300');
+    res.setHeader('CDN-Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
     res.setHeader('Vary', 'Accept-Encoding');
     if (req.headers['if-none-match'] === cached.etag) {
       return res.status(304).end();
@@ -1781,7 +1788,7 @@ app.post('/api/products', async (req: Request, res: Response) => {
         productData.specs && typeof productData.specs === 'object'
           ? productData.specs
           : {
-              brand: 'Noblewatch',
+              brand: 'Luxwatch',
               model: productData.name || 'ساعة يد جديدة',
               movement: 'كوارتز ياباني فائق الدقة',
               caseMaterial: 'فولاذ مقاوم للصدأ 316L',
@@ -1797,7 +1804,7 @@ app.post('/api/products', async (req: Request, res: Response) => {
       boxContents: Array.isArray(productData.boxContents)
         ? productData.boxContents
         : [
-            'ساعة Noblewatch الأصلية',
+            'ساعة Luxwatch الأصلية',
             'علبة هدايا جلدية فاخرة',
             'بطاقة الضمان الدولي المعتمدة',
             'كتيب التعليمات ودليل العناية بالساعة',
@@ -2510,9 +2517,13 @@ function setMediaCacheEntry(filename: string, mimeType: string, buffer: Buffer) 
 
 function sendBufferWithRange(req: Request, res: Response, buffer: Buffer, mimeType: string) {
   const total = buffer.length;
+  const etag = `"nw-m-${total}"`;
   res.setHeader('Content-Type', mimeType);
   res.setHeader('Accept-Ranges', 'bytes');
+  res.setHeader('ETag', etag);
   res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  res.setHeader('CDN-Cache-Control', 'public, max-age=31536000, immutable');
+  res.setHeader('Vercel-CDN-Cache-Control', 'public, max-age=31536000, immutable');
 
   const range = req.headers.range;
   if (range && range.startsWith('bytes=')) {
@@ -2529,6 +2540,10 @@ function sendBufferWithRange(req: Request, res: Response, buffer: Buffer, mimeTy
     res.setHeader('Content-Length', chunk.length);
     if (req.method === 'HEAD') return res.end();
     return res.send(chunk);
+  }
+
+  if (req.headers['if-none-match'] === etag) {
+    return res.status(304).end();
   }
 
   res.setHeader('Content-Length', total);

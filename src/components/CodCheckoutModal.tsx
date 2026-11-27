@@ -465,7 +465,7 @@ export const CodCheckoutModal: React.FC = () => {
                 ) : (
                   <>
                     شكراً لك <strong className="text-gray-900">{orderSuccess.customerName}</strong> على ثقتك بـ
-                    Noblewatch. سيتصل بك موظف خدمة العملاء هاتفياً أو عبر الواتساب لتأكيد شحن طلبيتك إلى
+                    Luxwatch. سيتصل بك موظف خدمة العملاء هاتفياً أو عبر الواتساب لتأكيد شحن طلبيتك إلى
                     مدينة <strong className="text-[#996515]">{orderSuccess.city}</strong>.
                   </>
                 )}
@@ -1218,7 +1218,7 @@ export const CodCheckoutModal: React.FC = () => {
               </div>
               <div className="flex items-center justify-between text-[11px] text-gray-500 pt-0.5">
                 <span>{isFr ? 'Transporteurs partenaires :' : 'شركاء التوصيل المعتمدين:'}</span>
-                <span className="font-medium text-gray-700">Noblewatch Express • Ozon • Ameex.ma</span>
+                <span className="font-medium text-gray-700">Luxwatch Express • Ozon • Ameex.ma</span>
               </div>
               <div className="flex justify-between text-sm font-bold text-gray-900 pt-2 border-t border-gray-200">
                 <span>{isFr ? 'Total à payer à la livraison :' : 'المبلغ الإجمالي عند الاستلام:'}</span>

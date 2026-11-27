@@ -43,9 +43,9 @@ export async function injectDynamicSeoIntoHtml(
 
   // Always upgrade canonical, og:image, twitter:image relative URLs to full origin URLs
   let canonicalUrl = `${cleanOrigin}/`;
-  let pageTitle = 'Noblewatch | متجر الساعات والإكسسوارات الفاخرة بالمغرب';
+  let pageTitle = 'Luxwatch | متجر الساعات والإكسسوارات الفاخرة بالمغرب';
   let pageDescription =
-    'تسوق أرقى ساعات اليد الفاخرة والإكسسوارات للرجال والنساء بالمغرب مع Noblewatch. جودة أصلية، ضمان سنة، توصيل مجاني 0 درهم والدفع عند الاستلام.';
+    'تسوق أرقى ساعات اليد الفاخرة والإكسسوارات للرجال والنساء بالمغرب مع Luxwatch. جودة أصلية، ضمان سنة، توصيل مجاني 0 درهم والدفع عند الاستلام.';
   let ogType = 'website';
   let ogImage = `${cleanOrigin}/assets/watches_and_accessories_hero.jpg`;
   let extraJsonLd = '';
@@ -59,7 +59,7 @@ export async function injectDynamicSeoIntoHtml(
 
       if (prod) {
         canonicalUrl = `${cleanOrigin}/?product=${encodeURIComponent(prod.id)}`;
-        pageTitle = `${prod.name} | Noblewatch المغرب`;
+        pageTitle = `${prod.name} | Luxwatch المغرب`;
         pageDescription = clampText(
           `اطلب ${prod.name} بسعر ${prod.price} درهم مع توصيل مجاني 0 درهم بالمغرب، ضمان سنة رسمي، والدفع عند الاستلام بعد المعاينة.`,
           158
@@ -79,7 +79,7 @@ export async function injectDynamicSeoIntoHtml(
           description: clampText(prod.description || pageDescription, 300),
           sku: prod.sku || prod.id,
           image: [ogImage],
-          brand: { '@type': 'Brand', name: 'Noblewatch' },
+          brand: { '@type': 'Brand', name: 'Luxwatch' },
           offers: {
             '@type': 'Offer',
             url: canonicalUrl,

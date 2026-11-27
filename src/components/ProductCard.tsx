@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { ShoppingBag, Eye, Star, Zap } from 'lucide-react';
 import { Product } from '../types';
 import { formatPrice, getProductColors, getOptimizedImageUrl } from '../utils/constants';
-import { useStore } from '../context/StoreContext';
+import { useStoreCardActions } from '../context/StoreContext';
 import { useLanguage } from '../context/LanguageContext';
 import { translateColorName, translateProductSubtitle } from '../i18n/storefront';
 
 interface ProductCardProps {
   product: Product;
   priority?: boolean;
+  eager?: boolean;
 }
 
 const preloadedImages = new Set<string>();
@@ -22,8 +23,8 @@ const prefetchProductDetail = (fullImgUrl?: string) => {
   }
 };
 
-export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product, priority = false }) => {
-  const { setActiveProductId, setCheckoutProduct, addToCart, reviewsStatsByProduct } = useStore();
+export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product, priority = false, eager = false }) => {
+  const { setActiveProductId, setCheckoutProduct, addToCart, reviewsStatsByProduct } = useStoreCardActions();
   const { lang, isFr } = useLanguage();
   const [selectedColorIndex, setSelectedColorIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
@@ -92,6 +93,8 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product, pr
         <img
           src={displayImage}
           alt={product.name}
+          width={480}
+          height={480}
           onError={(e) => {
             const el = e.currentTarget as HTMLImageElement;
             if (!el.dataset.fallback && fullDisplayImage && el.src !== fullDisplayImage) {
@@ -104,7 +107,7 @@ export const ProductCard: React.FC<ProductCardProps> = React.memo(({ product, pr
           className={`w-full h-full object-cover rounded-xl transition-transform duration-500 ${
             isHovered ? 'scale-105' : 'scale-100'
           }`}
-          loading={priority ? 'eager' : 'lazy'}
+          loading={priority || eager ? 'eager' : 'lazy'}
           fetchPriority={priority ? 'high' : 'auto'}
           decoding="async"
         />

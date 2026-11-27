@@ -6,7 +6,7 @@ export const WhyChooseUs: React.FC = () => {
   const { isFr } = useLanguage();
 
   return (
-    <section className="relative overflow-hidden py-10 sm:py-16 bg-gradient-to-b from-[#fbfaf7] via-white to-[#fbfaf7] border-b border-gray-200/80">
+    <section className="perf-section relative overflow-hidden py-10 sm:py-16 bg-gradient-to-b from-[#fbfaf7] via-white to-[#fbfaf7] border-b border-gray-200/80">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 relative z-10 text-center">
         <div className="inline-block px-4 py-1 rounded-full bg-white text-[11px] sm:text-xs font-bold text-[#996515] border border-[#c5a869]/40 shadow-sm mb-2.5 sm:mb-3">
           {isFr ? 'Confiance & Qualité Marocaine Authentique 🇲🇦' : 'ثقة وجودة مغربية خالصة 🇲🇦'}
@@ -15,11 +15,11 @@ export const WhyChooseUs: React.FC = () => {
         <h2 className="text-2xl sm:text-4xl font-black text-gray-900 tracking-tight mb-2.5 sm:mb-3 text-balance">
           {isFr ? (
             <>
-              Pourquoi choisir <span className="gold-gradient-text font-serif italic text-3xl sm:text-4xl">Noblewatch</span> ?
+              Pourquoi choisir <span className="gold-gradient-text font-serif italic text-3xl sm:text-4xl">Luxwatch</span> ?
             </>
           ) : (
             <>
-              لماذا تختار <span className="gold-gradient-text font-serif italic text-3xl sm:text-4xl">Noblewatch</span>؟
+              لماذا تختار <span className="gold-gradient-text font-serif italic text-3xl sm:text-4xl">Luxwatch</span>؟
             </>
           )}
         </h2>

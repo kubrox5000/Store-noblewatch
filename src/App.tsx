@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
-import { StoreProvider, useStore } from './context/StoreContext';
+import { StoreProvider, useStore, subscribeToast, ToastState } from './context/StoreContext';
 import { Header } from './components/Header';
 import { HeroSection } from './components/HeroSection';
 import { TrustGuarantees } from './components/TrustGuarantees';
@@ -68,6 +68,31 @@ const ProductDetailSkeleton: React.FC = () => {
   );
 };
 
+const ToastBanner: React.FC = () => {
+  const [toast, setToast] = useState<ToastState | null>(null);
+  useEffect(() => subscribeToast(setToast), []);
+  if (!toast) return null;
+  return (
+    <div
+      dir="rtl"
+      role="alert"
+      aria-live="assertive"
+      className={`fixed bottom-20 sm:bottom-6 right-3 left-3 sm:left-auto sm:right-6 z-[120] sm:max-w-sm rounded-2xl border p-3.5 sm:p-4 shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5 duration-300 ${
+        toast.type === 'success'
+          ? 'bg-emerald-50 border-emerald-400 text-emerald-950'
+          : toast.type === 'error'
+          ? 'bg-rose-50 border-rose-400 text-rose-950'
+          : 'bg-white border-[#c5a869]/50 text-gray-900'
+      }`}
+    >
+      {toast.type === 'success' && <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />}
+      {toast.type === 'error' && <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />}
+      {toast.type === 'info' && <Info className="w-5 h-5 text-[#b8860b] flex-shrink-0" />}
+      <p className="text-xs font-extrabold leading-snug">{toast.message}</p>
+    </div>
+  );
+};
+
 const MainContent: React.FC = () => {
   const { lang, isFr } = useLanguage();
   const {
@@ -75,7 +100,6 @@ const MainContent: React.FC = () => {
     setActiveProductId,
     products,
     reviews,
-    toast,
     cartCount,
     isCartOpen,
     setIsCartOpen,
@@ -108,16 +132,18 @@ const MainContent: React.FC = () => {
     const prefetch = () => {
       import('./components/ProductDetailPage').catch(() => {});
       import('./components/CodCheckoutModal').catch(() => {});
+      import('./components/CartDrawer').catch(() => {});
+      import('./components/ProductVideoSection').catch(() => {});
     };
     const w = window as unknown as {
       requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
       cancelIdleCallback?: (id: number) => void;
     };
     if (typeof w.requestIdleCallback === 'function') {
-      const id = w.requestIdleCallback(prefetch, { timeout: 1500 });
+      const id = w.requestIdleCallback(prefetch, { timeout: 1200 });
       return () => w.cancelIdleCallback?.(id);
     }
-    const timer = window.setTimeout(prefetch, 700);
+    const timer = window.setTimeout(prefetch, 600);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -180,26 +206,8 @@ const MainContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#f8f9fb] text-[#1e293b] flex flex-col font-sans selection:bg-[#c5a869] selection:text-black">
-      {/* Toast notifications */}
-      {toast && (
-        <div
-          dir="rtl"
-          role="alert"
-          aria-live="assertive"
-          className={`fixed bottom-20 sm:bottom-6 right-3 left-3 sm:left-auto sm:right-6 z-[120] sm:max-w-sm rounded-2xl border p-3.5 sm:p-4 shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5 duration-300 ${
-            toast.type === 'success'
-              ? 'bg-emerald-50 border-emerald-400 text-emerald-950'
-              : toast.type === 'error'
-              ? 'bg-rose-50 border-rose-400 text-rose-950'
-              : 'bg-white border-[#c5a869]/50 text-gray-900'
-          }`}
-        >
-          {toast.type === 'success' && <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />}
-          {toast.type === 'error' && <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />}
-          {toast.type === 'info' && <Info className="w-5 h-5 text-[#b8860b] flex-shrink-0" />}
-          <p className="text-xs font-extrabold leading-snug">{toast.message}</p>
-        </div>
-      )}
+      {/* Toast notifications (isolated subscriber so toasts never re-render MainContent) */}
+      <ToastBanner />
 
       {/* Global Header */}
       <Header />
@@ -209,6 +217,7 @@ const MainContent: React.FC = () => {
         {selectedProduct && (
           <Suspense fallback={<ProductDetailSkeleton />}>
             <ProductDetailPage
+              key={selectedProduct.id}
               product={selectedProduct}
               onBack={() => {
                 setActiveProductId(null);
@@ -312,8 +321,8 @@ const MainContent: React.FC = () => {
             href={buildWhatsAppUrl(
               settings?.whatsappNumber,
               isFr
-                ? 'Bonjour, je souhaite obtenir des informations sur les montres et accessoires Noblewatch au Maroc.'
-                : 'السلام عليكم، بغيت نستفسر على ساعات وإكسسوارات Noblewatch بالمغرب'
+                ? 'Bonjour, je souhaite obtenir des informations sur les montres et accessoires Luxwatch au Maroc.'
+                : 'السلام عليكم، بغيت نستفسر على ساعات وإكسسوارات Luxwatch بالمغرب'
             )}
             target="_blank"
             rel="noopener noreferrer"

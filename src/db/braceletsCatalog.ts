@@ -75,7 +75,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
     images: ['/assets/bracelets/bracelet_01.jpg'],
     videos: [],
     specs: {
-      brand: 'Noblewatch',
+      brand: 'Luxwatch',
       model: 'Cuir Tressé Noir Magnétique',
       movement: 'قفل مغناطيسي فولاذي',
       caseMaterial: 'فولاذ مقاوم للصدأ 316L مطلي أسود',
@@ -88,7 +88,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
       waterResistance: 'مقاوم للاستعمال اليومي',
       warranty: 'ضمان رسمي لمدة سنة كاملة',
     },
-    boxContents: ['سوار Noblewatch الفاخر', 'علبة هدايا أنيقة', 'بطاقة الضمان الرسمية لمدة سنة كاملة'],
+    boxContents: ['سوار Luxwatch الفاخر', 'علبة هدايا أنيقة', 'بطاقة الضمان الرسمية لمدة سنة كاملة'],
     description:
       'سوار رجالي عصري مصنوع يدوياً من الجلد الطبيعي المضفر باللون الأسود الكلاسيكي مع مشبك مغناطيسي محكم من الفولاذ المقاوم للصدأ.\nتصميم مريح وخفيف الوزن يناسب الإطلالات اليومية والرسمية ويمكن ارتداؤه بمفرده أو بجانب ساعتك المفضلة.',
     features: [
@@ -122,7 +122,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
     images: ['/assets/bracelets/bracelet_02.jpg'],
     videos: [],
     specs: {
-      brand: 'Noblewatch',
+      brand: 'Luxwatch',
       model: 'Cuban Link 316L Silver',
       movement: 'تصميم حلقات كوبية متصلة',
       caseMaterial: 'فولاذ مقاوم للصدأ 316L مصقول',
@@ -135,7 +135,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
       waterResistance: 'مقاوم للماء ولا يصدأ',
       warranty: 'ضمان رسمي لمدة سنة كاملة',
     },
-    boxContents: ['سوار Noblewatch الكوبي', 'علبة هدايا أنيقة', 'بطاقة الضمان الرسمية لمدة سنة كاملة'],
+    boxContents: ['سوار Luxwatch الكوبي', 'علبة هدايا أنيقة', 'بطاقة الضمان الرسمية لمدة سنة كاملة'],
     description:
       'سوار سلسلة كوبية رجالي بتشطيب فضي مرآتي فائق اللمعان مصنوع من الفولاذ المقاوم للصدأ 316L المقاوم للأكسدة والتغير اللوني.\nيضفي لمسة فخامة وقوة على معصمك طوال اليوم.',
     features: [
@@ -169,7 +169,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
     images: ['/assets/bracelets/bracelet_03.jpg'],
     videos: [],
     specs: {
-      brand: 'Noblewatch',
+      brand: 'Luxwatch',
       model: 'Lava & Tiger Eye 8mm',
       movement: 'خيط مطاطي مزدوج عالي المتانة',
       caseMaterial: 'أحجار طبيعية أصلية 8 ملم',
@@ -216,7 +216,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
     images: ['/assets/bracelets/bracelet_04.jpg'],
     videos: [],
     specs: {
-      brand: 'Noblewatch',
+      brand: 'Luxwatch',
       model: 'Pack Vintage 4 Pièces',
       movement: 'طقم 4 قطع متعددة التنسيق',
       caseMaterial: 'خشب طبيعي ومعدن برونزي عتيق',
@@ -263,7 +263,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
     images: ['/assets/bracelets/bracelet_05.jpg'],
     videos: [],
     specs: {
-      brand: 'Noblewatch',
+      brand: 'Luxwatch',
       model: 'Minimalist Cuff Or Brossé',
       movement: 'هيكل مفتوح مرن التضييق',
       caseMaterial: 'فولاذ مقاوم للصدأ 316L مطلي ذهب 18 قيراط',
@@ -276,7 +276,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
       waterResistance: 'طلاء ثابت مقاوم للأكسدة',
       warranty: 'ضمان رسمي لمدة سنة كاملة',
     },
-    boxContents: ['سوار Noblewatch المعدني المفتوح', 'علبة هدايا أنيقة', 'بطاقة الضمان الرسمية لمدة سنة كاملة'],
+    boxContents: ['سوار Luxwatch المعدني المفتوح', 'علبة هدايا أنيقة', 'بطاقة الضمان الرسمية لمدة سنة كاملة'],
     description:
       'سوار جُونك (Cuff) رجالي بتصميم مينيماليست فخم مطلي بالذهب المطفي المقاوم للخدش والأكسدة.\nمثالي للارتداء بجانب الساعة الرجالية أو بمفرده لإبراز أناقتك في العمل والمناسبات.',
     features: [
@@ -310,7 +310,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
     images: ['/assets/bracelets/bracelet_06.jpg'],
     videos: [],
     specs: {
-      brand: 'Noblewatch',
+      brand: 'Luxwatch',
       model: 'Nautical Anchor Bleu Nuit',
       movement: 'قفل مرساة بحرية قابل للتعديل',
       caseMaterial: 'مرساة فولاذ مقاوم للصدأ فضي لامع',
@@ -357,7 +357,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
     images: ['/assets/bracelets/bracelet_07.jpg'],
     videos: [],
     specs: {
-      brand: 'Noblewatch',
+      brand: 'Luxwatch',
       model: 'Gourmette Black Steel',
       movement: 'طلاء PVD عالي التحمل',
       caseMaterial: 'فولاذ 316L أسود مطلي بتقنية PVD',
@@ -404,7 +404,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
     images: ['/assets/bracelets/bracelet_08.jpg'],
     videos: [],
     specs: {
-      brand: 'Noblewatch',
+      brand: 'Luxwatch',
       model: 'Onyx Matte Royal Crown',
       movement: 'تاج ملكي منحوت بدقة',
       caseMaterial: 'تاج معدني مطلي ذهب عالي الجودة',
@@ -451,7 +451,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
     images: ['/assets/bracelets/bracelet_09.jpg'],
     videos: [],
     specs: {
-      brand: 'Noblewatch',
+      brand: 'Luxwatch',
       model: 'Double Tour Cognac Bronze',
       movement: 'تصميم مزدوج اللف',
       caseMaterial: 'مشبك برونزي عتيق متين',
@@ -498,7 +498,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
     images: ['/assets/bracelets/bracelet_10.jpg'],
     videos: [],
     specs: {
-      brand: 'Noblewatch',
+      brand: 'Luxwatch',
       model: 'Prestige Link Bicolore',
       movement: 'حلقات فولاذية صلبة',
       caseMaterial: 'فولاذ مقاوم للصدأ 316L ثنائي اللون',
@@ -545,7 +545,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
     images: ['/assets/bracelets/bracelet_11.jpg'],
     videos: [],
     specs: {
-      brand: 'Noblewatch',
+      brand: 'Luxwatch',
       model: 'Hématite Facettée Argent',
       movement: 'قطع هندسي متعدد الأوجه',
       caseMaterial: 'مكعب وفواصل فولاذية فضية',
@@ -592,7 +592,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
     images: ['/assets/bracelets/bracelet_12.jpg'],
     videos: [],
     specs: {
-      brand: 'Noblewatch',
+      brand: 'Luxwatch',
       model: 'Multi-Rangs Ébène Noir',
       movement: '5 طبقات مترابطة في قفل واحد',
       caseMaterial: 'مشبك مغناطيسي فولاذ 316L فضي',
@@ -639,7 +639,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
     images: ['/assets/bracelets/bracelet_13.jpg'],
     videos: [],
     specs: {
-      brand: 'Noblewatch',
+      brand: 'Luxwatch',
       model: 'Câble Torsadé Rose Gold',
       movement: 'كابل فولاذي مرن',
       caseMaterial: 'فولاذ 316L بطلاء أسود وروز غولد',
@@ -686,7 +686,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
     images: ['/assets/bracelets/bracelet_14.jpg'],
     videos: [],
     specs: {
-      brand: 'Noblewatch',
+      brand: 'Luxwatch',
       model: 'Lapis Lazuli & Jaspe Impérial',
       movement: 'أحجار طبيعية متناغمة',
       caseMaterial: 'حلقات فضية منقوشة عالية الجودة',
@@ -733,7 +733,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
     images: ['/assets/bracelets/bracelet_15.jpg'],
     videos: [],
     specs: {
-      brand: 'Noblewatch',
+      brand: 'Luxwatch',
       model: 'Set 3 Pièces Bohème',
       movement: '3 قطع كاجوال قابلة للتعديل',
       caseMaterial: 'مشابك معدنية داكنة متينة',
@@ -780,7 +780,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
     images: ['/assets/bracelets/bracelet_16.jpg'],
     videos: [],
     specs: {
-      brand: 'Noblewatch',
+      brand: 'Luxwatch',
       model: 'Chaîne Figaro 9mm',
       movement: 'نمط فيغارو الإيطالي',
       caseMaterial: 'فولاذ مقاوم للصدأ 316L لامع',
@@ -827,7 +827,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
     images: ['/assets/bracelets/bracelet_17.jpg'],
     videos: [],
     specs: {
-      brand: 'Noblewatch',
+      brand: 'Luxwatch',
       model: 'Cuir Lisse Boucle Acier',
       movement: 'ضبط مقاس متعدد الثقوب',
       caseMaterial: 'إبزيم فولاذ فضي مصقول',
@@ -874,7 +874,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
     images: ['/assets/bracelets/bracelet_18.jpg'],
     videos: [],
     specs: {
-      brand: 'Noblewatch',
+      brand: 'Luxwatch',
       model: 'Obsidienne & Lion Argenté',
       movement: 'تفصيل رأس أسد منحوت',
       caseMaterial: 'رأس أسد منحوت من الفولاذ العتيق',
@@ -921,7 +921,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
     images: ['/assets/bracelets/bracelet_19.jpg'],
     videos: [],
     specs: {
-      brand: 'Noblewatch',
+      brand: 'Luxwatch',
       model: 'Jonc Torsadé Carbone Noir',
       movement: 'هيكل ملتوي ثلاثي الأبعاد',
       caseMaterial: 'فولاذ تيتانيوم أسود مطفي',
@@ -968,7 +968,7 @@ export const MEN_BRACELETS_CATALOG: BraceletSeedProduct[] = [
     images: ['/assets/bracelets/bracelet_20.jpg'],
     videos: [],
     specs: {
-      brand: 'Noblewatch',
+      brand: 'Luxwatch',
       model: 'Coffret Duo Prestige',
       movement: 'طقم ثنائي داخل علبة مخملية',
       caseMaterial: 'جلد طبيعي، أونيكس، وفولاذ 316L',

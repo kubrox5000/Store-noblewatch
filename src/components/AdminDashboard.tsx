@@ -130,7 +130,7 @@ export const AdminDashboard: React.FC = () => {
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(products, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `noblewatch_products_${new Date().toISOString().slice(0, 10)}.json`);
+    downloadAnchor.setAttribute('download', `luxwatch_products_${new Date().toISOString().slice(0, 10)}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -871,10 +871,13 @@ export const AdminDashboard: React.FC = () => {
   const statsOnlyCancelledCount = statsFilteredOrders.filter((o) => o.status === 'ملغى').length;
   const statsOnlyReturnedCount = statsFilteredOrders.filter((o) => o.status === 'مرتجع').length;
 
-  // Real delivered revenue in MAD (date-filtered)
+  // Real delivered revenue & net profit in MAD (date-filtered, deducting 40 MAD shipping per delivered order)
+  const DELIVERED_SHIPPING_FEE_MAD = 40;
   const statsDeliveredRevenue = statsFilteredOrders
     .filter((o) => o.status === 'تم التسليم')
     .reduce((sum, o) => sum + o.totalAmount, 0);
+  const statsDeliveredShippingCost = statsDeliveredOrdersCount * DELIVERED_SHIPPING_FEE_MAD;
+  const statsDeliveredNetProfit = Math.round(statsDeliveredRevenue - statsDeliveredShippingCost);
 
   // Low stock products
   const lowStockProducts = products.filter((p) => p.stock <= 5);
@@ -905,7 +908,7 @@ export const AdminDashboard: React.FC = () => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `noblewatch_orders_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `luxwatch_orders_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -933,7 +936,7 @@ export const AdminDashboard: React.FC = () => {
 
   // WhatsApp Customer Confirmation Actions
   const handleSendCustomerWhatsApp = (order: Order, customMessage?: string) => {
-    const storeName = settings?.storeName || 'Noblewatch';
+    const storeName = settings?.storeName || 'Luxwatch';
     let url: string;
     if (customMessage && customMessage.trim()) {
       url = buildWhatsAppUrl(order.phone, customMessage);
@@ -946,7 +949,7 @@ export const AdminDashboard: React.FC = () => {
   };
 
   const handleCopyCustomerWhatsAppText = (order: Order, customMessage?: string) => {
-    const storeName = settings?.storeName || 'Noblewatch';
+    const storeName = settings?.storeName || 'Luxwatch';
     const text = customMessage && customMessage.trim() ? customMessage : generateCustomerConfirmationMessage(order, storeName);
     navigator.clipboard.writeText(text);
     showToast('تم نسخ نص رسالة تأكيد الطلب للزبون بنجاح!', 'info');
@@ -954,7 +957,7 @@ export const AdminDashboard: React.FC = () => {
 
   // WhatsApp Shipped (24h Delivery) Notification Actions
   const handleSendShippedWhatsApp = (order: Order) => {
-    const storeName = settings?.storeName || 'Noblewatch';
+    const storeName = settings?.storeName || 'Luxwatch';
     const url = getWhatsAppCustomerShippedUrl(order, storeName);
     window.open(url, '_blank', 'noopener,noreferrer');
     setSentShippedNoticeIds((prev) => ({ ...prev, [order.id]: true }));
@@ -962,7 +965,7 @@ export const AdminDashboard: React.FC = () => {
   };
 
   const handleCopyShippedWhatsAppText = (order: Order) => {
-    const storeName = settings?.storeName || 'Noblewatch';
+    const storeName = settings?.storeName || 'Luxwatch';
     const text = generateCustomerShippedMessage(order, storeName);
     navigator.clipboard.writeText(text);
     showToast(`تم نسخ رسالة إشعار الشحن (24 ساعة) للطلب ${order.orderNumber}`, 'info');
@@ -1040,7 +1043,7 @@ export const AdminDashboard: React.FC = () => {
       images: [],
       videos: [],
       specs: {
-        brand: 'Noblewatch',
+        brand: 'Luxwatch',
         model: '',
         movement: '',
         caseMaterial: '',
@@ -1425,13 +1428,13 @@ export const AdminDashboard: React.FC = () => {
               <div className="w-10 h-10 rounded-full p-0.5 bg-gradient-to-br from-[#dfb76c] via-[#c5a869] to-[#9d7e35] shadow-md flex-shrink-0">
                 <img
                   src="/favicon.svg"
-                  alt="Noblewatch Logo"
+                  alt="Luxwatch Logo"
                   className="w-full h-full rounded-full object-contain"
                 />
               </div>
               <div>
                 <h2 className="text-lg font-black text-white flex items-center gap-2">
-                  <span className="gold-gradient-text font-serif italic text-xl">Noblewatch</span>
+                  <span className="gold-gradient-text font-serif italic text-xl">Luxwatch</span>
                   <span>لوحة التحكم الإدارية</span>
                 </h2>
                 <span className="text-[11px] text-[#c5a869]">إدارة المخزون، الطلبات، والزبائن</span>
@@ -1775,13 +1778,13 @@ export const AdminDashboard: React.FC = () => {
                   );
                 })()}
 
-                {/* 6 Isolated Main KPI Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                {/* Main KPI Cards (including Delivered Orders & Net Profit) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {/* 1. الطلبات المسجلة في النظام */}
                   <button
                     type="button"
                     onClick={() => setActiveTab('orders')}
-                    className="group text-right p-5 rounded-2xl bg-gradient-to-b from-[#c5a869]/10 to-[#151822] border border-[#c5a869]/25 hover:border-[#c5a869]/60 transition shadow-lg space-y-3 cursor-pointer"
+                    className="sm:col-span-2 lg:col-span-1 group text-right p-5 rounded-2xl bg-gradient-to-b from-[#c5a869]/10 to-[#151822] border border-[#c5a869]/25 hover:border-[#c5a869]/60 transition shadow-lg space-y-3 cursor-pointer"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-gray-300 group-hover:text-white transition">
@@ -1865,7 +1868,7 @@ export const AdminDashboard: React.FC = () => {
                     </span>
                   </button>
 
-                  {/* 4. الطلبات المسلمة */}
+                  {/* 5. الطلبات المسلمة */}
                   <button
                     type="button"
                     onClick={() => {
@@ -1890,11 +1893,45 @@ export const AdminDashboard: React.FC = () => {
                     </span>
                   </button>
 
-                  {/* 5. الطلبات الملغاة أو المرتجعة */}
+                  {/* 6. الربح الصافي (بجانب الطلبات المسلمة: إجمالي المحصل - 40 درهم توصيل عن كل طلب مسلم) */}
+                  <div className="sm:col-span-2 lg:col-span-2 text-right p-5 rounded-2xl bg-gradient-to-br from-[#c5a869]/15 via-emerald-500/10 to-[#151822] border border-[#c5a869]/40 shadow-lg flex flex-col justify-between gap-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <span className="text-xs font-black text-[#f3d999] block">
+                          الربح الصافي (بعد مصاريف التوصيل)
+                        </span>
+                        <span className="text-[10px] text-gray-400">
+                          حساب الطلبات المسلمة مع خصم {DELIVERED_SHIPPING_FEE_MAD} د.م. توصيل لكل طلبية
+                        </span>
+                      </div>
+                      <div className="w-9 h-9 rounded-xl bg-[#c5a869]/20 text-[#f3d999] border border-[#c5a869]/40 flex items-center justify-center flex-shrink-0">
+                        <TrendingUp className="w-4 h-4" />
+                      </div>
+                    </div>
+
+                    <div
+                      className={`text-2xl sm:text-3xl font-black tracking-tight ${
+                        statsDeliveredNetProfit >= 0 ? 'text-emerald-300' : 'text-rose-400'
+                      }`}
+                    >
+                      {formatPrice(statsDeliveredNetProfit)}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/10 text-[11px]">
+                      <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 font-bold">
+                        المحصل ({statsDeliveredOrdersCount} طلب): {formatPrice(statsDeliveredRevenue)}
+                      </span>
+                      <span className="px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/25 text-rose-300 font-bold">
+                        التوصيل ({statsDeliveredOrdersCount} × {DELIVERED_SHIPPING_FEE_MAD} د.م.): − {formatPrice(statsDeliveredShippingCost)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 7. الطلبات الملغاة أو المرتجعة */}
                   <button
                     type="button"
                     onClick={() => setActiveTab('cancelled_orders')}
-                    className="group text-right p-5 rounded-2xl bg-gradient-to-b from-rose-500/10 to-[#151822] border border-rose-500/25 hover:border-rose-400/60 transition shadow-lg space-y-3 cursor-pointer"
+                    className="sm:col-span-2 lg:col-span-1 group text-right p-5 rounded-2xl bg-gradient-to-b from-rose-500/10 to-[#151822] border border-rose-500/25 hover:border-rose-400/60 transition shadow-lg space-y-3 cursor-pointer"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-gray-300 group-hover:text-white transition">
@@ -4866,7 +4903,7 @@ export const AdminDashboard: React.FC = () => {
                         onChange={(e) =>
                           setLocalSettings({ ...localSettings, contactEmail: e.target.value })
                         }
-                        placeholder="contact@noblewatch.ma"
+                        placeholder="contact@luxwatch.ma"
                         className="w-full bg-[#1b1f2b] border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-[#c5a869] font-mono text-left"
                         dir="ltr"
                       />
@@ -4906,7 +4943,7 @@ export const AdminDashboard: React.FC = () => {
                           <a
                             href={buildWhatsAppUrl(
                               localSettings.whatsappNumber,
-                              'تجربة رابط واتساب خدمة العملاء - Noblewatch'
+                              'تجربة رابط واتساب خدمة العملاء - Luxwatch'
                             )}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -5012,7 +5049,7 @@ export const AdminDashboard: React.FC = () => {
                             },
                           })
                         }
-                        placeholder="https://instagram.com/noblewatch.ma"
+                        placeholder="https://instagram.com/luxwatch.ma"
                         className="w-full bg-[#151822] border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-pink-500 text-left font-mono"
                         dir="ltr"
                       />
@@ -5050,7 +5087,7 @@ export const AdminDashboard: React.FC = () => {
                             },
                           })
                         }
-                        placeholder="https://facebook.com/noblewatch.ma"
+                        placeholder="https://facebook.com/luxwatch.ma"
                         className="w-full bg-[#151822] border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-blue-500 text-left font-mono"
                         dir="ltr"
                       />
@@ -5090,7 +5127,7 @@ export const AdminDashboard: React.FC = () => {
                             },
                           })
                         }
-                        placeholder="https://tiktok.com/@noblewatch.ma"
+                        placeholder="https://tiktok.com/@luxwatch.ma"
                         className="w-full bg-[#151822] border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-cyan-500 text-left font-mono"
                         dir="ltr"
                       />
@@ -5128,7 +5165,7 @@ export const AdminDashboard: React.FC = () => {
                             },
                           })
                         }
-                        placeholder="https://youtube.com/@noblewatch"
+                        placeholder="https://youtube.com/@luxwatch"
                         className="w-full bg-[#151822] border border-white/10 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-red-500 text-left font-mono"
                         dir="ltr"
                       />

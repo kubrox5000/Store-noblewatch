@@ -144,7 +144,7 @@ export const TrustGuarantees: React.FC = () => {
 
               <p className="text-xs text-gray-600 leading-relaxed">
                 {isFr
-                  ? 'Chaque commande passée sur Noblewatch est accompagnée d’un cadeau gratuit soigneusement sélectionné.'
+                  ? 'Chaque commande passée sur Luxwatch est accompagnée d’un cadeau gratuit soigneusement sélectionné.'
                   : 'مع كل طلبية لشراء أي منتج من المتجر نُرفق لكم هدية مجانية مميزة تصلكم مع الطلب.'}
               </p>
             </div>

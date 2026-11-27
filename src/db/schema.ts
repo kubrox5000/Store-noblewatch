@@ -35,7 +35,7 @@ export const users = pgTable('users', {
 // 2. Store settings (singleton row id = 1)
 export const storeSettings = pgTable('store_settings', {
   id: integer('id').primaryKey(),
-  storeName: text('store_name').notNull().default('Noblewatch'),
+  storeName: text('store_name').notNull().default('Luxwatch'),
   tagline: text('tagline').notNull().default(''),
   announcementText: text('announcement_text').notNull().default(''),
   currency: text('currency').notNull().default('د.م.'),

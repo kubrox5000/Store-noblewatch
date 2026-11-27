@@ -165,7 +165,9 @@ export const HeroSection: React.FC = () => {
               <div className="relative rounded-2xl overflow-hidden border border-gray-200 shadow-xl sm:shadow-2xl bg-white">
                 <img
                   src={getOptimizedImageUrl(settings?.heroImage || '/assets/watches_and_accessories_hero.jpg', 1000)}
-                  alt={isFr ? 'Collection de montres et accessoires Noblewatch' : 'تشكيلة ساعات وإكسسوارات Noblewatch الفاخرة'}
+                  alt={isFr ? 'Collection de montres et accessoires Luxwatch' : 'تشكيلة ساعات وإكسسوارات Luxwatch الفاخرة'}
+                  width={1000}
+                  height={700}
                   fetchPriority="high"
                   decoding="async"
                   onError={(e) => {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useTransition } from 'react';
 import { Watch, Sparkles, Shield, Heart } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -6,6 +6,7 @@ import { useLanguage } from '../context/LanguageContext';
 export const CategoriesSection: React.FC = () => {
   const { selectedCategory, setSelectedCategory, products } = useStore();
   const { isFr } = useLanguage();
+  const [, startTransition] = useTransition();
 
   const categoryItems = [
     {
@@ -41,7 +42,9 @@ export const CategoriesSection: React.FC = () => {
   ];
 
   const handleSelect = (catId: string) => {
-    setSelectedCategory(catId);
+    startTransition(() => {
+      setSelectedCategory(catId);
+    });
     const el = document.getElementById('products-section');
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
